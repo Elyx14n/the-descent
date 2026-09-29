@@ -40,3 +40,6 @@ Naming/MethodParameterName:
 
 Metrics/AbcSize:
   Enabled: false
+
+Metrics/ParameterLists:
+  Enabled: false

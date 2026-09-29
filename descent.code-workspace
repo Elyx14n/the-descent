@@ -7,5 +7,8 @@
   "settings": {
     "rubyLsp.formatter": "rubocop",
     "rubyLsp.linters": ["rubocop"],
+    "rubyLsp.indexing": {
+      "includedPatterns": [".dragonruby-lsp/docs/oss/**/*.rb"]
+    }
   },
 }
