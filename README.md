@@ -4,6 +4,15 @@ The Descent is a small, top-down horror game being built with DragonRuby Game To
 
 The current game is a movement and collision playground. Planning documents describe the intended MVP; they do not imply that all planned features are implemented.
 
+## Prerequisites
+
+Before setting up the repository, ensure you have the following installed:
+
+* **DragonRuby Game Toolkit SDK:** Download the latest platform build for your OS (macOS, Linux, or Windows).
+* **Ruby (v3.0+ recommended):** Needed for repository development checks (`rubocop`, `bundle`). Managed via system Ruby or a version manager like **RVM**, **rbenv**, or **asdf**.
+* **Bundler (`gem install bundler`):** Required to manage development gems.
+* **VS Code + Ruby LSP Extension (Optional):** Recommended editor setup for code completion and indexing against the DragonRuby SDK.
+
 ## First-time setup and running the game
 
 Install the complete DragonRuby SDK for your operating system **outside this repository**. Use the macOS distribution on macOS, the Windows distribution in native Windows, and the appropriate Linux distribution in Linux or WSL. Collaborators should use the same DragonRuby release.
@@ -83,6 +92,16 @@ bundle exec rubocop
 ```
 
 DragonRuby's native tests and manual playtesting remain separate checks; use them when a change affects deterministic rules or player-visible behavior.
+
+### DragonRuby editor completion
+
+Open `descent.code-workspace` in VS Code with the Ruby LSP extension installed. The game launchers automatically create a Git-ignored `.dragonruby-lsp` link to the SDK root in `DRAGONRUBY_HOME`. macOS/Linux/WSL use a symlink; native Windows uses a directory junction. SDK files stay outside the repository, and each contributor's environment variable supplies their own installation path.
+
+Ruby LSP indexes only `.dragonruby-lsp/docs/oss/**/*.rb`. API documentation is also available at `.dragonruby-lsp/docs/api/`, preserving the SDK's directory layout. Ruby LSP does not execute documentation helpers such as `DocsOrganizer.get_docsify_content`, so it will not automatically display the referenced Markdown as method documentation.
+
+After the first launch, run **Ruby LSP: Restart** from the command palette to index the SDK definitions. If you change `DRAGONRUBY_HOME`, run the launcher again and restart Ruby LSP. The launchers refresh existing links, leave ordinary files and directories untouched, and warn if editor setup fails while continuing to launch the game.
+
+Completion covers the Ruby definitions shipped in the SDK; Ruby LSP may still be unable to infer dynamic fields such as `args.state.some_custom_field`.
 
 ## Package a distributable build
 
