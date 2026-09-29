@@ -16,3 +16,6 @@ builds/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local link to DragonRuby library for IntelliSense
+/.dragonruby-lsp

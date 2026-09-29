@@ -84,6 +84,16 @@ bundle exec rubocop
 
 DragonRuby's native tests and manual playtesting remain separate checks; use them when a change affects deterministic rules or player-visible behavior.
 
+### DragonRuby editor completion
+
+Open `descent.code-workspace` in VS Code with the Ruby LSP extension installed. The game launchers automatically create a Git-ignored `.dragonruby-lsp` link to the SDK root in `DRAGONRUBY_HOME`. macOS/Linux/WSL use a symlink; native Windows uses a directory junction. SDK files stay outside the repository, and each contributor's environment variable supplies their own installation path.
+
+Ruby LSP indexes only `.dragonruby-lsp/docs/oss/**/*.rb`. API documentation is also available at `.dragonruby-lsp/docs/api/`, preserving the SDK's directory layout. Ruby LSP does not execute documentation helpers such as `DocsOrganizer.get_docsify_content`, so it will not automatically display the referenced Markdown as method documentation.
+
+After the first launch, run **Ruby LSP: Restart** from the command palette to index the SDK definitions. If you change `DRAGONRUBY_HOME`, run the launcher again and restart Ruby LSP. The launchers refresh existing links, leave ordinary files and directories untouched, and warn if editor setup fails while continuing to launch the game.
+
+Completion covers the Ruby definitions shipped in the SDK; Ruby LSP may still be unable to infer dynamic fields such as `args.state.some_custom_field`.
+
 ## Package a distributable build
 
 Before packaging, fill in the release fields near the top of `mygame/metadata/game_metadata.txt`, including `devid`, `devtitle`, `gameid`, `gametitle`, and `version`. From the repository root, run with your external SDK (macOS/Linux/WSL):
