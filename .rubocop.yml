@@ -1,0 +1,42 @@
+AllCops:
+  NewCops: enable
+  Include:
+    - "Gemfile"
+    - "mygame/app/**/*.rb"
+    - "mygame/tests/**/*.rb"
+  Exclude:
+    - "docs/**/*"
+    - "samples/**/*"
+    - ".dragonruby/**/*"
+    - "tmp/**/*"
+    - "logs/**/*"
+    - "build/**/*"
+    - "builds/**/*"
+    - "mygame/app/repl.rb"
+
+Layout/LineLength:
+  Max: 120
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/CollectionLiteralLength:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false

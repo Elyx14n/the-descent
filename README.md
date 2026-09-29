@@ -1,0 +1,149 @@
+# The Descent
+
+The Descent is a small, top-down horror game being built with DragonRuby Game Toolkit. The player explores a monastery, deciphers a ritual lock, and evades the Witness: an enemy that uses evidence left in the world to anticipate where the player will go.
+
+The current game is a movement and collision playground. Planning documents describe the intended MVP; they do not imply that all planned features are implemented.
+
+## First-time setup and running the game
+
+Install the complete DragonRuby SDK for your operating system **outside this repository**. Use the macOS distribution on macOS, the Windows distribution in native Windows, and the appropriate Linux distribution in Linux or WSL. Collaborators should use the same DragonRuby release.
+
+Set `DRAGONRUBY_HOME` to the extracted SDK folder containing `dragonruby` or `dragonruby.exe`. The SDK can live anywhere outside this repository; the paths below are examples. Replace them with your own installation path.
+
+**macOS (Zsh):**
+
+Persist the setting once, then load it into your current terminal:
+
+```sh
+echo 'export DRAGONRUBY_HOME="$HOME/tools/dragonruby-macos"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Then, from the repository root, run the game:
+
+```sh
+bash scripts/run.sh
+```
+
+**Linux or WSL (Bash):**
+
+Persist the setting once, then load it into your current terminal:
+
+```sh
+echo 'export DRAGONRUBY_HOME="$HOME/tools/dragonruby-linux-amd64"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Use the Linux SDK matching your CPU architecture, including when working inside WSL. If you use Zsh on Linux, use `~/.zshrc` instead of `~/.bashrc`.
+
+Then, from the repository root, run the game:
+
+```sh
+bash scripts/run.sh
+```
+
+**Native Windows (PowerShell):**
+
+Persist the setting once for your Windows user:
+
+```powershell
+[Environment]::SetEnvironmentVariable('DRAGONRUBY_HOME', 'C:\tools\dragonruby-windows', 'User')
+```
+
+Close and reopen your terminal application so it picks up the setting. If using an integrated terminal, restart the editor too. Then, from the repository root, run the game:
+
+```powershell
+.\scripts\run.ps1
+```
+
+Both launchers locate `mygame/` relative to the script, run from the SDK directory, and forward additional arguments to DragonRuby. Paths containing spaces are supported. For example:
+
+```sh
+bash scripts/run.sh --test tests/player_collision_test.rb
+```
+
+Test filenames are relative to `mygame/`, so use `tests/...` rather than `mygame/tests/...`. In PowerShell, use `.\scripts\run.ps1 --test tests/player_collision_test.rb`.
+
+The scripts read the environment variable directly; they do not load `.env` files. SDK credentials belong outside the repository. Sprite paths remain relative to `mygame/`, such as `sprites/descent/enemy_spritesheet.png`.
+
+The game source starts at `mygame/app/main.rb`. DragonRuby runs this Ruby source directly and hot-reloads saved changes, so there is no compile step during normal development.
+
+## Development checks
+
+Install the development gems from the repository root:
+
+```sh
+bundle install
+```
+
+Lint the project-owned Ruby files before handing off a change:
+
+```sh
+bundle exec rubocop
+```
+
+DragonRuby's native tests and manual playtesting remain separate checks; use them when a change affects deterministic rules or player-visible behavior.
+
+## Package a distributable build
+
+Before packaging, fill in the release fields near the top of `mygame/metadata/game_metadata.txt`, including `devid`, `devtitle`, `gameid`, `gametitle`, and `version`. From the repository root, run with your external SDK (macOS/Linux/WSL):
+
+```sh
+game_dir="$PWD/mygame"
+(cd "$DRAGONRUBY_HOME" && ./dragonruby-publish --package "$game_dir")
+```
+
+On native Windows, run `dragonruby-publish.exe --package` from the SDK directory with the absolute path to this repository's `mygame` directory.
+
+DragonRuby will create packaged platform builds in a generated build directory. See `docs/guides/deploying-to-itch.md` inside your SDK installation for deployment instructions.
+
+## Upload game assets here
+
+Stakeholders contributing assets should upload them to:
+
+- `mygame/sprites/descent/` for sprites
+- `mygame/sounds/` for sounds
+
+Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
+
+## Repository guide
+
+Project-owned files:
+
+```text
+mygame/
+  app/                  Game Ruby code; main.rb is the entry point
+  data/                 Authored game data
+  fonts/                Game-specific fonts
+  metadata/             DragonRuby game and platform configuration
+  sounds/               Music and sound effects
+  sprites/
+    descent/            The Descent sprite upload destination
+
+scripts/                Cross-platform game launchers
+
+PRODUCT.md              Player experience, core loop, and MVP scope
+CONTEXT.md              Current decisions, working models, and open questions
+AGENTS.md               Repository conventions for coding agents
+.agents/skills/         Project-specific design and development workflows
+```
+
+DragonRuby executables, `.dragonruby/`, engine docs, samples, and bundled resources live in the external SDK directory selected by `DRAGONRUBY_HOME`. Do not copy the SDK into this repository.
+
+## Project direction
+
+Read [PRODUCT.md](PRODUCT.md) for the intended player experience and first playable scope. Read [CONTEXT.md](CONTEXT.md) for current decisions and unresolved prototype questions. The current MVP is a lean, single-player vertical slice; avoid assuming that future ideas such as co-op, procedural maps, or a larger narrative are approved.
+
+## Shared agent workflows
+
+Project skills live in `.agents/skills/`, including the `grilling` and `domain-modeling` dependencies of `grill-with-docs`. These are project-maintained copies; see [.agents/skills/THIRD-PARTY.md](.agents/skills/THIRD-PARTY.md) for their source, adaptations, and license. The Claude entry under `.claude/skills/grill-with-docs/` forwards to the shared instructions using a regular file, so it does not require symlink support.
+
+Choose your Ruby version manager in personal editor settings; the shared workspace configures only formatting and linting.
+
+## DragonRuby help
+
+Documentation is available under `$DRAGONRUBY_HOME/docs/` and online at [docs.dragonruby.org](https://docs.dragonruby.org).
+
+The SDK includes examples under its `samples/` directory.
+
+DragonRuby community Discord: [discord.dragonruby.org](https://discord.dragonruby.org).

@@ -1,0 +1,18 @@
+# Local credentials and configuration
+.env
+.env.*
+!.env.example
+.secrets/
+.aws/
+.bundle/
+
+# Generated files at any depth
+tmp/
+logs/
+errors/
+build/
+builds/
+
+# OS files
+.DS_Store
+Thumbs.db
