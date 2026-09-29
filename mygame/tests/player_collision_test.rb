@@ -48,7 +48,7 @@ def test_wall_order_does_not_change_nearest_stop(_args, assert)
   end
 end
 
-def test_player_stops_in_corner(_args, assert) # rubocop:disable Metrics/AbcSize
+def test_player_stops_in_corner(_args, assert)
   walls = [{ x: 26, y: -100, w: 20, h: 200 }, { x: -100, y: 18, w: 200, h: 20 }]
   [walls, walls.reverse].each do |ordered|
     player = collision_player
