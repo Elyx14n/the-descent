@@ -17,18 +17,28 @@ module Descent
       collider_width: 8,
       collider_height: 2,
       animations: {
-        death: 'sprites/player_death.png',
-        idle_lamp_on: 'sprites/player_idle_lamp_on.png',
-        idle_lamp_off: 'sprites/player_idle_lamp_off.png',
-        walk_lamp_on: 'sprites/player_walk_lamp_on.png',
-        walk_lamp_off: 'sprites/player_walk_lamp_off.png'
+        death: { loop: false, path: 'sprites/player_death.png' }.freeze,
+        idle: {
+          loop: true,
+          variants: {
+            lamp_on: 'sprites/player_idle_lamp_on.png',
+            lamp_off: 'sprites/player_idle_lamp_off.png'
+          }.freeze
+        }.freeze,
+        walk: {
+          loop: true,
+          variants: {
+            lamp_on: 'sprites/player_walk_lamp_on.png',
+            lamp_off: 'sprites/player_walk_lamp_off.png'
+          }.freeze
+        }.freeze
       }.freeze
     }.freeze
 
     attr_accessor :sanity, :lamp_on
 
-    def initialize(pos_x = 0, pos_y = 0, sanity = 100)
-      super(pos_x, pos_y)
+    def initialize(x = 0, y = 0, sanity = 100)
+      super(x, y)
       @sanity = sanity
       @lamp_on = true
     end
@@ -37,24 +47,14 @@ module Descent
       CONFIG
     end
 
-    def animation_state
+    def animation
       return :death if @sanity <= 0
 
       @moving ? :walk : :idle
     end
 
-    def animation_loop?
-      animation_state != :death
-    end
-
-    def animation
-      return :death if animation_state == :death
-
-      if animation_state == :walk
-        @lamp_on ? :walk_lamp_on : :walk_lamp_off
-      else
-        @lamp_on ? :idle_lamp_on : :idle_lamp_off
-      end
+    def animation_variant
+      @lamp_on ? :lamp_on : :lamp_off
     end
 
     def toggle_lamp
@@ -63,7 +63,7 @@ module Descent
 
     def update(input, walls: [])
       if @sanity <= 0
-        update_animation(0, 0)
+        @moving = false
         return
       end
 
@@ -87,8 +87,8 @@ module Descent
     end
 
     class << self
-      def spawn(pos_x:, pos_y:)
-        new(pos_x, pos_y, 100)
+      def spawn(x:, y:)
+        new(x, y, 100)
       end
     end
   end

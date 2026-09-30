@@ -4,7 +4,7 @@ require 'app/player'
 require 'app/collision_playground'
 
 def collision_player(left = 0, bottom = 0)
-  player = Descent::Player.spawn(pos_x: 0, pos_y: bottom)
+  player = Descent::Player.spawn(x: 0, y: bottom)
   player.x = left - player.collider[:x]
   player
 end

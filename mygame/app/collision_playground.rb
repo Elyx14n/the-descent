@@ -33,10 +33,11 @@ module Descent
     def self.tick(args)
       args.state.playground ||= { show_bounds: true, walls: WALLS.map(&:dup) }
       keyboard = args.inputs.keyboard
-      args.state.player ||= Player.spawn(pos_x: PLAYER_SPAWN[:x], pos_y: PLAYER_SPAWN[:y])
+      args.state.player ||= Player.spawn(x: PLAYER_SPAWN[:x], y: PLAYER_SPAWN[:y])
       args.state.playground[:show_bounds] = !args.state.playground[:show_bounds] if keyboard.key_down.b
       args.state.player.update(input(keyboard), walls: args.state.playground[:walls])
       check_danger_zones(args)
+      args.state.player.update_animation
       render(args)
     end
 

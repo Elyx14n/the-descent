@@ -6,24 +6,30 @@ require 'app/actor'
 module Descent
   class Enemy < Actor
     CONFIG = {
-      walk_speed: 3.0,
       frame_size: 64,
+      display_scale: 3,
+      foot_padding: 6,
+      walk_speed: 3.0,
+      facing_rows: { north: 3, south: 0, east: 2, west: 1 }.freeze,
       frame_count: 4,
       ticks_per_frame: 12,
       collider_width: 24,
       collider_height: 8,
-      facing_rows: { north: 3, south: 0, east: 2, west: 1 }.freeze,
-      sprite_paths: {
-        walk: 'sprites/enemy.png'
+      animations: {
+        walk: { loop: true, path: 'sprites/enemy' }.freeze
       }.freeze
     }.freeze
 
     def initialize(x = 0, y = 0)
-      super
+      super(x, y)
     end
 
     def config
       CONFIG
+    end
+
+    def animation
+      nil
     end
 
     def update(walls: [])
@@ -33,6 +39,11 @@ module Descent
         speed: CONFIG[:walk_speed],
         walls: walls
       )
+    end
+
+    def reset(x:, y:)
+      # Explicit keyword forwarding is required by DragonRuby's Ruby runtime.
+      super(x: x, y: y)
     end
 
     class << self
