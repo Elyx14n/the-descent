@@ -43,3 +43,6 @@ Metrics/AbcSize:
 
 Metrics/ParameterLists:
   Enabled: false
+
+Style/SuperArguments:
+  Enabled: false

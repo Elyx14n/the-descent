@@ -1,0 +1,117 @@
+# frozen_string_literal: true
+
+require 'app/collision_playground'
+require 'tests/support/player_helpers'
+
+def test_red_tile_death_renders_its_first_frame_immediately(args, assert)
+  player = Descent::Player.spawn(x: 180, y: 180)
+  input = { dx: 0, dy: 0, sneak: false, toggle_lamp: false }
+  17.times { step_player(player, input) }
+  assert.true! player.sprite[:source_x].positive?
+  args.state.player = player
+  args.state.playground = { walls: [], danger_death_at: Kernel.tick_count }
+
+  Descent::CollisionPlayground.tick(args)
+
+  assert.equal! player.sanity, 0
+  sprite = player.sprite
+  assert.equal! sprite[:path], 'sprites/player_death.png'
+  assert.equal! sprite[:source_x], 0
+  10.times { assert.equal! player.sprite, sprite }
+end
+
+def test_red_tile_delays_death_then_resets_without_extending_either_countdown(args, assert)
+  player = Descent::Player.spawn(x: 180, y: 180)
+  player.lamp_on = false
+  args.state.player = player
+  args.state.playground = { walls: Descent::CollisionPlayground::WALLS.map(&:dup) }
+
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 10)
+  assert.equal! player.sanity, 100
+  assert.equal! args.state.playground[:danger_death_at], 130
+  assert.equal! args.state.playground[:respawn_at], nil
+  (11...130).each do |tick|
+    Descent::CollisionPlayground.check_danger_zones(args, tick_count: tick)
+    assert.equal! player.sanity, 100
+    assert.equal! args.state.playground[:danger_death_at], 130
+  end
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 130)
+  assert.equal! player.sanity, 0
+  assert.equal! args.state.playground[:danger_death_at], nil
+  (131...250).each do |tick|
+    Descent::CollisionPlayground.check_danger_zones(args, tick_count: tick)
+    assert.equal! player.sanity, 0
+    assert.equal! args.state.playground[:respawn_at], 250
+  end
+
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 250)
+  assert.true! args.state.player.equal?(player)
+  assert.equal! [player.x, player.y], [400, 180]
+  assert.equal! player.sanity, 100
+  assert.true! player.lamp_on
+  assert.equal! args.state.playground[:respawn_at], nil
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 251)
+  assert.equal! args.state.playground[:respawn_at], nil
+
+  player.x = 180
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 300)
+  assert.equal! args.state.playground[:danger_death_at], 420
+  assert.equal! player.sanity, 100
+end
+
+def test_leaving_red_tile_cancels_danger_and_reentry_starts_fresh(args, assert)
+  player = Descent::Player.spawn(x: 180, y: 180)
+  args.state.player = player
+  args.state.playground = {}
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 0)
+  player.x = 400
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 119)
+  assert.equal! args.state.playground[:danger_death_at], nil
+  assert.equal! player.sanity, 100
+  player.x = 180
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 120)
+  assert.equal! args.state.playground[:danger_death_at], 240
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 239)
+  assert.equal! player.sanity, 100
+  # Stepping off exactly at the deadline still avoids death.
+  player.x = 400
+  Descent::CollisionPlayground.check_danger_zones(args, tick_count: 240)
+  assert.equal! player.sanity, 100
+  assert.equal! args.state.playground[:respawn_at], nil
+end
+
+def test_death_animation_plays_once_and_can_play_again_after_reset(_args, assert)
+  player = Descent::Player.spawn(x: 180, y: 180)
+  input = { dx: 0, dy: 0, sneak: false, toggle_lamp: false }
+  2.times do
+    player.sanity = 0
+    frames = []
+    200.times do
+      step_player(player, input)
+      frames << player.sprite[:source_x]
+    end
+    assert.equal! frames.uniq, [0, 32, 64, 96, 128, 160, 192, 224]
+    assert.true!(frames.each_cons(2).all? { |before, after| after >= before })
+    assert.true!(frames.last(100).all? { |frame| frame == 224 })
+    player.reset(x: 400, y: 180)
+  end
+end
+
+def test_dead_player_animates_without_moving_or_toggling_lamp(_args, assert)
+  player = Descent::Player.spawn(x: 180, y: 180)
+  input = { dx: 1, dy: 1, sneak: false, toggle_lamp: true }
+  player.sanity = 0
+  17.times { step_player(player, input) }
+  assert.equal! [player.x, player.y], [180, 180]
+  assert.true! player.lamp_on
+  assert.false! player.moving?
+  assert.equal! player.sprite[:path], 'sprites/player_death.png'
+  assert.true! player.sprite[:source_x].positive?
+
+  player.reset(x: 400, y: 180)
+  assert.equal! player.facing, :south
+  assert.equal! player.sprite[:path], 'sprites/player_idle_lamp_on.png'
+  assert.equal! player.sprite[:source_x], 0
+  step_player(player, input.merge(dx: 0, dy: 0, toggle_lamp: false))
+  assert.equal! player.sprite[:source_x], 0
+end
