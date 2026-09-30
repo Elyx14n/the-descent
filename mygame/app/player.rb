@@ -6,18 +6,22 @@ require 'app/actor'
 module Descent
   class Player < Actor
     CONFIG = {
+      frame_size: 32,
+      display_scale: 3,
+      foot_padding: 3,
       walk_speed: 3.0,
       sneak_speed: 1.5,
-      frame_size: 64,
-      source_frame_height: 63,
-      display_scale: 2,
-      frame_count: 4,
-      ticks_per_frame: 12,
-      facing_rows: { south: 0, west: 1, east: 2, north: 3 }.freeze,
-      sprite_base: {
-        path: 'sprites/descent/enemy_spritesheet.png',
-        w: 64 * 2, h: 63 * 2,
-        scale_quality_enum: 0
+      facing_rows: { north: 2, south: 0, east: 3, west: 1 }.freeze,
+      frame_count: 8,
+      ticks_per_frame: 8,
+      collider_width: 8,
+      collider_height: 2,
+      animations: {
+        death: 'sprites/player_death.png',
+        idle_lamp_on: 'sprites/player_idle_lamp_on.png',
+        idle_lamp_off: 'sprites/player_idle_lamp_off.png',
+        walk_lamp_on: 'sprites/player_walk_lamp_on.png',
+        walk_lamp_off: 'sprites/player_walk_lamp_off.png'
       }.freeze
     }.freeze
 
@@ -26,19 +30,31 @@ module Descent
     def initialize(pos_x = 0, pos_y = 0, sanity = 100)
       super(pos_x, pos_y)
       @sanity = sanity
-      @lamp_on = false
+      @lamp_on = true
     end
 
     def config
       CONFIG
     end
 
-    def collider_width
-      24
+    def animation_state
+      return :death if @sanity <= 0
+
+      @moving ? :walk : :idle
     end
 
-    def collider_height
-      16
+    def animation_loop?
+      animation_state != :death
+    end
+
+    def animation
+      return :death if animation_state == :death
+
+      if animation_state == :walk
+        @lamp_on ? :walk_lamp_on : :walk_lamp_off
+      else
+        @lamp_on ? :idle_lamp_on : :idle_lamp_off
+      end
     end
 
     def toggle_lamp
@@ -46,16 +62,28 @@ module Descent
     end
 
     def update(input, walls: [])
+      if @sanity <= 0
+        update_animation(0, 0)
+        return
+      end
+
       toggle_lamp if input[:toggle_lamp]
 
       speed = input[:sneak] ? CONFIG[:sneak_speed] : CONFIG[:walk_speed]
 
       move(
-        input[:move_x],
-        input[:move_y],
+        input[:dx],
+        input[:dy],
         speed: speed,
         walls: walls
       )
+    end
+
+    def reset(x:, y:)
+      # Explicit keyword forwarding is required by DragonRuby's Ruby runtime.
+      super(x: x, y: y)
+      @sanity = 100
+      @lamp_on = true
     end
 
     class << self

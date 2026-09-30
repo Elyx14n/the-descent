@@ -5,6 +5,9 @@ This file records the **current planning context** for contributors and coding a
 ## Current status
 
 - **Stage:** movement and collision playground implemented under `mygame/`, with player collision tests under `mygame/tests/`. The full puzzle and Witness loop remains planned.
+- **Player rendering:** 32 × 32 source frames displayed at 3× scale with nearest-neighbor sampling; eight-frame idle/walk animations support lamp on/off. Actor position is the horizontal center of the feet, with a three-source-pixel bottom-padding offset and a 24 × 6 displayed foot collider. Native sprite regression tests are in `mygame/tests/player_sprite_test.rb`.
+- Lamp toggles preserve animation progress; changes between idle, walk, and death restart the animation cycle.
+- Staying on the playground's red tile for two continuous seconds (120 ticks) kills the player; stepping off cancels the danger countdown. Death plays once and holds its final frame until the two-second respawn countdown completes. The existing player instance resets at `(400, 180)` with full sanity, lamp on, and a fresh idle animation; controls are disabled during death.
 - **Team:** a small amateur group; keep the first build lean and understandable to nontechnical collaborators.
 - **Engine:** DragonRuby Standard, installed outside the repository for each developer's OS. `DRAGONRUBY_HOME` selects the complete SDK; `scripts/run.sh` and `scripts/run.ps1` launch this repository's `mygame/`. See `README.md` for setup. A common SDK release still needs to be agreed and recorded.
 - **Ruby linting:** Run `bundle exec rubocop` from the repository root. The restored `.rubocop.yml` defines project lint rules and includes `mygame/app/main.rb`; the old starter-scene exclusion no longer applies.
