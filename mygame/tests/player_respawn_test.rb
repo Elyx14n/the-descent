@@ -1,9 +1,27 @@
 # frozen_string_literal: true
 
 require 'app/collision_playground'
+require 'tests/support/player_helpers'
+
+def test_red_tile_death_renders_its_first_frame_immediately(args, assert)
+  player = Descent::Player.spawn(x: 180, y: 180)
+  input = { dx: 0, dy: 0, sneak: false, toggle_lamp: false }
+  17.times { step_player(player, input) }
+  assert.true! player.sprite[:source_x].positive?
+  args.state.player = player
+  args.state.playground = { walls: [], danger_death_at: Kernel.tick_count }
+
+  Descent::CollisionPlayground.tick(args)
+
+  assert.equal! player.sanity, 0
+  sprite = player.sprite
+  assert.equal! sprite[:path], 'sprites/player_death.png'
+  assert.equal! sprite[:source_x], 0
+  10.times { assert.equal! player.sprite, sprite }
+end
 
 def test_red_tile_delays_death_then_resets_without_extending_either_countdown(args, assert)
-  player = Descent::Player.spawn(pos_x: 180, pos_y: 180)
+  player = Descent::Player.spawn(x: 180, y: 180)
   player.lamp_on = false
   args.state.player = player
   args.state.playground = { walls: Descent::CollisionPlayground::WALLS.map(&:dup) }
@@ -42,7 +60,7 @@ def test_red_tile_delays_death_then_resets_without_extending_either_countdown(ar
 end
 
 def test_leaving_red_tile_cancels_danger_and_reentry_starts_fresh(args, assert)
-  player = Descent::Player.spawn(pos_x: 180, pos_y: 180)
+  player = Descent::Player.spawn(x: 180, y: 180)
   args.state.player = player
   args.state.playground = {}
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 0)
@@ -63,13 +81,13 @@ def test_leaving_red_tile_cancels_danger_and_reentry_starts_fresh(args, assert)
 end
 
 def test_death_animation_plays_once_and_can_play_again_after_reset(_args, assert)
-  player = Descent::Player.spawn(pos_x: 180, pos_y: 180)
+  player = Descent::Player.spawn(x: 180, y: 180)
   input = { dx: 0, dy: 0, sneak: false, toggle_lamp: false }
   2.times do
     player.sanity = 0
     frames = []
     200.times do
-      player.update(input)
+      step_player(player, input)
       frames << player.sprite[:source_x]
     end
     assert.equal! frames.uniq, [0, 32, 64, 96, 128, 160, 192, 224]
@@ -80,10 +98,10 @@ def test_death_animation_plays_once_and_can_play_again_after_reset(_args, assert
 end
 
 def test_dead_player_animates_without_moving_or_toggling_lamp(_args, assert)
-  player = Descent::Player.spawn(pos_x: 180, pos_y: 180)
+  player = Descent::Player.spawn(x: 180, y: 180)
   input = { dx: 1, dy: 1, sneak: false, toggle_lamp: true }
   player.sanity = 0
-  17.times { player.update(input) }
+  17.times { step_player(player, input) }
   assert.equal! [player.x, player.y], [180, 180]
   assert.true! player.lamp_on
   assert.false! player.moving?
@@ -94,6 +112,6 @@ def test_dead_player_animates_without_moving_or_toggling_lamp(_args, assert)
   assert.equal! player.facing, :south
   assert.equal! player.sprite[:path], 'sprites/player_idle_lamp_on.png'
   assert.equal! player.sprite[:source_x], 0
-  player.update(input.merge(dx: 0, dy: 0, toggle_lamp: false))
+  step_player(player, input.merge(dx: 0, dy: 0, toggle_lamp: false))
   assert.equal! player.sprite[:source_x], 0
 end

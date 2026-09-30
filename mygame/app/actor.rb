@@ -3,7 +3,7 @@
 module Descent
   class Actor
     attr_accessor :x, :y
-    attr_reader :facing
+    attr_reader :facing, :current_animation, :animation_tick
 
     def initialize(x = 0, y = 0)
       reset(x: x, y: y)
@@ -14,7 +14,7 @@ module Descent
       @y = y
       @facing = :south
       @animation_tick = 0
-      @last_animation = nil
+      @current_animation = nil
       @moving = false
     end
 
@@ -26,12 +26,8 @@ module Descent
       raise NotImplementedError
     end
 
-    def animation_state
-      animation
-    end
-
-    def animation_loop?
-      true
+    def animation_variant
+      nil
     end
 
     def moving?
@@ -40,12 +36,13 @@ module Descent
 
     def sprite
       cfg = config
+      clip_config = cfg[:animations].fetch(@current_animation || animation)
       scale = cfg.fetch(:display_scale, 1)
-      frame = (@animation_tick || 0).div(cfg[:ticks_per_frame])
+      frame = @animation_tick.div(cfg[:ticks_per_frame])
       row = cfg[:facing_rows][@facing || :south]
 
       {
-        path: cfg[:animations].fetch(animation),
+        path: clip_config[:path] || clip_config[:variants].fetch(animation_variant),
         x: @x,
         y: @y - (cfg.fetch(:foot_padding, 0) * scale),
         w: cfg[:frame_size] * scale,
@@ -98,22 +95,20 @@ module Descent
       (amount.positive? ? edges.min : edges.max) || rect[axis]
     end
 
-    def update_animation(dx, dy)
-      @moving = !dx.zero? || !dy.zero?
-      @facing = movement_facing(dx, dy) if @moving
-      current_animation = animation_state
-      @animation_tick = if @last_animation == current_animation
-                          advance_animation_tick
-                        else
-                          0
-                        end
-      @last_animation = current_animation
-    end
+    # Call once after movement and gameplay changes, before rendering.
+    # Appearance variants share the selected current_animation's clock.
+    def update_animation
+      selected_animation = animation
+      if @current_animation != selected_animation
+        @current_animation = selected_animation
+        @animation_tick = 0
+        return
+      end
 
-    def advance_animation_tick
+      clip_config = config[:animations].fetch(@current_animation)
       duration = config[:frame_count] * config[:ticks_per_frame]
       next_tick = @animation_tick + 1
-      animation_loop? ? next_tick % duration : [next_tick, duration - 1].min
+      @animation_tick = clip_config.fetch(:loop) ? next_tick % duration : [next_tick, duration - 1].min
     end
 
     def movement_facing(dx, dy)
@@ -136,7 +131,8 @@ module Descent
       moved_x = move_axis(dx * speed, :x, walls)
       moved_y = move_axis(dy * speed, :y, walls)
 
-      update_animation(moved_x, moved_y)
+      @moving = !moved_x.zero? || !moved_y.zero?
+      @facing = movement_facing(moved_x, moved_y) if @moving
     end
 
     class << self
