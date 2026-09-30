@@ -6,43 +6,70 @@ module Descent
     attr_reader :facing
 
     def initialize(x = 0, y = 0)
+      reset(x: x, y: y)
+    end
+
+    def reset(x:, y:)
       @x = x
       @y = y
       @facing = :south
       @animation_tick = 0
+      @last_animation = nil
+      @moving = false
     end
 
     def config
       raise NotImplementedError
     end
 
-    def collider_width
+    def animation
       raise NotImplementedError
     end
 
-    def collider_height
-      raise NotImplementedError
+    def animation_state
+      animation
+    end
+
+    def animation_loop?
+      true
+    end
+
+    def moving?
+      @moving ||= false
     end
 
     def sprite
       cfg = config
+      scale = cfg.fetch(:display_scale, 1)
       frame = (@animation_tick || 0).div(cfg[:ticks_per_frame])
       row = cfg[:facing_rows][@facing || :south]
 
-      cfg[:sprite_base].merge(
+      {
+        path: cfg[:animations].fetch(animation),
         x: @x,
-        y: @y,
+        y: @y - (cfg.fetch(:foot_padding, 0) * scale),
+        w: cfg[:frame_size] * scale,
+        h: cfg[:frame_size] * scale,
+        anchor_x: 0.5,
+        anchor_y: 0,
+        scale_quality_enum: 0,
         source_x: frame * cfg[:frame_size],
-        source_y: (3 - row) * cfg[:source_frame_height],
+        source_y: (3 - row) * cfg[:frame_size],
         source_w: cfg[:frame_size],
-        source_h: cfg[:source_frame_height]
-      )
+        source_h: cfg[:frame_size]
+      }
     end
 
     def collider
-      w = collider_width
-      { x: @x + ((config[:sprite_base][:w] - w) / 2.0), y: @y,
-        w: w, h: collider_height }
+      cfg = config
+      scale = cfg.fetch(:display_scale, 1)
+      width = cfg[:collider_width] * scale
+      {
+        x: @x - (width / 2.0),
+        y: @y,
+        w: width,
+        h: cfg[:collider_height] * scale
+      }
     end
 
     def move_axis(amount, axis, walls)
@@ -71,36 +98,45 @@ module Descent
       (amount.positive? ? edges.min : edges.max) || rect[axis]
     end
 
-    def update_animation(move_x, move_y)
-      if move_x.zero? && move_y.zero?
-        @animation_tick = 0
-      else
-        @facing = movement_facing(move_x, move_y)
-        @animation_tick = ((@animation_tick || 0) + 1) % (config[:frame_count] * config[:ticks_per_frame])
-      end
+    def update_animation(dx, dy)
+      @moving = !dx.zero? || !dy.zero?
+      @facing = movement_facing(dx, dy) if @moving
+      current_animation = animation_state
+      @animation_tick = if @last_animation == current_animation
+                          advance_animation_tick
+                        else
+                          0
+                        end
+      @last_animation = current_animation
     end
 
-    def movement_facing(move_x, move_y)
-      return move_x.positive? ? :east : :west unless move_x.zero?
-
-      move_y.positive? ? :north : :south
+    def advance_animation_tick
+      duration = config[:frame_count] * config[:ticks_per_frame]
+      next_tick = @animation_tick + 1
+      animation_loop? ? next_tick % duration : [next_tick, duration - 1].min
     end
 
-    def normalize_movement(x, y)
-      length = Math.hypot(x, y)
+    def movement_facing(dx, dy)
+      return dx.positive? ? :east : :west unless dx.zero?
 
-      return [x, y] if length <= 1
-
-      [x / length, y / length]
+      dy.positive? ? :north : :south
     end
 
-    def move(move_x, move_y, speed:, walls:)
-      move_x, move_y = normalize_movement(move_x, move_y)
+    def normalize_movement(dx, dy)
+      length = Math.hypot(dx, dy)
 
-      actual_x = move_axis(move_x * speed, :x, walls)
-      actual_y = move_axis(move_y * speed, :y, walls)
+      return [dx, dy] if length <= 1
 
-      update_animation(actual_x, actual_y)
+      [dx / length, dy / length]
+    end
+
+    def move(dx, dy, speed:, walls:)
+      dx, dy = normalize_movement(dx, dy)
+
+      moved_x = move_axis(dx * speed, :x, walls)
+      moved_y = move_axis(dy * speed, :y, walls)
+
+      update_animation(moved_x, moved_y)
     end
 
     class << self
