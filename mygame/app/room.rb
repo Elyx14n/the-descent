@@ -14,11 +14,5 @@ module Descent
       @h = h
       @exits = exits
     end
-
-    class << self
-      def spawn(id:, x:, y:, w:, h:, exits:)
-        new(id, x, y, w, h, exits)
-      end
-    end
   end
 end
