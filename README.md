@@ -73,7 +73,7 @@ bash scripts/run.sh --test tests/player_collision_test.rb
 
 Test filenames are relative to `mygame/`, so use `tests/...` rather than `mygame/tests/...`. In PowerShell, use `.\scripts\run.ps1 --test tests/player_collision_test.rb`.
 
-The scripts read the environment variable directly; they do not load `.env` files. SDK credentials belong outside the repository. Sprite paths remain relative to `mygame/`, such as `sprites/descent/enemy_spritesheet.png`.
+The scripts read the environment variable directly; they do not load `.env` files. SDK credentials belong outside the repository. Sprite paths remain relative to `mygame/`, such as `sprites/enemy.png`.
 
 The game source starts at `mygame/app/main.rb`. DragonRuby runs this Ruby source directly and hot-reloads saved changes, so there is no compile step during normal development.
 
@@ -120,7 +120,7 @@ DragonRuby will create packaged platform builds in a generated build directory. 
 
 Stakeholders contributing assets should upload them to:
 
-- `mygame/sprites/descent/` for sprites
+- `mygame/sprites/` for sprites
 - `mygame/sounds/` for sounds
 
 Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
@@ -136,8 +136,7 @@ mygame/
   fonts/                Game-specific fonts
   metadata/             DragonRuby game and platform configuration
   sounds/               Music and sound effects
-  sprites/
-    descent/            The Descent sprite upload destination
+  sprites/              The Descent sprite upload destination
 
 scripts/                Cross-platform game launchers
 
