@@ -14,6 +14,11 @@ if [[ ! -f "$game_dir/app/main.rb" ]]; then
   exit 1
 fi
 
+# Automatically make the binary executable if it exists but isn't marked +x
+if [[ -f "$DRAGONRUBY_HOME/dragonruby" && ! -x "$DRAGONRUBY_HOME/dragonruby" ]]; then
+  chmod +x "$DRAGONRUBY_HOME/dragonruby"
+fi
+
 if [[ ! -x "$DRAGONRUBY_HOME/dragonruby" ]]; then
   echo "DragonRuby executable not found or not executable: $DRAGONRUBY_HOME/dragonruby" >&2
   exit 1

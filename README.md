@@ -4,6 +4,15 @@ The Descent is a small, top-down horror game being built with DragonRuby Game To
 
 The current game is a movement and collision playground. Planning documents describe the intended MVP; they do not imply that all planned features are implemented.
 
+## Prerequisites
+
+Before setting up the repository, ensure you have the following installed:
+
+* **DragonRuby Game Toolkit SDK:** Download the latest platform build for your OS (macOS, Linux, or Windows).
+* **Ruby (v3.0+ recommended):** Needed for repository development checks (`rubocop`, `bundle`). Managed via system Ruby or a version manager like **RVM**, **rbenv**, or **asdf**.
+* **Bundler (`gem install bundler`):** Required to manage development gems.
+* **VS Code + Ruby LSP Extension (Optional):** Recommended editor setup for code completion and indexing against the DragonRuby SDK.
+
 ## First-time setup and running the game
 
 Install the complete DragonRuby SDK for your operating system **outside this repository**. Use the macOS distribution on macOS, the Windows distribution in native Windows, and the appropriate Linux distribution in Linux or WSL. Collaborators should use the same DragonRuby release.
@@ -64,7 +73,7 @@ bash scripts/run.sh --test tests/player_collision_test.rb
 
 Test filenames are relative to `mygame/`, so use `tests/...` rather than `mygame/tests/...`. In PowerShell, use `.\scripts\run.ps1 --test tests/player_collision_test.rb`.
 
-The scripts read the environment variable directly; they do not load `.env` files. SDK credentials belong outside the repository. Sprite paths remain relative to `mygame/`, such as `sprites/descent/enemy_spritesheet.png`.
+The scripts read the environment variable directly; they do not load `.env` files. SDK credentials belong outside the repository. Sprite paths remain relative to `mygame/`, such as `sprites/enemy.png`.
 
 The game source starts at `mygame/app/main.rb`. DragonRuby runs this Ruby source directly and hot-reloads saved changes, so there is no compile step during normal development.
 
@@ -111,7 +120,7 @@ DragonRuby will create packaged platform builds in a generated build directory. 
 
 Stakeholders contributing assets should upload them to:
 
-- `mygame/sprites/descent/` for sprites
+- `mygame/sprites/` for sprites
 - `mygame/sounds/` for sounds
 
 Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
@@ -127,8 +136,7 @@ mygame/
   fonts/                Game-specific fonts
   metadata/             DragonRuby game and platform configuration
   sounds/               Music and sound effects
-  sprites/
-    descent/            The Descent sprite upload destination
+  sprites/              The Descent sprite upload destination
 
 scripts/                Cross-platform game launchers
 
