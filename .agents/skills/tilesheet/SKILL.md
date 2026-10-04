@@ -21,7 +21,7 @@ description: Find and select existing cathedral tiles from The Descent tilesheet
 
 Use `Tilesheet.source_rect(:closed_stone_coffin)` to calculate a bottom-left source rectangle, and `Tilesheet::PATH` for the image path. Unknown names raise `KeyError`.
 
-Use `Prop.spawn(type: :closed_stone_coffin, x: 650, y: 290)` for a game prop. Any catalog name is accepted. `PROP_OVERRIDES` in `mygame/app/prop.rb` holds only per-type tuning: optional `scale` (default `1`) and `collider` dimensions in unscaled pixels. An omitted collider uses the full 32 × 32 cell; explicit `nil` makes a prop decorative. Scale applies to both artwork and collision. The default footprint is a tuning placeholder, not a measurement of the artwork.
+Use `Prop.spawn(id: :closed_stone_coffin, x: 650, y: 290)` for a game prop. Any catalog name is accepted. `PROP_OVERRIDES` in `mygame/app/prop.rb` holds only per-id tuning: optional `scale` (default `1`) and `collider` dimensions in unscaled pixels. An omitted collider uses the full 32 × 32 cell; explicit `nil` makes a prop decorative. Scale applies to both artwork and collision. The default footprint is a tuning placeholder, not a measurement of the artwork.
 
 For experimentation, edit `CollisionPlayground::PROP_PLACEMENTS` in `mygame/app/collision_playground.rb`. Saving placements, overrides, or the catalog rebuilds the playground props before collision and rendering, preserving the player and danger timers. Press **B** to show blue prop collider outlines. Existing props outside this playground do not automatically refresh their settings.
 

@@ -18,21 +18,21 @@ module Descent
   }.freeze
 
   class Prop < Entity
-    attr_reader :type
+    attr_reader :id
 
-    def initialize(type:, **kwargs)
-      @type = type
+    def initialize(id:, **kwargs)
+      @id = id
       super(**kwargs)
     end
 
     class << self
-      def spawn(type:, x:, y:, facing: :south)
-        source_rect = Tilesheet.source_rect(type)
-        cfg = PROP_OVERRIDES.fetch(type, {})
+      def spawn(id:, x:, y:, facing: :south)
+        source_rect = Tilesheet.source_rect(id)
+        cfg = PROP_OVERRIDES.fetch(id, {})
         collider = cfg.fetch(:collider) { { w: source_rect[:w], h: source_rect[:h] } }
 
         new(
-          type: type,
+          id: id,
           x: x,
           y: y,
           facing: facing,

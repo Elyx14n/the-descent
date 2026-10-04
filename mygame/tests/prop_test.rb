@@ -14,8 +14,8 @@ ensure
 end
 
 def test_prop_spawn_uses_catalog_without_requiring_an_override(_args, assert)
-  prop = Descent::Prop.spawn(type: :round_stone_column, x: 100, y: 200, facing: :west)
-  assert.equal! prop.type, :round_stone_column
+  prop = Descent::Prop.spawn(id: :round_stone_column, x: 100, y: 200, facing: :west)
+  assert.equal! prop.id, :round_stone_column
   assert.equal! prop.facing, :west
   assert.equal! prop.scale, 1
   assert.equal! prop.collision_rect, { x: 84, y: 200, w: 32, h: 32 }
@@ -23,7 +23,7 @@ def test_prop_spawn_uses_catalog_without_requiring_an_override(_args, assert)
   assert.equal! primitive[:path], 'sprites/tilesheet.png'
   assert.equal! [primitive[:source_x], primitive[:source_y]], [128, 384]
 
-  other = Descent::Prop.spawn(type: prop.type, x: 300, y: 400)
+  other = Descent::Prop.spawn(id: prop.id, x: 300, y: 400)
   assert.false! prop.sprite.equal?(other.sprite)
   assert.false! prop.collider.equal?(other.collider)
   other.reset(x: 500, y: 600)
@@ -31,13 +31,13 @@ def test_prop_spawn_uses_catalog_without_requiring_an_override(_args, assert)
 end
 
 def test_prop_overrides_scale_art_and_collision_or_disable_collision(_args, assert)
-  coffin = Descent::Prop.spawn(type: :closed_stone_coffin, x: 100, y: 200)
+  coffin = Descent::Prop.spawn(id: :closed_stone_coffin, x: 100, y: 200)
   assert.equal! coffin.collision_rect, { x: 64, y: 200, w: 72, h: 30 }
   primitive = coffin.sprite_to_primitive
   assert.equal! [primitive[:w], primitive[:h]], [96, 96]
   assert.equal! [primitive[:source_x], primitive[:source_y]], [448, 320]
 
-  banner = Descent::Prop.spawn(type: :red_banner, x: 100, y: 200)
+  banner = Descent::Prop.spawn(id: :red_banner, x: 100, y: 200)
   assert.equal! banner.collision_rect, nil
   assert.equal! banner.sprite_to_primitive[:source_x], 288
 end
@@ -45,7 +45,7 @@ end
 def test_scale_only_override_keeps_default_collider(_args, assert)
   overrides = Descent::PROP_OVERRIDES.merge(round_stone_column: { scale: 2 })
   with_prop_test_constant(Descent, :PROP_OVERRIDES, overrides) do
-    prop = Descent::Prop.spawn(type: :round_stone_column, x: 100, y: 200)
+    prop = Descent::Prop.spawn(id: :round_stone_column, x: 100, y: 200)
     assert.equal! prop.collision_rect, { x: 68, y: 200, w: 64, h: 64 }
     assert.equal! prop.sprite_to_primitive[:w], 64
   end
@@ -54,7 +54,7 @@ end
 def test_prop_spawn_rejects_unknown_tile_name(_args, assert)
   error = nil
   begin
-    Descent::Prop.spawn(type: :missing_tile, x: 0, y: 0)
+    Descent::Prop.spawn(id: :missing_tile, x: 0, y: 0)
   rescue KeyError => e
     error = e
   end
@@ -118,12 +118,12 @@ end
 def test_placement_and_catalog_reload_rebuild_props_without_resetting_playground(_args, assert)
   playground = { danger_death_at: 120, show_bounds: false }
   Descent::CollisionPlayground.refresh_props(playground)
-  placements = [{ type: :round_stone_column, x: 200, y: 300, facing: :east }].freeze
+  placements = [{ id: :round_stone_column, x: 200, y: 300, facing: :east }].freeze
   with_prop_test_constant(Descent::CollisionPlayground, :PROP_PLACEMENTS, placements) do
     Descent::CollisionPlayground.refresh_props(playground)
     assert.equal! playground[:props].length, 1
     prop = playground[:props].first
-    assert.equal! [prop.type, prop.x, prop.y, prop.facing], [:round_stone_column, 200, 300, :east]
+    assert.equal! [prop.id, prop.x, prop.y, prop.facing], [:round_stone_column, 200, 300, :east]
     tiles = Descent::Tilesheet::TILES.merge(round_stone_column: 288).freeze
     with_prop_test_constant(Descent::Tilesheet, :TILES, tiles) do
       Descent::CollisionPlayground.refresh_props(playground)

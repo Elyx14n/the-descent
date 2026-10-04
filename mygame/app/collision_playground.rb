@@ -13,8 +13,8 @@ module Descent
 
     # Change these types/positions and save to try any name in Tilesheet::TILES.
     PROP_PLACEMENTS = [
-      { type: :closed_stone_coffin, x: 650, y: 290 },
-      { type: :red_banner, x: 1080, y: 475 }
+      { id: :closed_stone_coffin, x: 650, y: 290 },
+      { id: :red_banner, x: 1080, y: 475 }
     ].map(&:freeze).freeze
 
     WALLS = [
