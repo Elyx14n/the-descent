@@ -16,6 +16,7 @@ Do not claim planned systems are implemented. Do not edit bundled SDK code to so
 ## Choose the relevant workflow
 
 - For implementation or refactoring, read [references/engineering.md](references/engineering.md).
+- For selecting or cropping cathedral tiles from `sprites/tilesheet.png`, read [../tilesheet/SKILL.md](../tilesheet/SKILL.md) and its tile lookup.
 - For a failure, incorrect behavior, or runtime investigation, read [references/debugging.md](references/debugging.md).
 - For adding or running tests and replays, read [references/testing.md](references/testing.md).
 - For work spanning multiple categories, read only the references needed.
