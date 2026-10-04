@@ -125,6 +125,8 @@ Stakeholders contributing assets should upload them to:
 
 Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
 
+The cathedral tilesheet is `mygame/sprites/tilesheet.png` (17 × 17 cells, 32 × 32 pixels each). The [tilesheet skill](.agents/skills/tilesheet/SKILL.md) documents tile selection and DragonRuby cropping; its [tile lookup](.agents/skills/tilesheet/references/tiles.md) lists all 289 names and cells. The original `main_32x32.json` is retained as source metadata; its vendor asset paths do not match this repository.
+
 ## Repository guide
 
 Project-owned files:

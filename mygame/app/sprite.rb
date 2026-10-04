@@ -7,12 +7,19 @@ module Descent
     attr_reader :current_animation, :animation_tick
 
     def initialize(frame_size: 32, animations: nil, path: nil,
-                   foot_padding: 0, facing_rows: nil)
+                   foot_padding: 0, facing_rows: nil, source_rect: nil)
+      validate_image_source(path, animations)
+      if source_rect && (animations || facing_rows)
+        raise ArgumentError, 'source_rect cannot be combined with animations or facing_rows'
+      end
+
       @frame_size = frame_size
       @animations = animations
       @path = path
       @foot_padding = foot_padding
       @facing_rows = facing_rows
+      # Pixel coordinates measured from the image's bottom-left corner.
+      @source_rect = source_rect
       reset
     end
 
@@ -44,24 +51,34 @@ module Descent
       clip = @animations&.fetch(@current_animation || animation)
       selected_variant = @current_animation ? @current_variant : variant
       frame = clip ? @animation_tick.div(clip[:ticks_per_frame]) : 0
+      source = source_rect(frame, facing)
 
       {
         path: clip ? (clip[:path] || clip[:variants].fetch(selected_variant)) : @path,
         x: x,
         y: y - (@foot_padding * scale),
-        w: @frame_size * scale,
-        h: @frame_size * scale,
+        w: source.fetch(:w) * scale,
+        h: source.fetch(:h) * scale,
         anchor_x: 0.5,
         anchor_y: 0,
         scale_quality_enum: 0,
-        source_x: frame * @frame_size,
-        source_y: source_y(facing),
-        source_w: @frame_size,
-        source_h: @frame_size
+        source_x: source.fetch(:x),
+        source_y: source.fetch(:y),
+        source_w: source.fetch(:w),
+        source_h: source.fetch(:h)
       }
     end
 
     private
+
+    def validate_image_source(path, animations)
+      raise ArgumentError, 'path cannot be combined with animations' if path && animations
+      raise ArgumentError, 'path or animations must be provided' unless path || animations
+    end
+
+    def source_rect(frame, facing)
+      @source_rect || { x: frame * @frame_size, y: source_y(facing), w: @frame_size, h: @frame_size }
+    end
 
     # Gets current sprite cell position from bottom-up (DR order)
     def source_y(facing)

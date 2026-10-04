@@ -3,6 +3,18 @@
 require 'app/player'
 require 'tests/support/player_helpers'
 
+def test_player_facing_still_selects_rows_while_animation_advances(_args, assert)
+  player = Descent::Player.new
+  { north: 32, south: 96, east: 0, west: 64 }.each do |facing, source_y|
+    player.reset(x: 100, y: 100, facing: facing)
+    assert.equal! player.sprite_to_primitive[:source_y], source_y
+    9.times { player.update_animation }
+    primitive = player.sprite_to_primitive
+    assert.equal! primitive[:source_y], source_y
+    assert.equal! primitive[:source_x], 32
+  end
+end
+
 def test_player_can_render_before_first_update_including_when_created_dead(_args, assert)
   [100, 0].each do |sanity|
     player = Descent::Player.new(sanity: sanity)
