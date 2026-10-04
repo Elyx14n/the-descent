@@ -2,54 +2,38 @@
 
 require 'app/descent'
 require 'app/actor'
+require 'app/sprite'
+require 'app/collider'
 
 module Descent
   class Enemy < Actor
-    CONFIG = {
+    SPRITE_CONFIG = {
       frame_size: 64,
-      display_scale: 3,
       foot_padding: 6,
-      walk_speed: 3.0,
       facing_rows: { north: 3, south: 0, east: 2, west: 1 }.freeze,
-      frame_count: 4,
-      ticks_per_frame: 12,
-      collider_width: 24,
-      collider_height: 8,
       animations: {
-        walk: { loop: true, path: 'sprites/enemy' }.freeze
+        walk: { loop: true, path: 'sprites/enemy.png', frame_count: 4, ticks_per_frame: 12 }.freeze
       }.freeze
     }.freeze
+    COLLIDER_CONFIG = { w: 24, h: 8 }.freeze
+    WALK_SPEED = 3.0
 
-    def initialize(x = 0, y = 0)
-      super(x, y)
-    end
-
-    def config
-      CONFIG
+    def initialize(x: 0, y: 0, scale: 3)
+      super(x: x, y: y, scale: scale, sprite: Sprite.new(**SPRITE_CONFIG),
+            collider: Collider.new(**COLLIDER_CONFIG))
     end
 
     def animation
-      nil
+      :walk
     end
 
-    def update(walls: [])
+    def update(dx: 0, dy: 0, walls: [])
       move(
-        :dx,
-        :dy,
-        speed: CONFIG[:walk_speed],
+        dx,
+        dy,
+        speed: WALK_SPEED,
         walls: walls
       )
-    end
-
-    def reset(x:, y:)
-      # Explicit keyword forwarding is required by DragonRuby's Ruby runtime.
-      super(x: x, y: y)
-    end
-
-    class << self
-      def spawn(x:, y:)
-        new(x, y, 100)
-      end
     end
   end
 end

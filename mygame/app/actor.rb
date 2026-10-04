@@ -1,27 +1,9 @@
 # frozen_string_literal: true
 
+require 'app/entity'
+
 module Descent
-  class Actor
-    attr_accessor :x, :y
-    attr_reader :facing, :current_animation, :animation_tick
-
-    def initialize(x = 0, y = 0)
-      reset(x: x, y: y)
-    end
-
-    def reset(x:, y:)
-      @x = x
-      @y = y
-      @facing = :south
-      @animation_tick = 0
-      @current_animation = nil
-      @moving = false
-    end
-
-    def config
-      raise NotImplementedError
-    end
-
+  class Actor < Entity
     def animation
       raise NotImplementedError
     end
@@ -30,50 +12,41 @@ module Descent
       nil
     end
 
+    # Advance once after movement and gameplay changes, before rendering.
+    def update_animation
+      super(animation, animation_variant)
+    end
+
+    def sprite_to_primitive
+      super(animation: animation, variant: animation_variant)
+    end
+
+    def reset(x:, y:, facing: :south)
+      super(x: x, y: y, facing: facing)
+      @moving = false
+    end
+
     def moving?
       @moving ||= false
     end
 
-    def sprite
-      cfg = config
-      clip_config = cfg[:animations].fetch(@current_animation || animation)
-      scale = cfg.fetch(:display_scale, 1)
-      frame = @animation_tick.div(cfg[:ticks_per_frame])
-      row = cfg[:facing_rows][@facing || :south]
+    def move(dx, dy, speed:, walls:)
+      dx, dy = normalize_movement(dx, dy)
 
-      {
-        path: clip_config[:path] || clip_config[:variants].fetch(animation_variant),
-        x: @x,
-        y: @y - (cfg.fetch(:foot_padding, 0) * scale),
-        w: cfg[:frame_size] * scale,
-        h: cfg[:frame_size] * scale,
-        anchor_x: 0.5,
-        anchor_y: 0,
-        scale_quality_enum: 0,
-        source_x: frame * cfg[:frame_size],
-        source_y: (3 - row) * cfg[:frame_size],
-        source_w: cfg[:frame_size],
-        source_h: cfg[:frame_size]
-      }
+      moved_x = move_axis(dx * speed, :x, walls)
+      moved_y = move_axis(dy * speed, :y, walls)
+
+      @moving = !moved_x.zero? || !moved_y.zero?
+      @facing = movement_facing(moved_x, moved_y) if @moving
     end
 
-    def collider
-      cfg = config
-      scale = cfg.fetch(:display_scale, 1)
-      width = cfg[:collider_width] * scale
-      {
-        x: @x - (width / 2.0),
-        y: @y,
-        w: width,
-        h: cfg[:collider_height] * scale
-      }
-    end
+    private
 
     def move_axis(amount, axis, walls)
       return 0 if amount.zero?
 
       before = axis == :x ? @x : @y
-      proposed = collider
+      proposed = collision_rect
       offset = proposed[axis] - before
       proposed[axis] += amount
       position = collision_position(proposed, axis, amount, walls) - offset
@@ -95,22 +68,6 @@ module Descent
       (amount.positive? ? edges.min : edges.max) || rect[axis]
     end
 
-    # Call once after movement and gameplay changes, before rendering.
-    # Appearance variants share the selected current_animation's clock.
-    def update_animation
-      selected_animation = animation
-      if @current_animation != selected_animation
-        @current_animation = selected_animation
-        @animation_tick = 0
-        return
-      end
-
-      clip_config = config[:animations].fetch(@current_animation)
-      duration = config[:frame_count] * config[:ticks_per_frame]
-      next_tick = @animation_tick + 1
-      @animation_tick = clip_config.fetch(:loop) ? next_tick % duration : [next_tick, duration - 1].min
-    end
-
     def movement_facing(dx, dy)
       return dx.positive? ? :east : :west unless dx.zero?
 
@@ -123,22 +80,6 @@ module Descent
       return [dx, dy] if length <= 1
 
       [dx / length, dy / length]
-    end
-
-    def move(dx, dy, speed:, walls:)
-      dx, dy = normalize_movement(dx, dy)
-
-      moved_x = move_axis(dx * speed, :x, walls)
-      moved_y = move_axis(dy * speed, :y, walls)
-
-      @moving = !moved_x.zero? || !moved_y.zero?
-      @facing = movement_facing(moved_x, moved_y) if @moving
-    end
-
-    class << self
-      def spawn(x:, y:)
-        new(x, y)
-      end
     end
   end
 end

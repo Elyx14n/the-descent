@@ -1,23 +1,45 @@
 # frozen_string_literal: true
 
 require 'app/descent'
-require ''
+require 'app/entity'
+require 'app/sprite'
+require 'app/collider'
 
 module Descent
-  class Prop
-    attr_reader :type, :x, :y, :w, :h, :rotation
+  PROPS = {
+    box: {
+      scale: 3,
+      sprite: {
+        path: 'sprites/enemy.png'
+      },
+      collider: {
+        w: 32, h: 32
+      }
+    }
+  }.freeze
 
-    def initialize(type:, x:, y:, w:, h:, rotation: 0)
+  class Prop < Entity
+    attr_reader :type
+
+    def initialize(type:, **kwargs)
       @type = type
-      @x = x
-      @y = y
-      @w = w
-      @h = h
-      @rotation = rotation
+      super(**kwargs)
     end
 
-    def bounds
-      { x: @x, y: @y, w: @w, h: @h }
+    class << self
+      def spawn(type:, x:, y:, facing: :south)
+        cfg = PROPS.fetch(type)
+
+        new(
+          type: type,
+          x: x,
+          y: y,
+          facing: facing,
+          scale: cfg.fetch(:scale, 1),
+          sprite: Sprite.new(**cfg.fetch(:sprite)),
+          collider: Collider.new(**cfg.fetch(:collider))
+        )
+      end
     end
   end
 end
