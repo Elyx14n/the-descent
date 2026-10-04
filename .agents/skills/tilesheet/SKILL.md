@@ -15,6 +15,16 @@ description: Find and select existing cathedral tiles from The Descent tilesheet
 - Only `seamless-surface` entries are marked repeat-safe by the supplied atlas. Check seams visually at the intended scale; architecture, props, and effects are not marked repeat-safe.
 - Effect variants are not declared animation sequences. Do not infer playback order or timing from adjacent cells.
 
+## Runtime catalog and props
+
+`mygame/app/tilesheet.rb` defines `Descent::Tilesheet::TILES`, a name-to-ID lookup for all 289 tiles. Ruby names replace hyphens with underscores. The names are stored in sheet order and converted to IDs when the file loads; a single 289-entry hash literal exceeds this DragonRuby runtime's operand limit. Keep their order aligned with the atlas.
+
+Use `Tilesheet.source_rect(:closed_stone_coffin)` to calculate a bottom-left source rectangle, and `Tilesheet::PATH` for the image path. Unknown names raise `KeyError`.
+
+Use `Prop.spawn(type: :closed_stone_coffin, x: 650, y: 290)` for a game prop. Any catalog name is accepted. `PROP_OVERRIDES` in `mygame/app/prop.rb` holds only per-type tuning: optional `scale` (default `1`) and `collider` dimensions in unscaled pixels. An omitted collider uses the full 32 × 32 cell; explicit `nil` makes a prop decorative. Scale applies to both artwork and collision. The default footprint is a tuning placeholder, not a measurement of the artwork.
+
+For experimentation, edit `CollisionPlayground::PROP_PLACEMENTS` in `mygame/app/collision_playground.rb`. Saving placements, overrides, or the catalog rebuilds the playground props before collision and rendering, preserving the player and danger timers. Press **B** to show blue prop collider outlines. Existing props outside this playground do not automatically refresh their settings.
+
 ## Crop in DragonRuby
 
 For a catalog cell `(row, column)`, use:
@@ -36,8 +46,8 @@ For a catalog cell `(row, column)`, use:
 
 ```ruby
 Sprite.new(
-  path: 'sprites/tilesheet.png',
-  source_rect: { x: column * 32, y: (16 - row) * 32, w: 32, h: 32 }
+  path: Tilesheet::PATH,
+  source_rect: Tilesheet.source_rect(:closed_stone_coffin)
 )
 ```
 
@@ -49,4 +59,4 @@ The crop's width and height determine display size before scaling. Movement, fac
 
 The JSON's `image`, `file`, and `filename` fields refer to vendor export paths, not repository assets. Its occasional `source_row`, `source_column`, and `source_box` fields describe earlier source artwork, not cells in this sheet. Use the catalog cells (the JSON's `row` and `column`) for cropping.
 
-If replacing the sheet, verify image dimensions and atlas positions, then update the catalog and this guidance together. Retain supplied provenance/license material alongside the original assets.
+If replacing the sheet, verify image dimensions and atlas positions, then update the Ruby catalog, tile reference, and this guidance together. Run `bash scripts/run.sh --test tests/all_test.rb`; the catalog test checks every Ruby name and rectangle against the retained JSON. The game does not load the JSON at runtime. Retain supplied provenance/license material alongside the original assets.

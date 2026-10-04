@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
-require 'app/prop'
+require 'app/entity'
+require 'app/sprite'
 
-def test_prop_crop_survives_facing_movement_animation_updates_and_reset(_args, assert)
-  prop = Descent::Prop.new(
-    type: :stone_coffin, x: 100, y: 200, scale: 3,
+def test_fixed_crop_survives_facing_movement_animation_updates_and_reset(_args, assert)
+  prop = Descent::Entity.new(
+    x: 100, y: 200, scale: 3,
     sprite: Descent::Sprite.new(
       path: 'sprites/tilesheet.png', source_rect: { x: 448, y: 320, w: 32, h: 32 }
     ),

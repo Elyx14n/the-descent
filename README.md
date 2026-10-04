@@ -93,6 +93,8 @@ bundle exec rubocop
 
 DragonRuby's native tests and manual playtesting remain separate checks; use them when a change affects deterministic rules or player-visible behavior.
 
+Run the complete native suite with `bash scripts/run.sh --test tests/all_test.rb` (PowerShell: `.\scripts\run.ps1 --test tests/all_test.rb`).
+
 ### DragonRuby editor completion
 
 Open `descent.code-workspace` in VS Code with the Ruby LSP extension installed. The game launchers automatically create a Git-ignored `.dragonruby-lsp` link to the SDK root in `DRAGONRUBY_HOME`. macOS/Linux/WSL use a symlink; native Windows uses a directory junction. SDK files stay outside the repository, and each contributor's environment variable supplies their own installation path.
@@ -126,6 +128,23 @@ Stakeholders contributing assets should upload them to:
 Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
 
 The cathedral tilesheet is `mygame/sprites/tilesheet.png` (17 × 17 cells, 32 × 32 pixels each). The [tilesheet skill](.agents/skills/tilesheet/SKILL.md) documents tile selection and DragonRuby cropping; its [tile lookup](.agents/skills/tilesheet/references/tiles.md) lists all 289 names and cells. The original `main_32x32.json` is retained as source metadata; its vendor asset paths do not match this repository.
+
+### Try props and tune collision
+
+[tilesheet.rb](mygame/app/tilesheet.rb) contains all 289 tile names in sheet order and computes their source rectangles. Ruby names use underscores, such as `closed_stone_coffin`. The JSON is not loaded by the game; the native catalog test compares the Ruby mapping against it.
+
+Edit `PROP_PLACEMENTS` in [collision_playground.rb](mygame/app/collision_playground.rb) to select tiles and set their positions. Each entry uses `{ type: :closed_stone_coffin, x: 650, y: 290 }`; optional `facing` defaults to `:south` and does not change the fixed artwork.
+
+Edit `PROP_OVERRIDES` in [prop.rb](mygame/app/prop.rb) to tune a type. Without an override, any catalog tile spawns at scale `1` with a full 32 × 32 collider. For example:
+
+```ruby
+closed_stone_coffin: { scale: 3, collider: { w: 24, h: 10 }.freeze }.freeze,
+red_banner: { scale: 3, collider: nil }.freeze
+```
+
+Collider dimensions are unscaled pixels; scale applies to both art and collision. Omit `collider` for the full-cell default, or set it to `nil` for decoration. Position is the horizontal center of the cell's bottom edge, shared with the collider. These footprints are starting values for visual tuning, not measurements supplied by the atlas.
+
+Save edits to placements, overrides, or the catalog to rebuild the playground props on hot reload. Player state and danger timers are preserved. Prop positions are rebuilt from the placements. Press **B** to toggle collision outlines: prop footprints are blue. Walk into the coffin to test blocking and through the banner to check decoration; edit the coffin's dimensions and confirm that its outline and collision update together.
 
 ## Repository guide
 

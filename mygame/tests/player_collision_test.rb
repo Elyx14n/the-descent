@@ -76,9 +76,9 @@ def test_movement_speed_and_sneak_remain_consistent(_args, assert)
   walk = collision_player
   diagonal = collision_player
   sneak = collision_player
-  walk.update(collision_input(1, 0))
-  diagonal.update(collision_input(1, 1))
-  sneak.update(collision_input(1, 0, sneak: true))
+  walk.update_controls(collision_input(1, 0))
+  diagonal.update_controls(collision_input(1, 1))
+  sneak.update_controls(collision_input(1, 0, sneak: true))
   distance = Math.sqrt((diagonal.collision_rect[:x]**2) + (diagonal.collision_rect[:y]**2))
   assert.true! (distance - walk.collision_rect[:x]).abs < 0.0001
   assert.equal! sneak.collision_rect[:x], walk.collision_rect[:x] / 2

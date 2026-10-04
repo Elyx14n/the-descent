@@ -4,18 +4,17 @@ require 'app/descent'
 require 'app/entity'
 require 'app/sprite'
 require 'app/collider'
+require 'app/tilesheet'
 
 module Descent
-  PROPS = {
-    box: {
+  # Only tuned types need entries. Missing colliders use the full source cell;
+  # explicit nil makes a prop decorative. Dimensions are in unscaled pixels.
+  PROP_OVERRIDES = {
+    closed_stone_coffin: {
       scale: 3,
-      sprite: {
-        path: 'sprites/enemy.png'
-      },
-      collider: {
-        w: 32, h: 32
-      }
-    }
+      collider: { w: 24, h: 10 }.freeze
+    }.freeze,
+    red_banner: { scale: 3, collider: nil }.freeze
   }.freeze
 
   class Prop < Entity
@@ -28,7 +27,9 @@ module Descent
 
     class << self
       def spawn(type:, x:, y:, facing: :south)
-        cfg = PROPS.fetch(type)
+        source_rect = Tilesheet.source_rect(type)
+        cfg = PROP_OVERRIDES.fetch(type, {})
+        collider = cfg.fetch(:collider) { { w: source_rect[:w], h: source_rect[:h] } }
 
         new(
           type: type,
@@ -36,8 +37,8 @@ module Descent
           y: y,
           facing: facing,
           scale: cfg.fetch(:scale, 1),
-          sprite: Sprite.new(**cfg.fetch(:sprite)),
-          collider: Collider.new(**cfg.fetch(:collider))
+          sprite: Sprite.new(path: Tilesheet::PATH, source_rect: source_rect),
+          collider: collider && Collider.new(**collider)
         )
       end
     end

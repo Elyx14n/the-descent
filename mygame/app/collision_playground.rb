@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'app/player'
+require 'app/prop'
 require 'app/ui'
 
 module Descent
@@ -9,6 +10,12 @@ module Descent
     PLAYER_SPAWN = { x: 400, y: 180, facing: :south }.freeze
     DANGER_DELAY_TICKS = 120
     RESPAWN_DELAY_TICKS = 120 # Two seconds at DragonRuby's 60 ticks per second.
+
+    # Change these types/positions and save to try any name in Tilesheet::TILES.
+    PROP_PLACEMENTS = [
+      { type: :closed_stone_coffin, x: 650, y: 290 },
+      { type: :red_banner, x: 1080, y: 475 }
+    ].map(&:freeze).freeze
 
     WALLS = [
       { x: 64, y: 80, w: 1152, h: 24 },
@@ -32,13 +39,27 @@ module Descent
 
     def self.tick(args, tick_count: Kernel.tick_count)
       args.state.playground ||= { show_bounds: true, walls: WALLS.map(&:dup) }
+      playground = args.state.playground
+      refresh_props(playground)
+      prop_colliders = playground[:props].map(&:collision_rect).compact
       keyboard = args.inputs.keyboard
       args.state.player ||= Player.new(x: PLAYER_SPAWN[:x], y: PLAYER_SPAWN[:y])
-      args.state.playground[:show_bounds] = !args.state.playground[:show_bounds] if keyboard.key_down.b
-      args.state.player.update_controls(input(keyboard), walls: args.state.playground[:walls])
+      playground[:show_bounds] = !playground[:show_bounds] if keyboard.key_down.b
+      args.state.player.update_controls(input(keyboard), walls: playground[:walls] + prop_colliders)
       check_danger_zones(args, tick_count: tick_count)
       args.state.player.update_animation
-      render(args, tick_count: tick_count)
+      render(args, prop_colliders: prop_colliders, tick_count: tick_count)
+    end
+
+    def self.refresh_props(playground)
+      # Hot reload replaces these frozen constants. Existing component instances
+      # retain old values, so rebuild props before both collision and rendering.
+      sources = [PROP_PLACEMENTS, PROP_OVERRIDES, Tilesheet::TILES]
+      previous = playground[:prop_sources]
+      return if previous && sources.each_with_index.all? { |source, i| source.equal?(previous[i]) }
+
+      playground[:props] = PROP_PLACEMENTS.map { |placement| Prop.spawn(**placement) }
+      playground[:prop_sources] = sources
     end
 
     def self.check_danger_zones(args, tick_count: Kernel.tick_count)
@@ -72,23 +93,29 @@ module Descent
         sneak: keyboard.shift, toggle_lamp: keyboard.key_down.f }
     end
 
-    def self.render(args, tick_count: Kernel.tick_count)
+    def self.render(args, prop_colliders:, tick_count: Kernel.tick_count)
       walls = args.state.playground[:walls]
       args.outputs.primitives << RED_TILE
       args.outputs.primitives << walls.map { |wall| UI.box(wall, color: UI::COLORS[:stone]) }
-      args.outputs.primitives << args.state.player.sprite_to_primitive
+      entities = args.state.playground[:props] + [args.state.player]
+      args.outputs.primitives << entities.sort_by { |entity| -entity.y }.map(&:sprite_to_primitive)
       args.outputs.primitives << labels
-      playground = args.state.playground
-      countdown_at = playground[:respawn_at] || playground[:danger_death_at]
-      if countdown_at
-        seconds = ((countdown_at - tick_count) / 60.0).ceil
-        text = playground[:respawn_at] ? "Respawning in #{seconds}..." : "Leave the red tile! #{seconds}s"
-        args.outputs.primitives << UI.label({ x: 640, y: 580 }, text: text)
-      end
+      render_countdown(args, tick_count)
       return unless args.state.playground[:show_bounds]
 
       args.outputs.borders << walls.map { |wall| wall.merge(r: 235, g: 185, b: 94) }
+      args.outputs.borders << prop_colliders.map { |rect| rect.merge(r: 100, g: 180, b: 255) }
       args.outputs.borders << args.state.player.collision_rect.merge(r: 90, g: 255, b: 160)
+    end
+
+    def self.render_countdown(args, tick_count)
+      playground = args.state.playground
+      countdown_at = playground[:respawn_at] || playground[:danger_death_at]
+      return unless countdown_at
+
+      seconds = ((countdown_at - tick_count) / 60.0).ceil
+      text = playground[:respawn_at] ? "Respawning in #{seconds}..." : "Leave the red tile! #{seconds}s"
+      args.outputs.primitives << UI.label({ x: 640, y: 580 }, text: text)
     end
 
     def self.labels
