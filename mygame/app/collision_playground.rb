@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'app/camera'
 require 'app/player'
 require 'app/prop'
 require 'app/ui'
@@ -7,32 +8,37 @@ require 'app/ui'
 module Descent
   # Temporary, hand-placed room for tuning movement and the player's ground footprint.
   module CollisionPlayground
-    PLAYER_SPAWN = { x: 400, y: 180, facing: :south }.freeze
+    PLAYER_SPAWN = { x: 133, y: 60, facing: :south }.freeze
     DANGER_DELAY_TICKS = 120
     RESPAWN_DELAY_TICKS = 120 # Two seconds at DragonRuby's 60 ticks per second.
 
     # Change these types/positions and save to try any name in Tilesheet::TILES.
     PROP_PLACEMENTS = [
-      { id: :closed_stone_coffin, x: 650, y: 290 },
-      { id: :red_banner, x: 1080, y: 475 }
+      { id: :closed_stone_coffin, x: 217, y: 97 },
+      { id: :red_banner, x: 360, y: 158 }
     ].map(&:freeze).freeze
 
+    # Walls are 8 world pixels thick. The gap in the upper run is an 11-pixel
+    # doorway, against the player's 8-pixel foot collider. The room is
+    # deliberately wider and taller than one viewport so the camera scrolls.
     WALLS = [
-      { x: 64, y: 80, w: 1152, h: 24 },
-      { x: 64, y: 600, w: 1152, h: 24 },
-      { x: 64, y: 104, w: 24, h: 496 },
-      { x: 1192, y: 104, w: 24, h: 496 },
-      { x: 480, y: 200, w: 24, h: 240 },
-      { x: 504, y: 200, w: 160, h: 24 },
-      { x: 760, y: 340, w: 160, h: 24 },
-      { x: 952, y: 340, w: 240, h: 24 }
+      { x: 21, y: 27, w: 700, h: 8 },
+      { x: 21, y: 419, w: 700, h: 8 },
+      { x: 21, y: 35, w: 8, h: 384 },
+      { x: 713, y: 35, w: 8, h: 384 },
+      { x: 160, y: 67, w: 8, h: 80 },
+      { x: 168, y: 67, w: 53, h: 8 },
+      { x: 253, y: 113, w: 53, h: 8 },
+      { x: 317, y: 113, w: 396, h: 8 }
     ].map(&:freeze).freeze
+
+    WORLD_BOUNDS = { x: 21, y: 27, w: 700, h: 400 }.freeze
 
     RED_TILE = {
-      x: 88,
-      y: 104,
-      w: 256,
-      h: 256,
+      x: 29,
+      y: 35,
+      w: 85,
+      h: 85,
       r: 220, g: 50, b: 50,
       path: :solid
     }.freeze
@@ -40,6 +46,7 @@ module Descent
     def self.tick(args, tick_count: Kernel.tick_count)
       args.state.playground ||= { show_bounds: true, walls: WALLS.map(&:dup) }
       playground = args.state.playground
+      playground[:camera] ||= Camera.new(bounds: WORLD_BOUNDS)
       refresh_props(playground)
       prop_colliders = playground[:props].map(&:collision_rect).compact
       keyboard = args.inputs.keyboard
@@ -48,6 +55,7 @@ module Descent
       args.state.player.update_controls(input(keyboard), walls: playground[:walls] + prop_colliders)
       check_danger_zones(args, tick_count: tick_count)
       args.state.player.update_animation
+      playground[:camera].follow(x: args.state.player.x, y: args.state.player.y)
       render(args, prop_colliders: prop_colliders, tick_count: tick_count)
     end
 
@@ -93,19 +101,29 @@ module Descent
         sneak: keyboard.shift, toggle_lamp: keyboard.key_down.f }
     end
 
+    # The world is drawn in world pixels into the camera's render target; only
+    # the viewport blit and the labels above it are in screen pixels.
     def self.render(args, prop_colliders:, tick_count: Kernel.tick_count)
-      walls = args.state.playground[:walls]
-      args.outputs.primitives << RED_TILE
-      args.outputs.primitives << walls.map { |wall| UI.box(wall, color: UI::COLORS[:stone]) }
-      entities = args.state.playground[:props] + [args.state.player]
-      args.outputs.primitives << entities.sort_by { |entity| -entity.y }.map(&:sprite_to_primitive)
-      args.outputs.primitives << labels
-      render_countdown(args, tick_count)
-      return unless args.state.playground[:show_bounds]
+      playground = args.state.playground
+      camera = playground[:camera]
+      walls = playground[:walls]
+      scene = camera.scene(args)
 
-      args.outputs.borders << walls.map { |wall| wall.merge(r: 235, g: 185, b: 94) }
-      args.outputs.borders << prop_colliders.map { |rect| rect.merge(r: 100, g: 180, b: 255) }
-      args.outputs.borders << args.state.player.collision_rect.merge(r: 90, g: 255, b: 160)
+      scene.primitives << RED_TILE
+      scene.primitives << walls.map { |wall| UI.box(wall, color: UI::COLORS[:stone]) }
+      entities = playground[:props] + [args.state.player]
+      scene.primitives << entities.sort_by { |entity| -entity.y }.map(&:sprite_to_primitive)
+      render_bounds(scene, args, walls: walls, prop_colliders: prop_colliders) if playground[:show_bounds]
+
+      args.outputs.primitives << camera.viewport_sprite
+      args.outputs.primitives << labels(camera)
+      render_countdown(args, tick_count)
+    end
+
+    def self.render_bounds(scene, args, walls:, prop_colliders:)
+      scene.borders << walls.map { |wall| wall.merge(r: 235, g: 185, b: 94) }
+      scene.borders << prop_colliders.map { |rect| rect.merge(r: 100, g: 180, b: 255) }
+      scene.borders << args.state.player.collision_rect.merge(r: 90, g: 255, b: 160)
     end
 
     def self.render_countdown(args, tick_count)
@@ -118,12 +136,14 @@ module Descent
       args.outputs.primitives << UI.label({ x: 640, y: 580 }, text: text)
     end
 
-    def self.labels
+    # The first two are HUD and stay put; the rest annotate world features, so
+    # they are placed through the camera and scroll with what they point at.
+    def self.labels(camera)
       [UI.label({ x: 640, y: 688 }, text: 'Collision playground', size_px: 30),
        UI.label({ x: 640, y: 650 }, text: 'WASD / arrows: move    Shift: sneak    F: lamp    B: boxes'),
-       UI.label({ x: 560, y: 472 }, text: 'Slide along the corner', size_px: 18),
-       UI.label({ x: 936, y: 400 }, text: '32 px doorway', size_px: 18),
-       UI.label({ x: 88 + 128, y: 256 }, text: '2 seconds here = death', size_px: 20)]
+       UI.label(camera.to_screen(x: 186, y: 155), text: 'Slide along the corner', size_px: 18),
+       UI.label(camera.to_screen(x: 312, y: 131), text: '11 px doorway', size_px: 18),
+       UI.label(camera.to_screen(x: 72, y: 83), text: '2 seconds here = death', size_px: 20)]
     end
   end
 end
