@@ -54,7 +54,7 @@ module Descent
     def self.refresh_props(playground)
       # Hot reload replaces these frozen constants. Existing component instances
       # retain old values, so rebuild props before both collision and rendering.
-      sources = [PROP_PLACEMENTS, PROP_OVERRIDES, Tilesheet::TILES]
+      sources = [PROP_PLACEMENTS, Prop::PROP_OVERRIDES, Tilesheet::TILES]
       previous = playground[:prop_sources]
       return if previous && sources.each_with_index.all? { |source, i| source.equal?(previous[i]) }
 

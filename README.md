@@ -164,7 +164,9 @@ scripts/                Cross-platform game launchers
 PRODUCT.md              Player experience, core loop, and MVP scope
 CONTEXT.md              Current decisions, working models, and open questions
 AGENTS.md               Repository conventions for coding agents
+CLAUDE.md               One-line @AGENTS.md import for Claude Code
 .agents/skills/         Project-specific design and development workflows
+.claude/skills          Symlink to .agents/skills for Claude Code discovery
 ```
 
 DragonRuby executables, `.dragonruby/`, engine docs, samples, and bundled resources live in the external SDK directory selected by `DRAGONRUBY_HOME`. Do not copy the SDK into this repository.
@@ -175,7 +177,9 @@ Read [PRODUCT.md](PRODUCT.md) for the intended player experience and first playa
 
 ## Shared agent workflows
 
-Project skills live in `.agents/skills/`, including the `grilling` and `domain-modeling` dependencies of `grill-with-docs`. These are project-maintained copies; see [.agents/skills/THIRD-PARTY.md](.agents/skills/THIRD-PARTY.md) for their source, adaptations, and license. The Claude entry under `.claude/skills/grill-with-docs/` forwards to the shared instructions using a regular file, so it does not require symlink support.
+Project skills live in `.agents/skills/`, including the `grilling` and `domain-modeling` dependencies of `grill-with-docs`. These are project-maintained copies; see [.agents/skills/THIRD-PARTY.md](.agents/skills/THIRD-PARTY.md) for their source, adaptations, and license.
+
+The same skills and repository conventions are shared with every agent harness, so there is no per-tool copy to keep in sync. Codex reads `AGENTS.md` and `.agents/skills/` directly. Claude Code reads `CLAUDE.md`, a one-line `@AGENTS.md` import, and discovers skills through `.claude/skills`, a committed symlink to `.agents/skills`. Native Windows checkouts need `git config --global core.symlinks true` (or Developer Mode) before cloning for that link to resolve; without it Claude Code simply finds no project skills, and nothing else is affected.
 
 Choose your Ruby version manager in personal editor settings; the shared workspace configures only formatting and linting.
 
