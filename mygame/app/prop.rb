@@ -9,13 +9,10 @@ require 'app/tilesheet'
 module Descent
   class Prop < Entity
     # Only tuned types need entries. Missing colliders use the full source cell;
-    # explicit nil makes a prop decorative. Dimensions are in unscaled pixels.
+    # explicit nil makes a prop decorative.
     PROP_OVERRIDES = {
-      closed_stone_coffin: {
-        scale: 3,
-        collider: { w: 24, h: 10 }.freeze
-      }.freeze,
-      red_banner: { scale: 3, collider: nil }.freeze
+      closed_stone_coffin: { collider: { w: 24, h: 10 }.freeze }.freeze,
+      red_banner: { collider: nil }.freeze
     }.freeze
 
     attr_reader :id

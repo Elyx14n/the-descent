@@ -4,7 +4,7 @@ require 'app/collision_playground'
 require 'tests/support/player_helpers'
 
 def test_playground_advances_death_once_per_tick_and_respawns_with_idle(args, assert)
-  player = Descent::Player.new(x: 180, y: 180)
+  player = Descent::Player.new(x: 60, y: 60) # Standing on the red tile.
   args.state.player = player
   args.state.playground = { walls: [], show_bounds: false }
 
@@ -20,17 +20,19 @@ def test_playground_advances_death_once_per_tick_and_respawns_with_idle(args, as
       assert.equal! sprite[:source_x], [(tick - 120).div(8), 7].min * 32
     else
       assert.equal! player.sanity, 100
-      assert.equal! [player.x, player.y], [400, 180]
+      assert.equal! [player.x, player.y], [133, 60]
       assert.equal! sprite[:path], 'sprites/player_idle_lamp_on.png'
       assert.equal! sprite[:source_x], 0
     end
     args.outputs.primitives.clear
     args.outputs.borders.clear
+    args.outputs[Descent::Camera::TARGET].primitives.clear
+    args.outputs[Descent::Camera::TARGET].borders.clear
   end
 end
 
 def test_red_tile_death_renders_its_first_frame_immediately(args, assert)
-  player = Descent::Player.new(x: 180, y: 180)
+  player = Descent::Player.new(x: 60, y: 60) # Standing on the red tile.
   input = { dx: 0, dy: 0, sneak: false, toggle_lamp: false }
   17.times { step_player(player, input) }
   assert.true! player.sprite_to_primitive[:source_x].positive?
@@ -47,7 +49,7 @@ def test_red_tile_death_renders_its_first_frame_immediately(args, assert)
 end
 
 def test_red_tile_delays_death_then_resets_without_extending_either_countdown(args, assert)
-  player = Descent::Player.new(x: 180, y: 180)
+  player = Descent::Player.new(x: 60, y: 60) # Standing on the red tile.
   player.lamp_on = false
   args.state.player = player
   args.state.playground = { walls: Descent::CollisionPlayground::WALLS.map(&:dup) }
@@ -72,35 +74,35 @@ def test_red_tile_delays_death_then_resets_without_extending_either_countdown(ar
 
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 250)
   assert.true! args.state.player.equal?(player)
-  assert.equal! [player.x, player.y], [400, 180]
+  assert.equal! [player.x, player.y], [133, 60]
   assert.equal! player.sanity, 100
   assert.true! player.lamp_on
   assert.equal! args.state.playground[:respawn_at], nil
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 251)
   assert.equal! args.state.playground[:respawn_at], nil
 
-  player.x = 180
+  player.x = 60
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 300)
   assert.equal! args.state.playground[:danger_death_at], 420
   assert.equal! player.sanity, 100
 end
 
 def test_leaving_red_tile_cancels_danger_and_reentry_starts_fresh(args, assert)
-  player = Descent::Player.new(x: 180, y: 180)
+  player = Descent::Player.new(x: 60, y: 60) # Standing on the red tile.
   args.state.player = player
   args.state.playground = {}
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 0)
-  player.x = 400
+  player.x = 133
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 119)
   assert.equal! args.state.playground[:danger_death_at], nil
   assert.equal! player.sanity, 100
-  player.x = 180
+  player.x = 60
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 120)
   assert.equal! args.state.playground[:danger_death_at], 240
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 239)
   assert.equal! player.sanity, 100
   # Stepping off exactly at the deadline still avoids death.
-  player.x = 400
+  player.x = 133
   Descent::CollisionPlayground.check_danger_zones(args, tick_count: 240)
   assert.equal! player.sanity, 100
   assert.equal! args.state.playground[:respawn_at], nil

@@ -55,13 +55,15 @@ module Descent
 
       {
         path: clip ? (clip[:path] || clip[:variants].fetch(selected_variant)) : @path,
-        x: x,
-        y: y - (@foot_padding * scale),
+        # Drawn on whole world pixels. Positions advance by fractions of one
+        # when moving diagonally, and a sprite left on a fraction rounds out of
+        # step with the camera origin, which reads as jitter rather than motion.
+        x: x.round,
+        y: (y - (@foot_padding * scale)).round,
         w: source.fetch(:w) * scale,
         h: source.fetch(:h) * scale,
         anchor_x: 0.5,
         anchor_y: 0,
-        scale_quality_enum: 0,
         source_x: source.fetch(:x),
         source_y: source.fetch(:y),
         source_w: source.fetch(:w),

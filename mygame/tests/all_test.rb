@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'tests/camera_test'
 require 'tests/entity_components_test'
 require 'tests/player_collision_test'
 require 'tests/player_respawn_test'
