@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
-
 module Descent
   class Room
     attr_reader :id, :w, :h, :exits, :walls, :props

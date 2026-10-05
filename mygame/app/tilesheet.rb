@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
-
 module Descent
   module Tilesheet
     PATH = 'sprites/tilesheet.png'
