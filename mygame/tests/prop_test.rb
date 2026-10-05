@@ -105,8 +105,11 @@ def test_override_reload_updates_existing_props_and_preserves_player(args, asser
     updated = args.state.playground[:props].first
     assert.false! updated.equal?(original)
     assert.equal! updated.collision_rect, { x: 209, y: 97, w: 16, h: 12 }
-    assert.true!(scene.borders.flatten.any? { |rect| rect[:x] == 209 && rect[:w] == 16 })
-    rendered = scene.primitives.flatten.find { |p| p[:path] == 'sprites/tilesheet.png' && p[:x] == 217 }
+    camera = args.state.playground[:camera]
+    border = camera.to_screen_space(updated.collision_rect.merge(r: 100, g: 180, b: 255))
+    assert.true! scene.borders.flatten.include?(border)
+    screen_x = camera.to_screen(x: 217, y: 97)[:x]
+    rendered = scene.primitives.flatten.find { |p| p[:path] == 'sprites/tilesheet.png' && p[:x] == screen_x }
     assert.equal! rendered[:w], 64
     assert.true! args.state.player.equal?(player)
     assert.equal! [player.x, player.y, player.sanity, player.lamp_on], [193, 100, 75, false]

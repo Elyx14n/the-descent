@@ -3,47 +3,43 @@
 require 'app/camera'
 require 'app/collision_playground'
 
-def test_camera_sizes_its_target_to_the_world_far_edge(args, assert)
-  camera = Descent::Camera.new(bounds: { x: 21, y: 27, w: 384, h: 181 })
-  target = camera.scene(args)
-
-  # World coordinates are target coordinates, so the target must reach the
-  # far edge rather than only cover the world's own width and height.
-  assert.equal! target.w, 405
-  assert.equal! target.h, 208
-end
-
-def test_playground_target_covers_its_whole_world(args, assert)
-  camera = Descent::Camera.new(bounds: Descent::CollisionPlayground::WORLD_BOUNDS)
-  target = camera.scene(args)
-
-  assert.equal! target.w, 721
-  assert.equal! target.h, 427
+def test_camera_target_size_is_independent_of_world_size_and_origin(args, assert)
+  [{ x: 21, y: 27, w: 100, h: 100 },
+   { x: -20_000, y: -30_000, w: 100_000, h: 100_000 }].each do |bounds|
+    camera = Descent::Camera.new(bounds: bounds)
+    target = camera.scene(args)
+    assert.equal! [target.w, target.h], [320, 180]
+  end
 end
 
 def test_world_smaller_than_the_viewport_is_centered_whole(_args, assert)
-  camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 100, h: 100 })
-  camera.follow(x: -500, y: -500) # Off in a corner; a world this small never scrolls.
-  sprite = camera.viewport_sprite
+  camera = Descent::Camera.new(bounds: { x: 21, y: 27, w: 100, h: 100 })
+  camera.follow(x: -500, y: -500)
 
-  assert.equal! sprite[:path], Descent::Camera::TARGET
-  assert.equal! [sprite[:source_x], sprite[:source_w]], [0, 100]
-  assert.equal! [sprite[:source_y], sprite[:source_h]], [0, 100]
-  # 100 world pixels at 3x, centered on a 1280x720 screen.
-  assert.equal! [sprite[:x], sprite[:w]], [490, 300]
-  assert.equal! [sprite[:y], sprite[:h]], [210, 300]
+  assert.equal! [camera.x, camera.y], [71, 77]
+  bottom_left = camera.to_screen(x: 21, y: 27)
+  top_right = camera.to_screen(x: 121, y: 127)
+  assert.equal! bottom_left, { x: 110, y: 40 }
+  assert.equal! top_right, { x: 210, y: 140 }
+end
+
+def test_small_world_axis_centers_while_large_axis_scrolls(_args, assert)
+  camera = Descent::Camera.new(bounds: { x: -50, y: -500, w: 100, h: 1000 })
+  camera.follow(x: 1000, y: 200.25)
+
+  assert.equal! camera.x, 0
+  assert.equal! camera.y, 200.25
+  assert.equal! camera.to_screen(x: 0, y: 200.25), { x: 160, y: 90 }
 end
 
 def test_playground_world_is_larger_than_the_viewport_so_the_camera_scrolls(_args, assert)
   camera = Descent::Camera.new(bounds: Descent::CollisionPlayground::WORLD_BOUNDS)
 
-  left = camera.follow(x: 100, y: 200).viewport_sprite
-  right = camera.follow(x: 600, y: 200).viewport_sprite
+  left = camera.follow(x: 100, y: 200).viewport_world
+  right = camera.follow(x: 600, y: 200).viewport_world
 
-  assert.true! right[:source_x] > left[:source_x]
-  # Both fill the screen rather than being centered in it.
-  assert.equal! [left[:x], left[:w]], [0, 1280]
-  assert.equal! [right[:x], right[:w]], [0, 1280]
+  assert.true! right[:x] > left[:x]
+  assert.equal! camera.viewport_sprite, { x: 0, y: 0, w: 320, h: 180, path: Descent::Camera::TARGET }
 end
 
 def test_diagonal_movement_holds_the_player_still_on_screen(_args, assert)
@@ -51,93 +47,151 @@ def test_diagonal_movement_holds_the_player_still_on_screen(_args, assert)
   player = Descent::Player.new(x: 371, y: 227) # Clear of every world edge.
   input = { dx: 1, dy: 1, sneak: false, toggle_lamp: false }
 
-  # A diagonal step is 1/sqrt(2) world pixels, so the position is never whole.
-  on_screen = 20.times.map do
+  20.times do
     player.update_controls(input)
-    window = camera.follow(x: player.x, y: player.y).viewport_sprite
-    sprite = player.sprite_to_primitive
-    [(sprite[:x] - window[:source_x]) * Descent::Camera::ZOOM,
-     (sprite[:y] - window[:source_y]) * Descent::Camera::ZOOM]
+    camera.follow(x: player.x, y: player.y)
+    sprite = camera.to_screen_space(player.sprite_to_primitive)
+    # The horizontal feet anchor stays centered; padding puts the sprite 3px below it.
+    assert.true! (sprite[:x] - 160).abs < 0.00001
+    assert.true! (sprite[:y] - 87).abs < 0.00001
+    assert.equal! [sprite[:w], sprite[:h]], [32, 32]
   end
 
-  assert.true! player.x > 371 # It really moved.
-  # While followed, it holds one screen position instead of oscillating.
-  assert.equal! on_screen.uniq.length, 1
+  assert.true! player.x > 371
 end
 
 def test_a_clamped_camera_never_walks_the_player_backwards(_args, assert)
   camera = Descent::Camera.new(bounds: Descent::CollisionPlayground::WORLD_BOUNDS)
-  player = Descent::Player.new(x: 40, y: 60) # Pinned against the left edge.
+  player = Descent::Player.new(x: 40, y: 60)
   input = { dx: 1, dy: 1, sneak: false, toggle_lamp: false }
 
   on_screen = 20.times.map do
     player.update_controls(input)
-    window = camera.follow(x: player.x, y: player.y).viewport_sprite
-    (player.sprite_to_primitive[:x] - window[:source_x]) * Descent::Camera::ZOOM
+    camera.follow(x: player.x, y: player.y)
+    camera.to_screen_space(player.sprite_to_primitive)[:x]
   end
 
-  # The camera cannot scroll here, so the player crosses the screen in whole
-  # magnified pixels. Monotonic steps are motion; any step back is jitter.
-  assert.true!(on_screen.each_cons(2).all? { |before, after| after >= before })
-  assert.true! on_screen.last > on_screen.first
+  assert.true!(on_screen.each_cons(2).all? { |before, after| after > before })
 end
 
 def test_to_screen_tracks_a_world_point_as_the_camera_moves(_args, assert)
   camera = Descent::Camera.new(bounds: Descent::CollisionPlayground::WORLD_BOUNDS)
-  marker = { x: 312, y: 131 }
+  marker = { x: 351, y: 227 }
 
-  near = camera.follow(x: 312, y: 131).to_screen(**marker)
-  # Centred on the marker, it lands in the middle of the screen.
-  assert.true!((near[:x] - (Descent::Camera::SCREEN_W / 2)).abs <= Descent::Camera::ZOOM)
+  near = camera.follow(**marker).to_screen(**marker)
+  assert.equal! near, { x: 160, y: 90 }
 
-  # Panning right moves the marker left on screen, by the magnified distance.
-  panned = camera.follow(x: 362, y: 131).to_screen(**marker)
-  assert.equal! panned[:x], near[:x] - (50 * Descent::Camera::ZOOM)
-  assert.equal! panned[:y], near[:y]
+  panned = camera.follow(x: 381, y: 227).to_screen(**marker)
+  assert.equal! panned, { x: 130, y: 90 }
 end
 
 def test_large_world_scrolls_and_clamps_to_its_edges(_args, assert)
-  camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+  bounds = { x: -1000, y: -2000, w: 3000, h: 4000 }
+  camera = Descent::Camera.new(bounds: bounds)
 
-  centered = camera.follow(x: 500, y: 500).viewport_sprite
-  assert.equal! [centered[:x], centered[:w]], [0, 1280]
-  assert.equal! [centered[:y], centered[:h]], [0, 720]
-  assert.equal! centered[:source_x], 287 # 500 - (1280 / 3 / 2), rounded.
-  assert.equal! centered[:source_y], 380 # 500 - (720 / 3 / 2).
+  centered = camera.follow(x: -400.25, y: -500.5).viewport_world
+  assert.equal! centered[:x], -560.25
+  assert.equal! centered[:y], -590.5
 
-  at_origin = camera.follow(x: -5000, y: -5000).viewport_sprite
-  assert.equal! [at_origin[:source_x], at_origin[:source_y]], [0, 0]
+  at_origin = camera.follow(x: -50_000, y: -50_000).viewport_world
+  assert.true! (at_origin[:x] - bounds[:x]).abs < 0.00001
+  assert.equal! at_origin[:y], bounds[:y]
 
-  at_far_edge = camera.follow(x: 5000, y: 5000).viewport_sprite
-  assert.equal! at_far_edge[:source_x], 573 # 1000 - 1280 / 3, rounded.
-  assert.equal! at_far_edge[:source_y], 760 # 1000 - 720 / 3.
+  at_far_edge = camera.follow(x: 50_000, y: 50_000).viewport_world
+  assert.true! (at_far_edge[:x] + at_far_edge[:w] - 2000).abs < 0.00001
+  assert.equal! at_far_edge[:y] + at_far_edge[:h], 2000
 end
 
-def test_scrolling_origin_snaps_to_whole_world_pixels(_args, assert)
+def test_camera_preserves_fractional_follow_positions(_args, assert)
   camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+  camera.follow(x: 500.2, y: 500.4)
 
-  # Magnified pixels only stay square while the sampled origin is an integer.
-  [500.2, 500.4, 500.9, 501.5].each do |position|
-    sprite = camera.follow(x: position, y: position).viewport_sprite
-    assert.equal! sprite[:source_x], sprite[:source_x].to_i
-    assert.equal! sprite[:source_y], sprite[:source_y].to_i
+  assert.equal! [camera.x, camera.y], [500.2, 500.4]
+  assert.equal! camera.to_screen(x: 500.2, y: 500.4), { x: 160, y: 90 }
+  assert.equal! camera.viewport_world[:w], 320
+end
+
+def test_camera_conversions_round_trip_without_mutating_sprite_properties(_args, assert)
+  camera = Descent::Camera.new(bounds: { x: -1000, y: -1000, w: 2000, h: 2000 })
+  camera.follow(x: -300.25, y: -200.5)
+  sprite = { x: -310.75, y: -180.25, w: 32, h: 48, path: 'sprites/test.png',
+             anchor_x: 0.5, anchor_y: 0, source_x: 64, source_y: 32, source_w: 32, source_h: 48,
+             r: 90, g: 255, b: 160 }
+  original = sprite.dup
+  screen = camera.to_screen_space(sprite)
+  restored = camera.to_world_space(screen)
+
+  assert.equal! sprite, original
+  %i[x y w h].each { |key| assert.true! (restored[key] - sprite[key]).abs < 0.00001 }
+  %i[path anchor_x anchor_y source_x source_y source_w source_h r g b].each do |key|
+    assert.equal! screen[key], sprite[key]
+    assert.equal! restored[key], sprite[key]
   end
+  point = { x: -287.125, y: -190.75 }
+  restored_point = camera.to_world_space(camera.to_screen_space(point))
+  %i[x y].each { |key| assert.true! (restored_point[key] - point[key]).abs < 0.00001 }
 end
 
-def test_playground_renders_its_world_through_the_camera(args, assert)
-  spawn = Descent::CollisionPlayground::PLAYER_SPAWN
-  args.state.player = Descent::Player.new(x: spawn[:x], y: spawn[:y])
-  args.state.playground = { walls: Descent::CollisionPlayground::WALLS.map(&:dup), show_bounds: true }
+def test_camera_converts_collections_in_both_directions(_args, assert)
+  camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+  world = [{ x: 500, y: 500 }, [{ x: 501, y: 502, w: 16, h: 8 }], nil]
+  screen = [{ x: 160, y: 90 }, [{ x: 161, y: 92, w: 16, h: 8 }], nil]
+
+  assert.equal! camera.to_screen_space(world), screen
+  assert.equal! camera.to_world_space(screen), world
+end
+
+def test_visibility_uses_anchored_artwork_and_preserves_drawing_order(_args, assert)
+  camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+  view = camera.viewport_world
+  # Anchors put part of each sprite inside the view even though its x is outside.
+  right = { x: view[:x] + view[:w] + 4, y: 500, w: 32, h: 32, anchor_x: 0.5 }
+  hidden = right.merge(x: right[:x] + 32)
+  inside = { x: 500, y: 500, w: 32, h: 32 }
+  left = { x: view[:x] - 4, y: 500, w: 32, h: 32, anchor_x: 0.5 }
+
+  assert.equal! camera.find_all_intersect_viewport([right, hidden, inside, left]), [right, inside, left]
+end
+
+def test_playground_renders_visible_world_and_debug_bounds_through_the_camera(args, assert)
+  player = Descent::Player.new(x: 600.25, y: 300.5)
+  args.state.player = player
+  walls = Descent::CollisionPlayground::WALLS.map(&:dup)
+  walls << { id: :offscreen, x: 1000, y: 300, w: 32, h: 32 }
+  walls << { id: :partial, x: 395, y: 300, w: 16, h: 8 }
+  args.state.playground = { walls: walls, show_bounds: true }
   Descent::CollisionPlayground.tick(args, tick_count: 0)
 
+  camera = args.state.playground[:camera]
   scene = args.outputs[Descent::Camera::TARGET]
-  world = scene.primitives.flatten
-  # The player and both props are drawn in world pixels, inside the room.
-  assert.true!(world.any? { |p| p[:path] == 'sprites/player_idle_lamp_on.png' && p[:w] == 32 })
-  assert.true!(world.all? { |p| p[:x] < Descent::Camera::SCREEN_W })
+  primitives = scene.primitives.flatten
+  sprite = primitives.find { |p| p[:path] == 'sprites/player_idle_lamp_on.png' }
+  assert.equal! sprite, camera.to_screen_space(player.sprite_to_primitive)
+  assert.equal! [sprite[:w], sprite[:h]], [32, 32]
+  visible_ids = primitives.map { |p| p[:id] }
+  assert.false! visible_ids.include?(:offscreen)
+  # Retain the wall that straddles the left edge while culling the distant red tile.
+  assert.true! visible_ids.include?(:partial)
+  assert.false!(primitives.any? { |p| p.values_at(:r, :g) == [220, 50] })
+  foot_border = scene.borders.flatten.find { |p| p.values_at(:r, :g) == [90, 255] }
+  assert.equal! foot_border, camera.to_screen_space(player.collision_rect.merge(r: 90, g: 255, b: 160))
 
-  # Exactly one screen-space primitive carries the world: the viewport blit.
   blits = args.outputs.primitives.flatten.select { |p| p[:path] == Descent::Camera::TARGET }
-  assert.equal! blits.length, 1
-  assert.equal! [blits.first[:x], blits.first[:w]], [0, Descent::Camera::SCREEN_W]
+  assert.equal! blits, [camera.viewport_sprite]
+  assert.equal! [scene.w, scene.h], [320, 180]
+end
+
+def test_playground_refreshes_camera_bounds_without_resetting_player(args, assert)
+  player = Descent::Player.new(x: 371.25, y: 227.5)
+  stale = Descent::Camera.new(bounds: { x: 0, y: 0, w: 100, h: 100 })
+  args.state.player = player
+  args.state.playground = { walls: [], show_bounds: false, camera: stale }
+
+  Descent::CollisionPlayground.tick(args, tick_count: 0)
+
+  assert.true! args.state.player.equal?(player)
+  camera = args.state.playground[:camera]
+  assert.false! camera.equal?(stale)
+  assert.true! camera.bounds.equal?(Descent::CollisionPlayground::WORLD_BOUNDS)
+  assert.equal! [camera.x, camera.y], [player.x, player.y]
 end

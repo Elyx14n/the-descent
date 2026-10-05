@@ -46,7 +46,7 @@ module Descent
     def self.tick(args, tick_count: Kernel.tick_count)
       args.state.playground ||= { show_bounds: true, walls: WALLS.map(&:dup) }
       playground = args.state.playground
-      playground[:camera] ||= Camera.new(bounds: WORLD_BOUNDS)
+      refresh_camera(playground)
       refresh_props(playground)
       prop_colliders = playground[:props].map(&:collision_rect).compact
       keyboard = args.inputs.keyboard
@@ -57,6 +57,13 @@ module Descent
       args.state.player.update_animation
       playground[:camera].follow(x: args.state.player.x, y: args.state.player.y)
       render(args, prop_colliders: prop_colliders, tick_count: tick_count)
+    end
+
+    def self.refresh_camera(playground)
+      # Refresh edited map bounds on hot reload without resetting player state.
+      return if playground[:camera]&.bounds.equal?(WORLD_BOUNDS)
+
+      playground[:camera] = Camera.new(bounds: WORLD_BOUNDS)
     end
 
     def self.refresh_props(playground)
@@ -101,29 +108,32 @@ module Descent
         sneak: keyboard.shift, toggle_lamp: keyboard.key_down.f }
     end
 
-    # The world is drawn in world pixels into the camera's render target; only
-    # the viewport blit and the labels above it are in screen pixels.
+    # Cull in world space, then convert visible primitives into screen pixels
+    # inside the viewport-sized target. HUD and annotations are drawn above it.
     def self.render(args, prop_colliders:, tick_count: Kernel.tick_count)
       playground = args.state.playground
       camera = playground[:camera]
       walls = playground[:walls]
       scene = camera.scene(args)
 
-      scene.primitives << RED_TILE
-      scene.primitives << walls.map { |wall| UI.box(wall, color: UI::COLORS[:stone]) }
       entities = playground[:props] + [args.state.player]
-      scene.primitives << entities.sort_by { |entity| -entity.y }.map(&:sprite_to_primitive)
-      render_bounds(scene, args, walls: walls, prop_colliders: prop_colliders) if playground[:show_bounds]
+      world = [RED_TILE] + walls.map { |wall| UI.box(wall, color: UI::COLORS[:stone]) }
+      world += entities.sort_by { |entity| -entity.y }.map(&:sprite_to_primitive)
+      scene.primitives << camera.to_screen_space(camera.find_all_intersect_viewport(world))
+      if playground[:show_bounds]
+        render_bounds(scene, args, camera: camera, walls: walls, prop_colliders: prop_colliders)
+      end
 
       args.outputs.primitives << camera.viewport_sprite
       args.outputs.primitives << labels(camera)
       render_countdown(args, tick_count)
     end
 
-    def self.render_bounds(scene, args, walls:, prop_colliders:)
-      scene.borders << walls.map { |wall| wall.merge(r: 235, g: 185, b: 94) }
-      scene.borders << prop_colliders.map { |rect| rect.merge(r: 100, g: 180, b: 255) }
-      scene.borders << args.state.player.collision_rect.merge(r: 90, g: 255, b: 160)
+    def self.render_bounds(scene, args, camera:, walls:, prop_colliders:)
+      borders = walls.map { |wall| wall.merge(r: 235, g: 185, b: 94) }
+      borders += prop_colliders.map { |rect| rect.merge(r: 100, g: 180, b: 255) }
+      borders << args.state.player.collision_rect.merge(r: 90, g: 255, b: 160)
+      scene.borders << camera.to_screen_space(camera.find_all_intersect_viewport(borders))
     end
 
     def self.render_countdown(args, tick_count)
@@ -133,17 +143,18 @@ module Descent
 
       seconds = ((countdown_at - tick_count) / 60.0).ceil
       text = playground[:respawn_at] ? "Respawning in #{seconds}..." : "Leave the red tile! #{seconds}s"
-      args.outputs.primitives << UI.label({ x: 640, y: 580 }, text: text)
+      args.outputs.primitives << UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 37 }, text: text)
     end
 
     # The first two are HUD and stay put; the rest annotate world features, so
     # they are placed through the camera and scroll with what they point at.
     def self.labels(camera)
-      [UI.label({ x: 640, y: 688 }, text: 'Collision playground', size_px: 30),
-       UI.label({ x: 640, y: 650 }, text: 'WASD / arrows: move    Shift: sneak    F: lamp    B: boxes'),
-       UI.label(camera.to_screen(x: 186, y: 155), text: 'Slide along the corner', size_px: 18),
-       UI.label(camera.to_screen(x: 312, y: 131), text: '11 px doorway', size_px: 18),
-       UI.label(camera.to_screen(x: 72, y: 83), text: '2 seconds here = death', size_px: 20)]
+      [UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 10 }, text: 'Collision playground', size_px: UI::TEXT[:h1]),
+       UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 23 },
+                text: 'WASD / arrows: move    Shift: sneak    F: lamp    B: boxes'),
+       UI.label(camera.to_screen(x: 186, y: 155), text: 'Slide along the corner'),
+       UI.label(camera.to_screen(x: 312, y: 131), text: '11 px doorway'),
+       UI.label(camera.to_screen(x: 72, y: 83), text: '2 seconds here = death')]
     end
   end
 end
