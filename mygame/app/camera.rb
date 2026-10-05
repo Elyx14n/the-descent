@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
-
 module Descent
   # The world is authored and simulated in world pixels, where one tile is
   # Tilesheet::TILE_SIZE. Magnification lives here and nowhere else: entities

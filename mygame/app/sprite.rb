@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
-
 module Descent
   class Sprite
     attr_reader :current_animation, :animation_tick

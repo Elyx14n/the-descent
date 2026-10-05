@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
 require 'app/entity'
 require 'app/sprite'
 require 'app/collider'
