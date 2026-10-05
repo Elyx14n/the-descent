@@ -2,9 +2,7 @@
 
 `grill-with-docs/`, `grilling/`, and `domain-modeling/` are adapted from [Matt Pocock's skills](https://github.com/mattpocock/skills). The dependencies were copied from the locally installed skills on 2026-09-29; their exact upstream revision was not recorded. Supporting format files and agent metadata are included.
 
-These copies are maintained with this project. Adaptations resolve dependencies through relative file links, allow investigation without a sub-agent, preserve existing user authorization, and retain this repository's broader role for `CONTEXT.md`. Project ADRs under `docs/adr/` are distinct from SDK documentation. The Claude entry is a project-owned forwarding file.
-
-The upstream installer entry for `grill-with-docs` was removed from `skills-lock.json` because these are local adaptations, not an unchanged installed package. Review future upstream updates manually.
+These project-maintained copies are adapted for DragonRuby and the shared [documentation guide](../../docs/agents/domain.md). Review upstream updates manually.
 
 License source: https://github.com/mattpocock/skills/blob/main/LICENSE
 

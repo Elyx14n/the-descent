@@ -2,20 +2,12 @@
 
 The Descent is a small, top-down horror game being built with DragonRuby Game Toolkit. The player explores a monastery, deciphers a ritual lock, and evades the Witness: an enemy that uses evidence left in the world to anticipate where the player will go.
 
-The current game is a movement and collision playground. Planning documents describe the intended MVP; they do not imply that all planned features are implemented.
-
-The game's reference resolution is **320 × 180**, configured through `aspect_mode=0` and `aspect_size=180` in `mygame/metadata/game_metadata.txt`. Artwork is drawn at native size: a 32 × 32 frame occupies 32 × 32 logical pixels at entity scale 1, and one world unit is one artwork pixel. The camera translates the view without magnifying it; DragonRuby scales the logical canvas for display with nearest-neighbor sampling. At 720p, 1080p, 1440p, and 4K, each logical pixel occupies 4 × 4, 6 × 6, 8 × 8, and 12 × 12 display pixels respectively. Other window sizes may use fractional scaling under Standard's fit-to-window presentation.
-
-This follows [Unity's explicit reference-resolution workflow and 320 × 180 example](https://docs.unity.com/en-us/engine/6000.7/manual/unity2d/2d-urp/2d-pixelperfect/prep-sprites) and [Godot's pixel-art resolution guidance](https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html#desktop-game). The resolution was selected by playtesting the current artwork. Keep artwork dimensions, world positions, and HUD layout in logical pixels; avoid adding camera zoom to compensate for display resolution.
-
-UI labels use [m5x7 by Daniel Linssen](https://managore.itch.io/m5x7), stored in `mygame/fonts/m5x7.ttf`. Body text uses `size_px: 8` and headings use `16`, selected by playtesting. Keep `hd=true`: it prevents blurry labels in the tested setup while retaining the 320 × 180 logical canvas and native artwork dimensions. These font sizes are part of that configuration; evaluate changes with HD rendering enabled.
-
 ## Prerequisites
 
 Before setting up the repository, ensure you have the following installed:
 
 * **DragonRuby Game Toolkit SDK:** Download the latest platform build for your OS (macOS, Linux, or Windows).
-* **Ruby (v3.0+ recommended):** Needed for repository development checks (`rubocop`, `bundle`). Managed via system Ruby or a version manager like **RVM**, **rbenv**, or **asdf**.
+* **Ruby:** Needed for repository development checks; use your preferred version manager.
 * **Bundler (`gem install bundler`):** Required to manage development gems.
 * **VS Code + Ruby LSP Extension (Optional):** Recommended editor setup for code completion and indexing against the DragonRuby SDK.
 
@@ -130,27 +122,15 @@ Stakeholders contributing assets should upload them to:
 
 - `mygame/sprites/` for sprites
 - `mygame/sounds/` for sounds
+- `mygame/fonts/` for fonts
 
 Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
 
-The cathedral tilesheet is `mygame/sprites/tilesheet.png` (17 × 17 cells, 32 × 32 pixels each). The [tilesheet skill](.agents/skills/tilesheet/SKILL.md) documents tile selection and DragonRuby cropping; its [tile lookup](.agents/skills/tilesheet/references/tiles.md) lists all 289 names and cells. The original `main_32x32.json` is retained as source metadata; its vendor asset paths do not match this repository.
+For the cathedral tilesheet, use the [tile lookup](.agents/skills/tilesheet/references/tiles.md) to choose art and the [tilesheet workflow](.agents/skills/tilesheet/SKILL.md) for cropping and integration.
 
 ### Try props and tune collision
 
-[tilesheet.rb](mygame/app/tilesheet.rb) contains all 289 tile names in sheet order and computes their source rectangles. Ruby names use underscores, such as `closed_stone_coffin`. The JSON is not loaded by the game; the native catalog test compares the Ruby mapping against it.
-
-Edit `PROP_PLACEMENTS` in [collision_playground.rb](mygame/app/collision_playground.rb) to select tiles and set their positions. Each entry uses `{ id: :closed_stone_coffin, x: 650, y: 290 }`; optional `facing` defaults to `:south` and does not change the fixed artwork.
-
-Edit `PROP_OVERRIDES` in [prop.rb](mygame/app/prop.rb) to tune a id. Without an override, any catalog tile spawns at scale `1` with a full 32 × 32 collider. For example:
-
-```ruby
-closed_stone_coffin: { scale: 3, collider: { w: 24, h: 10 }.freeze }.freeze,
-red_banner: { scale: 3, collider: nil }.freeze
-```
-
-Collider dimensions are unscaled pixels; scale applies to both art and collision. Omit `collider` for the full-cell default, or set it to `nil` for decoration. Position is the horizontal center of the cell's bottom edge, shared with the collider. These footprints are starting values for visual tuning, not measurements supplied by the atlas.
-
-Save edits to placements, overrides, or the catalog to rebuild the playground props on hot reload. Player state and danger timers are preserved. Prop positions are rebuilt from the placements. Press **B** to toggle collision outlines: prop footprints are blue. Walk into the coffin to test blocking and through the banner to check decoration; edit the coffin's dimensions and confirm that its outline and collision update together.
+Edit `PROP_PLACEMENTS` in [collision_playground.rb](mygame/app/collision_playground.rb) to position tiles, and `PROP_OVERRIDES` in [prop.rb](mygame/app/prop.rb) to tune their footprints. Save to refresh the props; press **B** for collision outlines. Walk into the coffin to test blocking and through the banner to check decoration. The [tilesheet workflow](.agents/skills/tilesheet/SKILL.md#runtime-catalog-and-props) documents defaults, anchors, and hot reload behavior.
 
 ## Repository guide
 
@@ -166,26 +146,19 @@ mygame/
   sprites/              The Descent sprite upload destination
 
 scripts/                Cross-platform game launchers
-
-PRODUCT.md              Player experience, core loop, and MVP scope
-CONTEXT.md              Current decisions, working models, and open questions
-AGENTS.md               Repository conventions for coding agents
-CLAUDE.md               One-line @AGENTS.md import for Claude Code
 .agents/skills/         Project-specific design and development workflows
 .claude/skills          Symlink to .agents/skills for Claude Code discovery
 ```
 
-DragonRuby executables, `.dragonruby/`, engine docs, samples, and bundled resources live in the external SDK directory selected by `DRAGONRUBY_HOME`. Do not copy the SDK into this repository.
-
 ## Project direction
 
-Read [PRODUCT.md](PRODUCT.md) for the intended player experience and first playable scope. Read [CONTEXT.md](CONTEXT.md) for current decisions and unresolved prototype questions. The current MVP is a lean, single-player vertical slice; avoid assuming that future ideas such as co-op, procedural maps, or a larger narrative are approved.
+Read [PRODUCT.md](PRODUCT.md) for scope and [CONTEXT.md](CONTEXT.md) for progress. The [documentation guide](docs/agents/domain.md) identifies where vocabulary, decisions, and research belong.
 
 ## Shared agent workflows
 
 Project skills live in `.agents/skills/`, including the `grilling` and `domain-modeling` dependencies of `grill-with-docs`. These are project-maintained copies; see [.agents/skills/THIRD-PARTY.md](.agents/skills/THIRD-PARTY.md) for their source, adaptations, and license.
 
-The same skills and repository conventions are shared with every agent harness, so there is no per-tool copy to keep in sync. Codex reads `AGENTS.md` and `.agents/skills/` directly. Claude Code reads `CLAUDE.md`, a one-line `@AGENTS.md` import, and discovers skills through `.claude/skills`, a committed symlink to `.agents/skills`. Native Windows checkouts need `git config --global core.symlinks true` (or Developer Mode) before cloning for that link to resolve; without it Claude Code simply finds no project skills, and nothing else is affected.
+Codex reads `AGENTS.md` and `.agents/skills/`. Claude Code imports the same guidance through `CLAUDE.md` and discovers the same skills through `.claude/skills`. Native Windows checkouts need symlink support (`git config --global core.symlinks true` and permission to create symlinks, such as Developer Mode) before cloning; otherwise Claude Code will not discover project skills through that link.
 
 Choose your Ruby version manager in personal editor settings; the shared workspace configures only formatting and linting.
 

@@ -9,6 +9,8 @@ The user has asked you to teach them something. This is a stateful request - the
 
 ## Teaching Workspace
 
+Follow [documentation guidance](../../../docs/agents/domain.md). Keep general learning glossaries in topic references under `reference/`; the root glossary is for game terms.
+
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:
 
 - `MISSION.md`: A document capturing the _reason_ the user is interested in the topic. This should be used to ground all teaching. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).

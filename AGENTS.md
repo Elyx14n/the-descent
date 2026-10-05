@@ -11,16 +11,13 @@
 
 ## Sources of truth
 
-- `PRODUCT.md` defines the intended player experience and MVP boundary.
-- `CONTEXT.md` records current project status, accepted decisions, working models, open questions, and stable terminology.
-- Actual files under `mygame/` define what is implemented. Never infer implementation from plans alone.
-- `README.md` is the stakeholder-facing repository guide.
+Follow [documentation guidance](docs/agents/domain.md) for document ownership, vocabulary, and decision conflicts. Inspect `mygame/` to establish what is implemented.
 
 ## Working principles
 
 - Favor KISS, YAGNI, and the smallest playable vertical slice.
 - Build one concrete mechanic before creating a framework for a category of mechanics.
-- Do not design for deferred scope such as co-op, procedural maps, multiple enemies, or lore unless the user explicitly changes the MVP.
+- Keep work within `PRODUCT.md`'s MVP scope unless the user changes it.
 - Resolve SDK references through `DRAGONRUBY_HOME` (`$DRAGONRUBY_HOME` in Bash/Zsh; `$env:DRAGONRUBY_HOME` in PowerShell). Prefer that installation's `docs/` and `samples/` before external sources. If unset or inaccessible, follow `README.md` setup and report the missing reference rather than assuming a machine-specific path.
 - Keep hot reload, restart, and debugging practical. Make important game state inspectable while tuning.
 - Separate deterministic rules from DragonRuby input/output when it creates a useful test seam; do not add layers only for architectural symmetry.

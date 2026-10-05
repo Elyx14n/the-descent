@@ -1,6 +1,6 @@
 # GLOSSARY.md Format
 
-`GLOSSARY.md` is the canonical language for this teaching workspace. All explainers, exercises, and learning records should adhere to its terminology. Building it is itself part of learning: compressing a concept into a tight definition is evidence the user understands it.
+Apply this format to teaching glossaries under `reference/`. Use the root `GLOSSARY.md` for game concepts as defined in [documentation guidance](../../../docs/agents/domain.md).
 
 ## Structure
 
