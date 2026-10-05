@@ -55,7 +55,7 @@ def test_reset_while_walking_clears_movement_and_restarts_idle(_args, assert)
 end
 
 def test_player_sprite_and_collider_share_foot_position(_args, assert)
-  player = Descent::Player.new(x: 180, y: 180)
+  player = Descent::Player.new(x: 180.25, y: 180.75)
   sprite = player.sprite_to_primitive
   feet = player.collision_rect
   left = sprite[:x] - (sprite[:w] * sprite[:anchor_x])

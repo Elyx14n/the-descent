@@ -46,7 +46,8 @@ orientation=landscape
 # | In portrait orientation the width and height are automatically swapped (e.g. 1280x720 becomes 720x1280).
 # +===================
 aspect_mode=0
-aspect_size=720
+# Project reference resolution: 320x180, with artwork drawn at native size.
+aspect_size=180
 
 # +== Sprite Rendering scale quality ===
 # | Defines the render scale quality for sprites. scale_quality=0 (default) is nearest neighbor, scale_quality=1 is linear, scale_quality=2 is antialiased.
@@ -55,14 +56,14 @@ aspect_size=720
 # | - 2: best visual quality (option 1 and 2 are the same and resolve to the same value for backwards compatability)
 # | - 3: SDL3's pixel art shader (if your game uses pixel art, then this may be the best option)
 # +=====================================
-# The world is drawn at world resolution and magnified once by Camera::ZOOM, so
-# nearest neighbor is correct for the whole game. Keep this at 0 rather than
-# overriding scale_quality_enum on individual primitives.
+# DragonRuby scales the 320x180 logical canvas for display. Keep nearest-neighbor
+# sampling for pixel art; the camera translates without magnifying artwork.
 scale_quality=0
 
 # +== HD Mode ===
-# | HD Mode: Set hd=false for low rez games
+# | HD Mode: higher-resolution rendering while preserving the logical canvas.
 # +==============
+# Keep HD rendering enabled for clear UI labels on the 320x180 logical canvas.
 hd=true
 
 # +== Directories to Ignore during packaging ===

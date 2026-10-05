@@ -4,6 +4,12 @@ The Descent is a small, top-down horror game being built with DragonRuby Game To
 
 The current game is a movement and collision playground. Planning documents describe the intended MVP; they do not imply that all planned features are implemented.
 
+The game's reference resolution is **320 × 180**, configured through `aspect_mode=0` and `aspect_size=180` in `mygame/metadata/game_metadata.txt`. Artwork is drawn at native size: a 32 × 32 frame occupies 32 × 32 logical pixels at entity scale 1, and one world unit is one artwork pixel. The camera translates the view without magnifying it; DragonRuby scales the logical canvas for display with nearest-neighbor sampling. At 720p, 1080p, 1440p, and 4K, each logical pixel occupies 4 × 4, 6 × 6, 8 × 8, and 12 × 12 display pixels respectively. Other window sizes may use fractional scaling under Standard's fit-to-window presentation.
+
+This follows [Unity's explicit reference-resolution workflow and 320 × 180 example](https://docs.unity.com/en-us/engine/6000.7/manual/unity2d/2d-urp/2d-pixelperfect/prep-sprites) and [Godot's pixel-art resolution guidance](https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html#desktop-game). The resolution was selected by playtesting the current artwork. Keep artwork dimensions, world positions, and HUD layout in logical pixels; avoid adding camera zoom to compensate for display resolution.
+
+UI labels use [m5x7 by Daniel Linssen](https://managore.itch.io/m5x7), stored in `mygame/fonts/m5x7.ttf`. Body text uses `size_px: 8` and headings use `16`, selected by playtesting. Keep `hd=true`: it prevents blurry labels in the tested setup while retaining the 320 × 180 logical canvas and native artwork dimensions. These font sizes are part of that configuration; evaluate changes with HD rendering enabled.
+
 ## Prerequisites
 
 Before setting up the repository, ensure you have the following installed:

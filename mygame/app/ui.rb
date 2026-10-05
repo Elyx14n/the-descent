@@ -14,8 +14,9 @@ module Descent
     }.freeze
 
     TEXT = {
-      body: 22,
-      h1: 32,
+      font: 'fonts/m5x7.ttf', # Sizes tuned at 320x180 with HD rendering enabled.
+      body: 8,
+      h1: 16,
       color: { r: 220, g: 215, b: 190 }.freeze
     }.freeze
 
@@ -34,7 +35,8 @@ module Descent
       # The point is the label's center by default. Use DragonRuby's own properties
       # to override anchors, font, etc. Size is in logical pixels, not size_enum.
       def label(point, text:, size_px: TEXT[:body], color: TEXT[:color], **properties)
-        point.merge(text: text, size_px: size_px, anchor_x: 0.5, anchor_y: 0.5, **color, **properties)
+        point.merge(text: text, font: TEXT[:font], size_px: size_px,
+                    anchor_x: 0.5, anchor_y: 0.5, **color, **properties)
       end
 
       # Three nested boxes, in drawing order. Thickness is the width of each edge.
