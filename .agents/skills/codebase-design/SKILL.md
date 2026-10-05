@@ -9,7 +9,9 @@ Design **deep modules**: a lot of behaviour behind a small interface, placed at 
 
 ## Glossary
 
-Use these terms exactly: don't substitute "component," "service," "API," or "boundary." Consistent language is the whole point.
+Follow [documentation guidance](../../../docs/agents/domain.md). The vocabulary below describes software design; game concepts use the project's glossary.
+
+Use these terms exactly when discussing module design: don't substitute "component," "service," "API," or "boundary." SDK API names and gameplay boundaries keep their established meanings.
 
 **Module**: anything with an interface and an implementation. Deliberately scale-agnostic: a function, class, package, or tier-spanning slice. _Avoid_: unit, component, service.
 

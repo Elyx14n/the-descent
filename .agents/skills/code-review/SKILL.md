@@ -10,7 +10,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
+Follow [domain documentation guidance](../../../docs/agents/domain.md). This project does not require an issue tracker or a formal ticket for review. Use the user's agreed request and relevant repository documents to establish intent.
 
 ## Process
 
@@ -26,14 +26,18 @@ Before going further, confirm the fixed point resolves (`git rev-parse <fixed-po
 
 Look for the originating spec, in this order:
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in `docs/agents/issue-tracker.md`.
-2. A path the user passed as an argument.
-3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
-4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
+1. The user's agreed requirements in the current conversation or a document path they supplied.
+2. Relevant requirements in `PRODUCT.md`, working models in `CONTEXT.md`, and accepted decisions under `docs/adr/`, with implementation status kept distinct.
+3. A relevant design or spec document already present in the repository.
+4. If intent remains unclear, ask for the intended behavior. If no spec or agreed requirements are available, the **Spec** sub-agent will skip and report "no spec available".
+
+Research notes and commit messages can provide context, but do not turn proposals or inferred intent into requirements.
 
 ### 3. Identify the standards sources
 
 Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+
+Include `AGENTS.md`, canonical terms in `GLOSSARY.md`, and relevant ADRs. Pass these source paths and `docs/agents/domain.md` to both review agents so findings use the same vocabulary and decision context.
 
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
