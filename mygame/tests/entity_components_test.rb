@@ -27,14 +27,14 @@ def test_enemy_uses_components_for_movement_animation_and_reset(_args, assert)
     enemy.update_animation
     frames << enemy.sprite_to_primitive[:source_x]
   end
-  assert.equal! enemy.x, 247
+  assert.equal! enemy.x, 149
   assert.equal! frames.uniq, [0, 64, 128, 192]
   assert.equal! frames.first, frames.last
   enemy.reset(x: 50, y: 60)
   assert.false! enemy.moving?
   assert.equal! enemy.facing, :south
   assert.equal! enemy.sprite_to_primitive[:source_x], 0
-  assert.equal! enemy.collision_rect, { x: 14, y: 60, w: 72, h: 24 }
+  assert.equal! enemy.collision_rect, { x: 38, y: 60, w: 24, h: 8 }
 end
 
 def test_scaled_player_stops_with_its_feet_at_the_wall(_args, assert)

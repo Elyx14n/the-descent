@@ -11,10 +11,9 @@ Improve the design enough to identify the smallest useful implementation or prot
 
 Before asking questions:
 
-1. Read `AGENTS.md`, `PRODUCT.md`, and `CONTEXT.md`.
+1. Read `AGENTS.md` and follow [documentation guidance](../../../docs/agents/domain.md) for the relevant vocabulary, scope, status, and decisions.
 2. Inspect relevant files under `mygame/`, including tests when present.
 3. Resolve `DRAGONRUBY_HOME` using `AGENTS.md`, then consult only the relevant SDK documentation under `$DRAGONRUBY_HOME/docs/` or examples under `$DRAGONRUBY_HOME/samples/`.
-4. Distinguish implemented behavior from planned behavior. `PRODUCT.md` and `CONTEXT.md` do not prove that a system exists.
 
 Answer questions from the repository when possible. Ask the user only about choices that materially change player behavior, scope, or the next implementation slice.
 
@@ -34,7 +33,7 @@ Look for unclear requirements, contradictions, missing feedback, edge cases, and
 - Prefer ordinary Ruby, DragonRuby primitives, and small explicit data structures.
 - Extract boundaries when they improve comprehension, testing, tuning, or reuse already demonstrated by the code.
 - Do not introduce an ECS, event bus, dependency-injection system, scene framework, generalized component model, behavior-tree library, or data DSL without concrete pressure that the simpler design cannot handle.
-- Do not design for deferred features such as co-op, procedural maps, multiple enemies, modding, or large content pipelines unless the user explicitly brings them into scope.
+- Keep proposals within the product scope unless the user changes it.
 - Treat new dependencies and edits to bundled SDK files as exceptional choices requiring clear justification.
 
 If a simpler solution meets the current requirement, recommend it and state what is intentionally deferred.
@@ -62,11 +61,7 @@ Do not demand abstract certainty about game feel, timing, tension, control respo
 
 ## Preserve repository terminology
 
-Use `PRODUCT.md` for intended player experience and MVP scope. Use `CONTEXT.md` for current status, accepted decisions, open questions, and stable domain terminology. Do not force either document into a different role.
-
-Call out contradictions between the request, documents, and implementation. Recommend a canonical term when ambiguity would affect the design.
-
-Suggest documentation updates only for durable decisions. Do not turn temporary implementation detail or exploratory ideas into project policy.
+Use [domain-modeling](../domain-modeling/SKILL.md) when a design discussion resolves a term or a durable decision. Record it in the location defined by the documentation guide.
 
 ## Finish
 

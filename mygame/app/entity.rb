@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
-
 module Descent
   class Entity
     attr_accessor :x, :y, :facing

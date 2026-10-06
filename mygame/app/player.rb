@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
 require 'app/actor'
 require 'app/sprite'
 require 'app/collider'
@@ -34,13 +33,12 @@ module Descent
       }
     }.freeze
     COLLIDER_CONFIG = { w: 8, h: 2 }.freeze
-
-    SNEAK_SPEED = 1.5
-    WALK_SPEED = 3.0
+    SNEAK_SPEED = 0.5
+    WALK_SPEED = 1.0
 
     attr_accessor :sanity, :lamp_on
 
-    def initialize(x: 0, y: 0, scale: 3, sanity: 100)
+    def initialize(x: 0, y: 0, scale: 1, sanity: 100)
       super(x: x, y: y, scale: scale, sprite: Sprite.new(**SPRITE_CONFIG),
             collider: Collider.new(**COLLIDER_CONFIG))
       @sanity = sanity

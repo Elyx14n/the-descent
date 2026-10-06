@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
 require 'app/actor'
 require 'app/sprite'
 require 'app/collider'
@@ -16,9 +15,9 @@ module Descent
       }.freeze
     }.freeze
     COLLIDER_CONFIG = { w: 24, h: 8 }.freeze
-    WALK_SPEED = 3.0
+    WALK_SPEED = 1.0
 
-    def initialize(x: 0, y: 0, scale: 3)
+    def initialize(x: 0, y: 0, scale: 1)
       super(x: x, y: y, scale: scale, sprite: Sprite.new(**SPRITE_CONFIG),
             collider: Collider.new(**COLLIDER_CONFIG))
     end

@@ -9,9 +9,7 @@ Deliver the smallest coherent, verified change to the game. Preserve the project
 
 ## Start from repository truth
 
-Read `AGENTS.md`, then inspect the relevant project code, tests, `PRODUCT.md`, and `CONTEXT.md`. Treat `mygame/` as project code. Resolve SDK references through `DRAGONRUBY_HOME` as described in `AGENTS.md`; engine documentation and examples live in `$DRAGONRUBY_HOME/docs/` and `$DRAGONRUBY_HOME/samples/`. Search that installation before using external material.
-
-Do not claim planned systems are implemented. Do not edit bundled SDK code to solve a game problem.
+Read `AGENTS.md`, follow [documentation guidance](../../../docs/agents/domain.md), and inspect relevant code and tests. Resolve SDK references through `DRAGONRUBY_HOME` and search that installation before external material. Do not edit bundled SDK code to solve a game problem.
 
 ## Choose the relevant workflow
 

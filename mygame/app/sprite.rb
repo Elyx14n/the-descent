@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/descent'
-
 module Descent
   class Sprite
     attr_reader :current_animation, :animation_tick
@@ -55,13 +53,14 @@ module Descent
 
       {
         path: clip ? (clip[:path] || clip[:variants].fetch(selected_variant)) : @path,
+        # Keep the sub-pixel / fractional world positions the camera follows. Rounding
+        # here would make the sprite drift against its unrounded camera position.
         x: x,
         y: y - (@foot_padding * scale),
         w: source.fetch(:w) * scale,
         h: source.fetch(:h) * scale,
         anchor_x: 0.5,
         anchor_y: 0,
-        scale_quality_enum: 0,
         source_x: source.fetch(:x),
         source_y: source.fetch(:y),
         source_w: source.fetch(:w),

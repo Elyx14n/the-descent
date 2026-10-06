@@ -1,18 +1,23 @@
 # frozen_string_literal: true
 
-require 'app/game'
-
 module Descent
   # Small drawing helpers, composed as ordinary DragonRuby primitives.
-  # Require 'app/ui' wherever needed; nothing is rendered or stored automatically.
   module UI
     COLORS = {
+      bg: {  r: 12, g: 10, b: 16 }.freeze,
       ink: { r: 18, g: 17, b: 22 }.freeze,
       stone: { r: 91, g: 87, b: 86 }.freeze,
       light: { r: 143, g: 135, b: 122 }.freeze,
       well: { r: 40, g: 38, b: 43 }.freeze,
       muted: { r: 155, g: 149, b: 140 }.freeze,
       accent: { r: 235, g: 185, b: 94 }.freeze
+    }.freeze
+
+    TEXT = {
+      font: 'fonts/m5x7.ttf', # Sizes tuned at 320x180 with HD rendering enabled.
+      body: 8,
+      h1: 16,
+      color: { r: 220, g: 215, b: 190 }.freeze
     }.freeze
 
     class << self
@@ -29,8 +34,9 @@ module Descent
 
       # The point is the label's center by default. Use DragonRuby's own properties
       # to override anchors, font, etc. Size is in logical pixels, not size_enum.
-      def label(point, text:, size_px: Game::TEXT[:body], color: Game::TEXT[:color], **properties)
-        point.merge(text: text, size_px: size_px, anchor_x: 0.5, anchor_y: 0.5, **color, **properties)
+      def label(point, text:, size_px: TEXT[:body], color: TEXT[:color], **properties)
+        point.merge(text: text, font: TEXT[:font], size_px: size_px,
+                    anchor_x: 0.5, anchor_y: 0.5, **color, **properties)
       end
 
       # Three nested boxes, in drawing order. Thickness is the width of each edge.
