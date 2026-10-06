@@ -5,13 +5,13 @@ require 'tests/support/player_helpers'
 
 def test_player_facing_still_selects_rows_while_animation_advances(_args, assert)
   player = Descent::Player.new
-  { north: 32, south: 96, east: 0, west: 64 }.each do |facing, source_y|
+  { north: 64, south: 192, east: 0, west: 128 }.each do |facing, source_y|
     player.reset(x: 100, y: 100, facing: facing)
     assert.equal! player.sprite_to_primitive[:source_y], source_y
     9.times { player.update_animation }
     primitive = player.sprite_to_primitive
     assert.equal! primitive[:source_y], source_y
-    assert.equal! primitive[:source_x], 32
+    assert.equal! primitive[:source_x], 64
   end
 end
 
@@ -29,7 +29,7 @@ def test_player_can_render_before_first_update_including_when_created_dead(_args
       assert.equal! player.sprite_to_primitive[:source_x], 0
     end
     step_player(player, input)
-    assert.equal! player.sprite_to_primitive[:source_x], 32
+    assert.equal! player.sprite_to_primitive[:source_x], 64
   end
 end
 
@@ -51,7 +51,7 @@ def test_reset_while_walking_clears_movement_and_restarts_idle(_args, assert)
     assert.equal! player.sprite_to_primitive[:source_x], 0
   end
   step_player(player, input.merge(dx: 0))
-  assert.equal! player.sprite_to_primitive[:source_x], 32
+  assert.equal! player.sprite_to_primitive[:source_x], 64
 end
 
 def test_player_sprite_and_collider_share_foot_position(_args, assert)
@@ -61,11 +61,11 @@ def test_player_sprite_and_collider_share_foot_position(_args, assert)
   left = sprite[:x] - (sprite[:w] * sprite[:anchor_x])
   scale = sprite[:w].to_f / sprite[:source_w]
 
-  assert.equal! sprite[:w], 96
-  assert.equal! sprite[:h], 96
+  assert.equal! sprite[:w], 192
+  assert.equal! sprite[:h], 192
   assert.equal! feet[:x] + (feet[:w] / 2.0), left + (sprite[:w] / 2.0)
-  # Standing frames have three transparent pixels below the feet.
-  assert.equal! sprite[:y] + (3 * scale), feet[:y]
+  # Standing frames have 24 transparent pixels below the feet.
+  assert.equal! sprite[:y] + (24 * scale), feet[:y]
 end
 
 def test_lamp_spam_preserves_idle_and_walk_animation_timing(_args, assert)
@@ -118,11 +118,46 @@ def test_player_uses_all_eight_idle_and_walk_frames_with_either_lamp_state(_args
         state = dx.zero? ? 'idle' : 'walk'
         lamp = lamp_on ? 'on' : 'off'
         assert.equal! sprite[:path], "sprites/player_#{state}_lamp_#{lamp}.png"
-        assert.true! sprite[:source_x] + sprite[:source_w] <= 256
-        assert.true! sprite[:source_y] + sprite[:source_h] <= 128
+        assert.true! sprite[:source_x] + sprite[:source_w] <= 512
+        assert.true! sprite[:source_y] + sprite[:source_h] <= 256
       end
-      assert.equal! frames.uniq.sort, [0, 32, 64, 96, 128, 160, 192, 224]
+      assert.equal! frames.uniq.sort, [0, 64, 128, 192, 256, 320, 384, 448]
       assert.equal! frames.first, frames.last
     end
   end
+end
+
+def test_death_south_animation_anchors_feet_and_drops_head_south(_args, assert)
+  player = Descent::Player.new(x: 180, y: 180)
+  feet = player.collision_rect
+  scale = player.scale
+
+  # Standing facing south: feet align with collider:
+  standing_sprite = player.sprite_to_primitive
+  assert.equal! standing_sprite[:y] + (24 * scale), feet[:y]
+
+  # Trigger death facing south:
+  player.sanity = 0
+  first_dead_frame = player.sprite_to_primitive
+  assert.equal! first_dead_frame[:path], 'sprites/player_death.png'
+  assert.equal! first_dead_frame[:source_x], 0
+  assert.equal! first_dead_frame[:source_y], 192
+  assert.equal! first_dead_frame[:y] + (24 * scale), feet[:y]
+
+  # Advance through death animation to final frame (8 frames * 8 ticks):
+  input = { dx: 0, dy: 0, sneak: false, toggle_lamp: false }
+  60.times { step_player(player, input) }
+
+  last_dead_frame = player.sprite_to_primitive
+  assert.equal! last_dead_frame[:source_x], 448
+  assert.equal! last_dead_frame[:source_y], 192
+
+  # In final frame, the feet remain anchored at collider foot position:
+  assert.equal! last_dead_frame[:y] + (24 * scale), feet[:y]
+
+  # The fallen head is at DR_y = 7 in the source sprite:
+  head_world_y = last_dead_frame[:y] + (7 * scale)
+  # Head must be South (lower y in DragonRuby coordinates) of the feet:
+  assert.true! head_world_y < feet[:y]
+  assert.equal! head_world_y, feet[:y] - (17 * scale)
 end

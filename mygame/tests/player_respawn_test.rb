@@ -13,11 +13,11 @@ def test_playground_advances_death_once_per_tick_and_respawns_with_idle(args, as
     sprite = player.sprite_to_primitive
     if tick < 120
       assert.equal! player.sanity, 100
-      assert.equal! sprite[:source_x], (tick.div(8) % 8) * 32
+      assert.equal! sprite[:source_x], (tick.div(8) % 8) * 64
     elsif tick < 240
       assert.equal! player.sanity, 0
       assert.equal! sprite[:path], 'sprites/player_death.png'
-      assert.equal! sprite[:source_x], [(tick - 120).div(8), 7].min * 32
+      assert.equal! sprite[:source_x], [(tick - 120).div(8), 7].min * 64
     else
       assert.equal! player.sanity, 100
       assert.equal! [player.x, player.y], [400, 180]
@@ -116,9 +116,9 @@ def test_death_animation_plays_once_and_can_play_again_after_reset(_args, assert
       step_player(player, input)
       frames << player.sprite_to_primitive[:source_x]
     end
-    assert.equal! frames.uniq, [0, 32, 64, 96, 128, 160, 192, 224]
+    assert.equal! frames.uniq, [0, 64, 128, 192, 256, 320, 384, 448]
     assert.true!(frames.each_cons(2).all? { |before, after| after >= before })
-    assert.true!(frames.last(100).all? { |frame| frame == 224 })
+    assert.true!(frames.last(100).all? { |frame| frame == 448 })
     player.reset(x: 400, y: 180)
   end
 end

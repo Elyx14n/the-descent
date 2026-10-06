@@ -8,7 +8,8 @@ require 'app/collider'
 module Descent
   class Player < Actor
     SPRITE_CONFIG = {
-      foot_padding: 3,
+      frame_size: 64,
+      foot_padding: 24,
       facing_rows: { north: 2, south: 0, east: 3, west: 1 },
       animations: {
         death: { loop: false, path: 'sprites/player_death.png', frame_count: 8, ticks_per_frame: 8 },
