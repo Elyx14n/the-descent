@@ -22,8 +22,8 @@ Opening the gate completes the run; being caught ends it in failure.
 
 | System | Requirement |
 | --- | --- |
-| Map | A small set of validated, authored arrangements built from handcrafted rooms and branching passages. Room neighbors may vary, and passages can have multiple exits. |
-| Run variation | Vary the symbol sequence, eligible clue locations, and selected hazards or Witness starting position within an arrangement. |
+| Map | Six initial handcrafted rooms and reusable branching passages within one fixed grid footprint. A permanent connected backbone contains a loop; open two of four or five reserved shortcuts from approved combinations. See the [map decision](docs/adr/0003-fixed-map-footprint-and-approved-shortcuts.md). |
+| Run variation | Vary compatible room assignments, the approved shortcut combination, symbol sequence, eligible clue locations, and the Witness's valid starting position and patrol direction. |
 | Puzzle | Clues convey relationships or meanings, rather than acting as three fetch items. Any eligible room can host a clue; there are no permanent main/filler room types. |
 | Player | Walk, sneak, toggle the lamp, inspect/interact, and use a small number of hiding places. |
 | Pressure | Light versus darkness; retain sanity only if playtesting establishes a consequence that improves player choices. |
@@ -38,7 +38,7 @@ Low-fidelity 2D top-down art. The Witness is a tall, slender, robed figure with 
 ## Out of scope
 
 - Co-op or networking; revisit multiplayer after the single-player loop works.
-- Unrestricted procedural floor plans or generated room geometry.
+- Automatic spatial room placement, corridor routing, maze generation, unrestricted procedural floor plans, generated room geometry, or a general layout solver.
 - The level beyond the Ritual Gate.
 - Lore, journals, monologues, story branches, or a rescue/escort storyline.
 - Complex combat, inventories, crafting, upgrades, multiple enemies, elaborate hallucinations, or learned/ML-driven AI.
@@ -46,4 +46,4 @@ Low-fidelity 2D top-down art. The Witness is a tall, slender, robed figure with 
 
 ## First playable milestone
 
-One short, completable run in one authored arrangement with randomized clues and a Witness responding to sight and sound. Use a gray-box build to test whether inference and pursuit create meaningful choices, including a moment where the player deliberately misleads the Witness. Add curated arrangements and finished presentation after that loop works.
+One short, completable run in one validated configuration of the authored footprint with randomized clues and a Witness responding to sight and sound. Use a gray-box build to test whether inference and pursuit create meaningful choices, including a moment where the player deliberately misleads the Witness. Add further compatible room assignments, approved shortcut combinations, and finished presentation after that loop works.

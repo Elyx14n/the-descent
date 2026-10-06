@@ -126,6 +126,8 @@ Stakeholders contributing assets should upload them to:
 
 Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
 
+32 × 32 is the usual sprite cell size, not a strict asset requirement. The player animation sheets use 64 × 64 frames, configured in [player.rb](mygame/app/player.rb). Use each asset's actual source dimensions; see the [display and sprite-size guidance](docs/adr/0002-reference-resolution-and-ui-fonts.md) for how source dimensions, entity scale, and display scaling relate.
+
 For the cathedral tilesheet, use the [tile lookup](.agents/skills/tilesheet/references/tiles.md) to choose art and the [tilesheet workflow](.agents/skills/tilesheet/SKILL.md) for cropping and integration.
 
 ### Try props and tune collision
