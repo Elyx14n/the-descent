@@ -46,5 +46,5 @@ def test_scaled_player_stops_with_its_feet_at_the_wall(_args, assert)
   feet = player.collision_rect
   assert.equal! feet[:x] + feet[:w], wall[:x]
   assert.false! Geometry.intersect_rect?(feet, wall)
-  assert.equal! player.sprite_to_primitive[:w], 64
+  assert.equal! player.sprite_to_primitive[:w], 128
 end
