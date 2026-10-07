@@ -29,13 +29,17 @@ _Avoid_: Main room, filler room (as permanent room types)
 
 **Doorway socket**: A designated opening on a template where a compatible connection can be made.
 
-**Arrangement**: An authored configuration of room and passage placements and their connections.
+**Arrangement**: A configuration of room and passage placements and their connections assembled from authored choices.
 
 **Arrangement manifest**: The description of placements and connections making up an arrangement.
 
+**Backbone**: The permanent connected set of room and passage connections that remains traversable in every arrangement.
+
+**Shortcut**: An optional connection at an authored location that can open or remain blocked as part of an arrangement.
+
 **Clue point**: An eligible location within a room where a clue can be assigned.
 
-**Run content**: The symbol sequence, clue assignments, and selected hazards or Witness starting position chosen within an arrangement.
+**Run content**: The symbol sequence, clue assignments, and selected hazards or Witness starting position and patrol direction chosen within an arrangement.
 _Avoid_: Arrangement (when referring only to these content choices)
 
 **Prop**: A placed environmental object, such as a coffin or banner, which may block movement or serve as decoration.

@@ -5,7 +5,7 @@ date: 2026-10-05
 
 # Use a 320 × 180 reference resolution with m5x7 and HD rendering
 
-The current 32 × 32 artwork needs a deliberate view size to remain readable. Use a 320 × 180 logical canvas, draw artwork at native dimensions, and let DragonRuby handle display scaling. Keep HD rendering enabled and use m5x7 for UI text at the sizes accepted in playtesting.
+The pixel artwork needs a deliberate view size to remain readable. Use a 320 × 180 logical canvas, draw artwork using its configured source dimensions and entity scale, and let DragonRuby handle display scaling. Keep HD rendering enabled and use m5x7 for UI text at the sizes accepted in playtesting.
 
 The project configuration is:
 
@@ -20,7 +20,9 @@ The project configuration is:
 | Body `size_px` | `8` | Accepted body text size. |
 | Heading `size_px` | `16` | Accepted heading size. |
 
-At entity scale 1, one world unit is one artwork pixel. A 32 × 32 source frame occupies 32 × 32 logical pixels. The camera adds no compensating zoom. A 720p display scales logical pixels by 4×; 1080p, 1440p, and 4K scale them by 6×, 8×, and 12× respectively. These ratios describe canvas presentation, not the raster resolution of HD font glyphs. Other window sizes can use fractional fit scaling; nearest-neighbor sampling alone does not guarantee uniform pixel sizes in every window.
+32 × 32 is the usual sprite cell size and the default in `Sprite`, but it is not required for every asset. The cathedral atlas uses 32 × 32 cells; the [player configuration](../../mygame/app/player.rb) uses 64 × 64 animation frames. Configure source dimensions per asset; rendering scale and collision dimensions are separate settings.
+
+At entity scale 1, one source artwork pixel occupies one logical world pixel: a 32 × 32 frame occupies 32 × 32 logical pixels, and a 64 × 64 frame occupies 64 × 64. The camera adds no compensating zoom. A 720p display scales logical pixels by 4×; 1080p, 1440p, and 4K scale them by 6×, 8×, and 12× respectively. These ratios describe canvas presentation, not the raster resolution of HD font glyphs. Other window sizes can use fractional fit scaling; nearest-neighbor sampling alone does not guarantee uniform pixel sizes in every window.
 
 The reference-resolution workflow is established engine guidance, not a universal resolution requirement for this genre. [Unity explicitly gives 320 × 180 as an example](https://docs.unity.com/en-us/engine/6000.7/manual/unity2d/2d-urp/2d-pixelperfect/prep-sprites), while [Godot describes several suitable pixel-art base resolutions](https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html#desktop-game). Playtesting selected 320 × 180 for this artwork. At 640 × 360, the artwork looked too small; the earlier 1280 × 720 canvas with camera zoom 3 mixed view framing with display magnification.
 
