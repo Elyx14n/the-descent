@@ -31,4 +31,4 @@ Author one structural footprint, six initial room interiors, and a small set of 
 
 The MVP excludes automatic spatial room placement, corridor routing, maze generation, unrestricted procedural generation, and a general layout solver. It trades unrestricted layout variety for a small set of authorable, verifiable choices. The room data format, exact slot layout, and approved shortcut combinations remain to be defined during implementation.
 
-This decision is accepted but not implemented; current status lives in [CONTEXT.md](../../CONTEXT.md). The [map-system research](../notes/room-arrangement-systems.md) and local DragonRuby samples remain speculative references for individual techniques, not an adopted generator or authoring tool.
+This decision is accepted but not implemented; current status lives in [CONTEXT.md](../../CONTEXT.md). [ADR-0004](0004-tiled-room-authoring.md) selects Tiled for authoring rooms and passage pieces. The earlier [map-system research](../notes/room-arrangement-systems.md) and local DragonRuby samples remain speculative references for individual techniques.

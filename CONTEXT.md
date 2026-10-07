@@ -13,7 +13,9 @@
 
 The [fixed footprint and approved shortcuts decision](docs/adr/0003-fixed-map-footprint-and-approved-shortcuts.md) is accepted but not implemented. It specifies six initial rooms, standardized footprints and doorway positions, reusable branching passages, and a permanent connected backbone containing a loop. Runs vary compatible room assignments and open two of four or five reserved shortcuts from approved combinations. The Ritual Gate stays at the starting location; other room identities depend on available tileset art.
 
-The [research references](docs/notes/room-arrangement-systems.md), including local DragonRuby samples, are speculative tooling and technique options. No external generator or sample authoring tool has been adopted.
+Tiled is the accepted main room and passage editor; see the [editor decision](docs/adr/0004-tiled-room-authoring.md) and [research](docs/notes/tiled-room-editor.md). The manual authoring implementation may be deleted or replaced, and runtime interfaces may change to simplify consuming Tiled resources. No backward compatibility with the old recipes is required. The exact loader and authoring conventions remain implementation choices.
+
+The earlier [research references](docs/notes/room-arrangement-systems.md), including local DragonRuby samples, remain speculative technique references. No external map generator has been adopted.
 
 ## Proposed map data boundaries
 
@@ -22,7 +24,7 @@ These are working data boundaries, not an implemented format:
 - Keep tile layers, collision, objects, and doorway sockets in templates with local coordinates. Arrangement manifests describe compatible assignments to fixed slots and approved connections.
 - Assign the symbol sequence and clues after selecting the arrangement. Validate reachability, sufficient hints, and distribution across routes; keep clue importance independent of a room's artwork.
 - Derive walkability, sight lines, and Witness routes from the arrangement and current door states.
-- Hand-place the first arrangement. Choose the authoring format through use; ASCII grids, numeric tile layers, and editor exports remain options.
+- Hand-place the first arrangement. Author rooms and passages in Tiled; settle native file and layer/property conventions during integration.
 
 ## Proposed state models
 
