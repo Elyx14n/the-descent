@@ -6,8 +6,6 @@ module Descent
   # One world pixel is one logical pixel. DragonRuby scales the 320x180 canvas
   # for display; the camera only translates, without changing sprite dimensions.
   class Camera
-    TARGET = :scene
-
     attr_reader :x, :y, :bounds
 
     def initialize(bounds:)
@@ -19,18 +17,6 @@ module Descent
       @x = bounded_center(x, @bounds[:x], @bounds[:w], viewport_w)
       @y = bounded_center(y, @bounds[:y], @bounds[:h], viewport_h)
       self
-    end
-
-    def scene(args)
-      target = args.outputs[TARGET]
-      target.w = viewport_w
-      target.h = viewport_h
-      target.background_color = [0, 0, 0, 0]
-      target
-    end
-
-    def viewport_sprite
-      viewport.merge(path: TARGET)
     end
 
     def to_screen(x:, y:)

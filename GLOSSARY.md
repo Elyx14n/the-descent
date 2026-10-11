@@ -10,11 +10,13 @@ Game and rendering vocabulary, including planned concepts. Implementation status
 
 **Ritual Gate**: The sealed gateway that is both the player's starting location and the goal of a run.
 
-**Run**: One attempt to solve the symbol sequence and open the Ritual Gate before being caught.
+**Run**: One attempt to find and place four ritual items, unlock the Ritual Gate, and open it before being caught.
 
-**Symbol sequence**: The ordered three-symbol answer required to open the Ritual Gate.
+**Ritual item**: One of four required objects identified through vague descriptive hints. Placing all four on the pedestals unlocks the Ritual Gate, with no required placement order.
 
-**Clue**: An interpretable hint about the symbol sequence.
+**Pedestal**: A fixture near the Ritual Gate that receives a ritual item. Four pedestals hold the four required items.
+
+**Clue**: A vague descriptive hint used to identify and find a ritual item.
 
 **Observation**: Evidence available to the Witness, such as a sighting, sound, or visible environmental change.
 
@@ -39,7 +41,7 @@ _Avoid_: Main room, filler room (as permanent room types)
 
 **Clue point**: An eligible location within a room where a clue can be assigned.
 
-**Run content**: The symbol sequence, clue assignments, and selected hazards or Witness starting position and patrol direction chosen within an arrangement.
+**Run content**: The ritual-item and clue placements, and selected hazards or Witness starting position and patrol direction chosen within an arrangement.
 _Avoid_: Arrangement (when referring only to these content choices)
 
 **Prop**: A placed environmental object, such as a coffin or banner, which may block movement or serve as decoration.

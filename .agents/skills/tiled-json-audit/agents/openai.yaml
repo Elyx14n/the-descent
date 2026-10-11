@@ -1,0 +1,3 @@
+interface:
+  display_name: "Tiled JSON Audit"
+  short_description: "Audit room exports against our Tiled conventions"

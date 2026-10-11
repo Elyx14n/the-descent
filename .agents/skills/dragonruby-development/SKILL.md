@@ -14,7 +14,8 @@ Read `AGENTS.md`, follow [documentation guidance](../../../docs/agents/domain.md
 ## Choose the relevant workflow
 
 - For implementation or refactoring, read [references/engineering.md](references/engineering.md).
-- For selecting or cropping cathedral tiles from `sprites/tilesheet.png`, read [../tilesheet/SKILL.md](../tilesheet/SKILL.md) and its tile lookup.
+- For selecting existing atlas art or calculating crops, read [../tilesheet/SKILL.md](../tilesheet/SKILL.md); its retained name lookup covers the props atlas only.
+- For a pre-integration or re-export room-data audit, use [../tiled-json-audit/SKILL.md](../tiled-json-audit/SKILL.md). Correct authoring data in Tiled and re-export; use this development workflow for runtime changes.
 - For a failure, incorrect behavior, or runtime investigation, read [references/debugging.md](references/debugging.md).
 - For adding or running tests and replays, read [references/testing.md](references/testing.md).
 - For work spanning multiple categories, read only the references needed.

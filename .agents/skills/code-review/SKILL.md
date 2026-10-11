@@ -1,9 +1,9 @@
 ---
 name: code-review
-description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
+description: "Review committed changes or work in progress along two axes: Standards (repo conventions) and Spec (agreed requirements). Include staged, unstaged, and untracked files for working-tree reviews. Run both reviews in parallel sub-agents and report them side by side. Use for branch, PR, or current-change reviews."
 ---
 
-Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
+Two-axis review of the committed or working-tree changes the user requests:
 
 - **Standards**: does the code conform to this repo's documented coding standards?
 - **Spec**: does the code faithfully implement the originating issue / spec?
@@ -14,13 +14,15 @@ Follow [domain documentation guidance](../../../docs/agents/domain.md). This pro
 
 ## Process
 
-### 1. Pin the fixed point
+### 1. Pin the review scope
 
-Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
+Use the user's requested scope and baseline. For a committed branch/PR review, resolve the supplied commit, branch, tag, or merge-base. Ask for a missing baseline only when the comparison cannot be inferred from the request.
 
-Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
+- **Committed changes:** capture `git diff <fixed-point>...HEAD` (comparison against the merge-base) and `git log <fixed-point>..HEAD --oneline`.
+- **Current work in progress:** default to `git diff HEAD` when the request means the current uncommitted changes; this includes staged and unstaged tracked changes. Use the specified baseline instead of HEAD when requested. Also enumerate `git ls-files --others --exclude-standard` and read the relevant untracked files: a tracked diff omits new modules, tests, and notes. Honor any narrower file scope.
+- Capture the changed-file inventory and relevant diff/file contents once and give both reviewers the same scope. A commit list alone cannot describe working-tree changes.
 
-Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
+Confirm the baseline resolves before starting reviewers. Treat the review as empty only when both the applicable tracked diff and relevant untracked-file inventory are empty.
 
 ### 2. Identify the spec source
 
@@ -63,13 +65,13 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 **Standards sub-agent prompt** should include:
 
-- The full diff command and commit list.
+- The full review scope, diff command, commit list when applicable, and untracked-file paths/contents when included.
 - The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full (the sub-agent has no other access to it).
 - The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
 **Spec sub-agent prompt** should include:
 
-- The diff command and commit list.
+- The same review scope, diff command, commit list when applicable, and untracked-file paths/contents.
 - The path or fetched contents of the spec.
 - The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 

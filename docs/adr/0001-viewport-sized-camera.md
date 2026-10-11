@@ -34,7 +34,7 @@ The camera and artwork share a half-pixel rounding rule, including negative coor
 
 The initial mistake was treating a logical artwork pixel as the native raster pixel under HD. Numeric tests proved adjacency in logical coordinates but did not establish GPU sampling at fractional display scales. Enlarged-window renderer probes should have accompanied the initial rounding change. This policy is a project addition derived from reproduction and playtesting; the SDK sample supplies the camera conversion and target pattern, not this snapping implementation.
 
-HD mode also enlarges render targets: a nominal 320 × 180 target becomes 1360 × 765 physical pixels at a 4.25× render scale. F3 temporarily bypasses the intermediate target while preserving sprite placement, cropping, and order. The user reported the same artifacts in both paths. Normal rendering retains the target and HD HUD text.
+HD mode also enlarges render targets: a nominal 320 × 180 target becomes 1360 × 765 physical pixels at a 4.25× render scale. During the investigation, F3 temporarily bypassed the intermediate target while preserving sprite placement, cropping, and order. The user reported the same artifacts in both paths. Normal rendering retains the target and HD HUD text. The F3/F4 comparison switches were removed on 2026-10-12; rendering always composites the target and sampling inherits game metadata.
 
 The user completed sequential game playtests with pixel-art sampling throughout:
 
@@ -56,7 +56,7 @@ The camera performs translation only. Display magnification belongs to the refer
 
 ## Implementation and sources
 
-- [Camera](../../mygame/app/camera.rb), [render loop](../../mygame/app/room_scene.rb), and [sprite geometry](../../mygame/app/sprite.rb).
+- [Camera](../../mygame/app/camera.rb), [renderer](../../mygame/app/render.rb), and [sprite geometry](../../mygame/app/sprite.rb). Target setup and compositing now belong to Render; the camera's coordinate calculations remain unchanged. See [ADR-0005](0005-render-data-and-room-preview.md).
 - [Camera regression tests](../../mygame/tests/camera_test.rb) and [player sprite tests](../../mygame/tests/player_sprite_test.rb).
 - Installed SDK reference: `$DRAGONRUBY_HOME/samples/07_advanced_rendering/16_camera_space_world_space_simple/app/main.rb`. Its `Camera` is example code, not an SDK helper class.
 - That sample converts fractional positions without display-pixel snapping and renders scattered square sprites; it does not demonstrate this tightly packed atlas or its failure case.

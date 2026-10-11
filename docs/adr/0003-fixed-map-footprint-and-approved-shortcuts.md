@@ -23,7 +23,7 @@ Compatible room assignments and shortcut combinations must preserve the backbone
 
 ## Run variation
 
-Each run varies compatible room assignments, the active shortcut combination, clue locations, ritual symbol order, and the Witness's valid starting position and patrol direction. The Witness knows the assembled layout but must locate the player through sight, sound, and evidence.
+Each run varies compatible room assignments, the active shortcut combination, eligible ritual-item and clue locations, and the Witness's valid starting position and patrol direction. The Witness knows the assembled layout but must locate the player through sight, sound, and evidence. The [product](../../PRODUCT.md) now specifies four ritual items placed on pedestals without a required order; the 2026-10-12 puzzle revision replaces the earlier symbol-order variation.
 
 ## Scope and consequences
 

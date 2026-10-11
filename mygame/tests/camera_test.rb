@@ -19,15 +19,6 @@ end
 
 CAMERA_TEST_BOUNDS = { x: 21, y: 27, w: 700, h: 400 }.freeze
 
-def test_camera_target_size_is_independent_of_world_size_and_origin(args, assert)
-  [{ x: 21, y: 27, w: 100, h: 100 },
-   { x: -20_000, y: -30_000, w: 100_000, h: 100_000 }].each do |bounds|
-    camera = CameraAtTestScale.new(bounds: bounds)
-    target = camera.scene(args)
-    assert.equal! [target.w, target.h], [320, 180]
-  end
-end
-
 def test_world_smaller_than_the_viewport_is_centered_whole(_args, assert)
   camera = CameraAtTestScale.new(bounds: { x: 21, y: 27, w: 100, h: 100 })
   camera.follow(x: -500, y: -500)
@@ -55,7 +46,7 @@ def test_large_room_is_larger_than_the_viewport_so_the_camera_scrolls(_args, ass
   right = camera.follow(x: 600, y: 200).viewport_world
 
   assert.true! right[:x] > left[:x]
-  assert.equal! camera.viewport_sprite, { x: 0, y: 0, w: 320, h: 180, path: Descent::Camera::TARGET }
+  assert.equal! camera.viewport, { x: 0, y: 0, w: 320, h: 180 }
 end
 
 def test_diagonal_movement_keeps_the_drawn_player_fixed_at_screen_center(_args, assert)

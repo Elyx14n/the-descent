@@ -577,7 +577,7 @@
                  "name":"",
                  "opacity":1,
                  "rotation":0,
-                 "type":"Interactable",
+                 "type":"Pedestal",
                  "visible":true,
                  "width":32,
                  "x":184,
@@ -590,7 +590,7 @@
                  "name":"",
                  "opacity":1,
                  "rotation":0,
-                 "type":"Interactable",
+                 "type":"Pedestal",
                  "visible":true,
                  "width":32,
                  "x":184,
@@ -603,7 +603,7 @@
                  "name":"",
                  "opacity":1,
                  "rotation":0,
-                 "type":"Interactable",
+                 "type":"Pedestal",
                  "visible":true,
                  "width":32,
                  "x":136,
@@ -616,7 +616,7 @@
                  "name":"",
                  "opacity":1,
                  "rotation":0,
-                 "type":"Interactable",
+                 "type":"Pedestal",
                  "visible":true,
                  "width":32,
                  "x":136,
@@ -942,6 +942,12 @@
                  "id":218,
                  "name":"",
                  "opacity":1,
+                 "properties":[
+                        {
+                         "name":"locked",
+                         "type":"bool",
+                         "value":true
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -1015,7 +1021,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1054,7 +1059,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1081,7 +1085,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1146,7 +1149,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1173,7 +1175,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1226,7 +1227,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1253,7 +1253,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1280,7 +1279,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1319,7 +1317,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1347,7 +1344,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -1386,7 +1382,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2386,7 +2381,7 @@
                      "x":0,
                      "y":0
                     },
-                 "type":"Interactable"
+                 "type":"Pedestal"
                 }, 
                 {
                  "id":111,
@@ -2488,7 +2483,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2527,7 +2521,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2566,7 +2559,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2620,7 +2612,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2674,7 +2665,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2714,7 +2704,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2753,7 +2742,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {
@@ -2792,7 +2780,6 @@
                  "objectgroup":
                     {
                      "draworder":"index",
-                     "id":2,
                      "name":"",
                      "objects":[
                             {

@@ -45,28 +45,6 @@
         {
             "color": "#ffa0a0a4",
             "drawFill": true,
-            "id": 4,
-            "members": [
-                {
-                    "name": "mounted_on",
-                    "type": "object",
-                    "value": 0
-                }
-            ],
-            "name": "Interactable",
-            "type": "class",
-            "useAs": [
-                "property",
-                "layer",
-                "object",
-                "tile",
-                "tileset",
-                "project"
-            ]
-        },
-        {
-            "color": "#ffa0a0a4",
-            "drawFill": true,
             "id": 1,
             "members": [
                 {
@@ -106,6 +84,33 @@
                 }
             ],
             "name": "Light",
+            "type": "class",
+            "useAs": [
+                "property",
+                "layer",
+                "object",
+                "tile",
+                "tileset",
+                "project"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 4,
+            "members": [
+                {
+                    "name": "offset_x",
+                    "type": "float",
+                    "value": 15
+                },
+                {
+                    "name": "offset_y",
+                    "type": "float",
+                    "value": 1
+                }
+            ],
+            "name": "Pedestal",
             "type": "class",
             "useAs": [
                 "property",

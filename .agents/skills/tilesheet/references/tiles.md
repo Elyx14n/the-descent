@@ -1,8 +1,8 @@
 # Tile lookup
 
-Source: Cursed Gothic Cathedral Pixel Tileset Pack 1.2.0, supplied `mygame/sprites/main_32x32.json`. Image: `mygame/sprites/tilesheet.png`.
+Source: Cursed Gothic Cathedral Pixel Tileset Pack 1.2.0, supplied `mygame/sprites/main_32x32.json`. Current image: `mygame/sprites/props_tilesheet.png`.
 
-Cells are zero-based `(row, column)` from the top left. All tiles are 32 × 32 pixels. IDs and pixel offsets are derivable: `id = row * 17 + column`; see the skill for DragonRuby crop conversion.
+This lookup covers the retained props atlas only; it does not describe `environment_tilesheet.png` or `doors.png`. Cells are zero-based `(row, column)` from the top left. This atlas has 32 × 32 cells; other assets may use different sizes. Tileset-local IDs are `row * 17 + column`, not map-wide GIDs or runtime catalog names. See the skill for crop conversion and verify current artwork after atlas edits.
 
 ## seamless-surface
 

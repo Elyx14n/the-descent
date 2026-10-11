@@ -1,62 +1,62 @@
 ---
 name: tilesheet
-description: Find and select existing cathedral tiles from The Descent tilesheet and translate atlas cells into DragonRuby sprite crops. Use when choosing environment art, props, or effects from mygame/sprites/tilesheet.png.
+description: "Find and compare existing environment, prop, door, or effect art in The Descent's current atlases. Use for selecting Tiled tiles or calculating sprite crops; use tiled-json-audit for room export validation."
 ---
 
-# Cathedral tilesheet
+# Tilesheet art lookup
 
-## Find a tile
+Choose existing art from current assets and identify it precisely for Tiled or a standalone sprite. Tiled is the main room editor; atlas names and appearance do not define gameplay behavior.
 
-- Image: `mygame/sprites/tilesheet.png`; runtime path: `sprites/tilesheet.png`.
-- Cursed Gothic Cathedral Pixel Tileset Pack, version 1.2.0.
-- 544 × 544 pixels, 17 columns × 17 rows, 32 × 32 pixels per cell, no gutters.
-- Search [references/tiles.md](references/tiles.md) for tile names, categories, and zero-based `(row, column)` cells. Rows run top to bottom; columns run left to right.
-- Inspect the image when choosing art: names and categories describe appearance, not collision, walkability, damage, or other game rules.
-- Only `seamless-surface` entries are marked repeat-safe by the supplied atlas. Check seams visually at the intended scale; architecture, props, and effects are not marked repeat-safe.
-- Effect variants are not declared animation sequences. Do not infer playback order or timing from adjacent cells.
+## Establish the active atlas
 
-## Runtime catalog and props
+Read the relevant room's tileset definitions and resolve its image path. Check the image's actual dimensions, cell dimensions, columns, margin, and spacing before calculating IDs or crops. Current resources are:
 
-`mygame/app/tilesheet.rb` defines `Descent::Tilesheet::TILES`, a name-to-ID lookup for all 289 tiles. Ruby names replace hyphens with underscores. The names are stored in sheet order and converted to IDs when the file loads; a single 289-entry hash literal exceeds this DragonRuby runtime's operand limit. Keep their order aligned with the atlas.
+| Image | Dimensions | Current cells |
+| --- | --- | --- |
+| `mygame/sprites/environment_tilesheet.png` | 640 × 480 | 20 columns, 32 × 32 |
+| `mygame/sprites/props_tilesheet.png` | 544 × 544 | 17 columns, 32 × 32 |
+| `mygame/sprites/doors.png` | 416 × 64 | 13 columns, 32 × 32 |
 
-Use `Tilesheet.source_rect(:closed_stone_coffin)` to calculate a bottom-left source rectangle, and `Tilesheet::PATH` for the image path. Unknown names raise `KeyError`.
+These describe today's files, not a uniform-size requirement. Check current metadata after image edits; player animation frames are 64 × 64. `light_mask.png` is a separate future lighting asset, not a tile atlas.
 
-Use `Prop.spawn(id: :closed_stone_coffin, x: 650, y: 290)` for a game prop. Any catalog name is accepted. `PROP_OVERRIDES` in `mygame/app/prop.rb` holds only per-id tuning: optional `scale` (default `1`) and `collider` dimensions in unscaled pixels. An omitted collider uses the full 32 × 32 cell; explicit `nil` makes a prop decorative. Scale applies to both artwork and collision. The default footprint is a tuning placeholder, not a measurement of the artwork.
+Search [references/tiles.md](references/tiles.md) for the retained props atlas's vendor names and zero-based top-left `(row, column)` cells. That lookup covers only `props_tilesheet.png`; it cannot identify cells in the environment or doors atlases. Inspect those images and current Tiled tile definitions directly rather than inventing a corresponding name catalog.
 
-For experimentation, edit `CollisionPlayground::PROP_PLACEMENTS` in `mygame/app/collision_playground.rb`. Saving placements, overrides, or the catalog rebuilds the playground props before collision and rendering, preserving the player and danger timers. Press **B** to show blue prop collider outlines. Existing props outside this playground do not automatically refresh their settings.
+Inspect candidate artwork, including transparent margins, before recommending a tile. Vendor categories describe appearance; they do not establish collision, class, walkability, or animation. Repeat-safety and variant notes are hints to check visually at the intended scale.
 
-## Crop in DragonRuby
+## Place room artwork in Tiled
 
-For a catalog cell `(row, column)`, use:
+Give the user the image/tileset, local tile ID, and row/column, with a brief visual description where useful. Derive local ID as `row * columns + column`; map-wide GIDs depend on the export's `firstgid` and flags and are not permanent art IDs.
 
-```ruby
-{
-  path: 'sprites/tilesheet.png',
-  x: x, y: y, w: 32 * scale, h: 32 * scale,
-  source_x: column * 32,
-  source_y: (16 - row) * 32,
-  source_w: 32, source_h: 32,
-  scale_quality_enum: 0
-}
+Author placement, tile collision rectangles, classes, door pairs, mounted references, and light/pedestal offsets in Tiled, then re-export. Follow the current [authoring conventions](../../../README.md#author-and-preview-rooms-in-tiled). Use [tiled-json-audit](../tiled-json-audit/SKILL.md) for an export audit and [dragonruby-development](../dragonruby-development/SKILL.md) for runtime changes.
+
+The manual Ruby tilesheet catalog, Prop factory/overrides, and collision playground have been removed. Do not recreate those paths or substitute hand-coded room placements for Tiled.
+
+## Standalone DragonRuby crops
+
+For artwork outside the Tiled room workflow, calculate bottom-left image crops from actual atlas metadata:
+
+```text
+source_x = margin + column * (cell_w + spacing)
+source_y = image_h - margin - row * (cell_h + spacing) - cell_h
+source_w = cell_w
+source_h = cell_h
 ```
 
-`source_y` counts from the bottom of the image. For example, `worn-flagstone` at `(0, 0)` uses `(source_x: 0, source_y: 512)`; `red-spikes-tall` at `(16, 16)` uses `(512, 0)`. Keep source size at 32 × 32 when changing display scale. Prefer integer display scales for crisp pixels.
+Source dimensions select artwork; destination dimensions scale its presentation. Preserve the accepted metadata sampling instead of assigning nearest-neighbor overrides. See [rendering terminology](../../../GLOSSARY.md#rendering) and [display decisions](../../../docs/adr/0002-reference-resolution-and-ui-fonts.md).
 
-`Descent::Sprite` accepts a fixed `source_rect:` in bottom-left image pixel coordinates:
+`Descent::Sprite` still accepts a fixed `source_rect:` with `x/y/w/h` measured from the image's bottom-left. For example, the retained props cell `closed-stone-coffin` at row 6, column 14 is:
 
 ```ruby
-Sprite.new(
-  path: Tilesheet::PATH,
-  source_rect: Tilesheet.source_rect(:closed_stone_coffin)
+Descent::Sprite.new(
+  path: 'sprites/props_tilesheet.png',
+  source_rect: { x: 448, y: 320, w: 32, h: 32 }
 )
 ```
 
-The crop's width and height determine display size before scaling. Movement, facing changes, animation updates, and reset do not change a fixed crop. Props retain their `facing`, but this option does not provide directional artwork. Combining `source_rect` with `animations` or `facing_rows` raises `ArgumentError`; character sprites that omit `source_rect` keep their existing selection behavior. Use the dragonruby-development workflow for runtime integration.
+Verify the current cell before using this example. Fixed crops do not supply directional/animated artwork; the current Sprite rejects combining `source_rect` with animations or facing rows.
 
-## Source metadata and maintenance
+## Lookup maintenance
 
-`mygame/sprites/main_32x32.json` is the retained vendor atlas, not a runtime dependency. The compact reference preserves every tile's name, cell, category, repeat-safety, and supplied variant notes. Production bookkeeping and redundant pixel coordinates are omitted.
+`mygame/sprites/main_32x32.json` is retained vendor metadata for the props layout, not runtime data or a catalog for every atlas. Its vendor file paths and occasional original source boxes are not repository crop coordinates; use its `row`/`column` fields and verify the image.
 
-The JSON's `image`, `file`, and `filename` fields refer to vendor export paths, not repository assets. Its occasional `source_row`, `source_column`, and `source_box` fields describe earlier source artwork, not cells in this sheet. Use the catalog cells (the JSON's `row` and `column`) for cropping.
-
-If replacing the sheet, verify image dimensions and atlas positions, then update the Ruby catalog, tile reference, and this guidance together. Run `bash scripts/run.sh --test tests/all_test.rb`; the catalog test checks every Ruby name and rectangle against the retained JSON. The game does not load the JSON at runtime. Retain supplied provenance/license material alongside the original assets.
+When the props atlas is rearranged, update or retire its lookup after comparing it with the actual artwork. No Ruby catalog or catalog-regression test remains. Preserve asset provenance/license material.

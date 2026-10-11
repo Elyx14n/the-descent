@@ -66,6 +66,20 @@ module Descent
       @lamp_on = !@lamp_on
     end
 
+    # Device-independent actions. Interaction happens before movement so a door
+    # opened this tick immediately supplies its open variant's collision.
+    def update(actions, room:)
+      if actions[:interact] && @sanity.positive?
+        room.toggle_nearest_door(point: { x: @x, y: @y }, collision_rect: collision_rect)
+      end
+      update_controls(actions, walls: room.collision_rects)
+      update_animation
+    end
+
+    def render_data
+      { depth: @y, sprites: [sprite_to_primitive] }
+    end
+
     def update_controls(input, walls: [])
       if @sanity <= 0
         @moving = false

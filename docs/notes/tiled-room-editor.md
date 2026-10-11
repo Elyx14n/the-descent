@@ -1,6 +1,6 @@
 # Tiled as a room editor
 
-Research date: 2026-10-07. **Tiled is adopted as the main room and passage editor** in [ADR-0004](../adr/0004-tiled-room-authoring.md). The user authorizes replacing the manual implementation and changing runtime interfaces to simplify consuming Tiled resources, without backward compatibility. Importer and renderer choices remain open. The implementation suggestions below are based on inspected documentation and code, not a completed integration or editor playtest.
+Research date: 2026-10-07. **Tiled is adopted as the main room and passage editor** in [ADR-0004](../adr/0004-tiled-room-authoring.md). The user authorizes replacing the manual implementation and changing runtime interfaces to simplify consuming Tiled resources, without backward compatibility. The suggestions below preserve the pre-migration research snapshot. Integration is now implemented; [ADR-0005](../adr/0005-render-data-and-room-preview.md) records the current deserializer, runtime Room, renderer, input registry, and preview consumer.
 
 ## Finding
 
@@ -10,7 +10,7 @@ The useful boundary is `Tiled room/passage file → validated local template →
 
 ## What exists and what could change
 
-The current floor compiler is standalone: [room.rb](../../mygame/app/room.rb) constructs a completely filled rectangular array from default/border/stamp data; [rooms.rb](../../mygame/app/rooms.rb) defines the Ritual Gate and its numeric stamp. It is covered by [room tests](../../mygame/tests/room_test.rb), but not connected to gameplay rendering. The active [collision playground](../../mygame/app/collision_playground.rb) still has separate hand-placed walls, props, bounds, and spawn data. These are observations from the repository, not Tiled capabilities.
+At the time of this research, `Room` compiled filled rectangular arrays from Ruby default/border/stamp data, `Rooms` defined the Ritual Gate recipe, and `CollisionPlayground` used separate hand-placed walls, props, bounds, and spawn data. Those manual authoring and playground implementations have since been removed. The replacement imports Tiled exports into Room and previews them through the shared renderer; current behavior is documented in the [authoring workflow](../../README.md#author-and-preview-rooms-in-tiled).
 
 | Treatment during integration | Current item | Proposed replacement or retained responsibility |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Reusable **passage templates** can follow the same one-file convention as rooms,
 
 ## DragonRuby integration options
 
-The installed SDK 7.21 docs/guides and samples were searched for Tiled/TMX/TMJ/TSJ integration; no bundled importer example was found. DragonRuby does provide `$gtk.parse_json_file`, documented at `$DRAGONRUBY_HOME/docs/api/runtime.md` and already used by [tilesheet tests](../../mygame/tests/tilesheet_test.rb). That is file parsing, not automatic tile rendering or collision import.
+The installed SDK 7.21 docs/guides and samples were searched for Tiled/TMX/TMJ/TSJ integration; no bundled importer example was found. DragonRuby does provide `$gtk.parse_json_file`, documented at `$DRAGONRUBY_HOME/docs/api/runtime.md` and used to read fixtures for [deserializer tests](../../mygame/tests/tiled_deserializer_test.rb). That is file parsing, not automatic tile rendering or collision import.
 
 There is an existing alternative to writing the format reader: Tiled's [official framework list](https://doc.mapeditor.org/en/stable/reference/support-for-tmx-maps/#dragonruby-game-toolkit) links [DRTiled](https://github.com/wildfiler/drtiled) and its separate [renderer](https://github.com/vinnydiehl/drtiled-renderer). DRTiled is third-party DragonRuby code, not a bundled SDK feature. Source inspected at commit `96da011bc90724f697c8a1b74fe089591ff2cb7e` identifies version 0.5.1 and reads native TMX through `$gtk.parse_xml_file`. It loads tile/object/image layers and external TSX tilesets; its layer reader accepts CSV encoding and raises for other encodings. No group-layer loading case was present in the inspected map loader. [Map loader](https://github.com/wildfiler/drtiled/blob/96da011bc90724f697c8a1b74fe089591ff2cb7e/lib/tiled/map.rb), [layer reader](https://github.com/wildfiler/drtiled/blob/96da011bc90724f697c8a1b74fe089591ff2cb7e/lib/tiled/layer_data.rb).
 
@@ -88,7 +88,7 @@ These are implementation reference facts, not adoption trade-offs or compatibili
   ```
 
   The tile formula assumes grid-sized artwork and zero offsets; tile objects use their actual artwork dimensions and alignment. Source-image crop coordinates need their own top-to-bottom conversion; the current `Tilesheet.source_rect` already does this for the cathedral atlas.
-- **Artwork and depth:** A 32 × 32 map grid does not require all sprites to be 32 × 32. Tiled supports differently sized tile images and offsets; this game's player remains 64 × 64 under ADR-0002. Import tile props with their artwork and ground anchor separately from collision. Convert Tiled placement to the current `Sprite` center-X/bottom-Y/foot-padding convention rather than copying an object's X directly to `Prop.spawn`. Keep tall occluding props in the game's foot-Y entity sort with the player; flattening them into an always-under-player floor layer loses occlusion. [Variable tile size and offsets](https://doc.mapeditor.org/en/stable/reference/tmx-map-format/); current [Sprite](../../mygame/app/sprite.rb), [Prop](../../mygame/app/prop.rb), and playground rendering establish the runtime conventions.
+- **Artwork and depth:** A 32 × 32 map grid does not require all sprites to be 32 × 32. Tiled supports differently sized tile images and offsets; this game's player remains 64 × 64 under ADR-0002. Import tile props with their artwork and ground anchor separately from collision. Imported tile-object sprites use bottom-left placement, while actors retain their configured Sprite anchors and foot padding. Keep tall occluding props in the game's foot-Y entity sort with the player; flattening them into an always-under-player floor layer loses occlusion. [Variable tile size and offsets](https://doc.mapeditor.org/en/stable/reference/tmx-map-format/); current [Sprite](../../mygame/app/sprite.rb), [deserializer](../../mygame/app/tiled_deserializer.rb), and [renderer](../../mygame/app/render.rb) establish the runtime conventions.
 
 Tiled's Class UI has changed format spelling: current JSON objects use `type` for their class, while other structures use `class`; importer support should target a chosen editor/format version. [JSON reference](https://doc.mapeditor.org/en/stable/reference/json-map-format/). If adding editor classes or object templates, either resolve their defaults/inheritance or use export embedding; displayed inherited values must not be assumed to be explicit instance properties. [Properties](https://doc.mapeditor.org/en/stable/manual/custom-properties/), [templates](https://doc.mapeditor.org/en/stable/manual/using-templates/).
 
