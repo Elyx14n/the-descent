@@ -7,7 +7,7 @@ def test_fixed_crop_survives_facing_movement_animation_updates_and_reset(_args, 
   prop = Descent::Entity.new(
     x: 100, y: 200, scale: 3,
     sprite: Descent::Sprite.new(
-      path: 'sprites/tilesheet.png', source_rect: { x: 448, y: 320, w: 32, h: 32 }
+      path: 'sprites/props_tilesheet.png', source_rect: { x: 448, y: 320, w: 32, h: 32 }
     ),
     collider: nil
   )
@@ -17,7 +17,7 @@ def test_fixed_crop_survives_facing_movement_animation_updates_and_reset(_args, 
     prop.update_animation(:idle)
     primitive = prop.sprite_to_primitive
     assert.equal! prop.facing, facing
-    assert.equal! primitive[:path], 'sprites/tilesheet.png'
+    assert.equal! primitive[:path], 'sprites/props_tilesheet.png'
     assert.equal! [primitive[:source_x], primitive[:source_y]], [448, 320]
     assert.equal! [primitive[:source_w], primitive[:source_h]], [32, 32]
     assert.equal! [primitive[:x], primitive[:y]], [prop.x, prop.y]
@@ -27,7 +27,7 @@ end
 
 def test_crop_dimensions_scale_without_changing_source_or_foot_anchor(_args, assert)
   sprite = Descent::Sprite.new(
-    path: 'sprites/tilesheet.png', foot_padding: 2,
+    path: 'sprites/props_tilesheet.png', foot_padding: 2,
     source_rect: { x: 0, y: 0, w: 16, h: 32 }
   )
 
@@ -42,7 +42,7 @@ def test_crop_dimensions_scale_without_changing_source_or_foot_anchor(_args, ass
 end
 
 def test_fixed_crop_rejects_conflicting_cell_selection(_args, assert)
-  [{ animations: {} }, { path: 'sprites/tilesheet.png', facing_rows: { south: 0 } }].each do |settings|
+  [{ animations: {} }, { path: 'sprites/props_tilesheet.png', facing_rows: { south: 0 } }].each do |settings|
     error = nil
     begin
       Descent::Sprite.new(source_rect: { x: 0, y: 0, w: 32, h: 32 }, **settings)

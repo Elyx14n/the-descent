@@ -7,7 +7,7 @@ def test_sprite_rejects_missing_or_competing_image_sources(_args, assert)
     idle: { path: 'sprites/enemy.png', frame_count: 4, ticks_per_frame: 12, loop: true }
   }
   invalid_settings = [
-    [{ path: 'sprites/tilesheet.png', animations: animations }, 'path cannot be combined with animations'],
+    [{ path: 'sprites/props_tilesheet.png', animations: animations }, 'path cannot be combined with animations'],
     [{}, 'path or animations must be provided'],
     [{ source_rect: { x: 0, y: 0, w: 32, h: 32 } }, 'path or animations must be provided'],
     [{ facing_rows: { south: 0 } }, 'path or animations must be provided']

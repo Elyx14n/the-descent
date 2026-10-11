@@ -23,3 +23,11 @@ Use replay or seeded state when a bug depends on a frame sequence. For AI behavi
 For performance work, establish a baseline with DragonRuby diagnostics or benchmarks and test representative entity counts. Do not replace readable code based on an unmeasured micro-optimization.
 
 Remove noisy temporary instrumentation after diagnosis or retain it behind a deliberate debug toggle when it will materially help tuning.
+
+## Current room preview
+
+Inspect `args.state.room_preview` for the current room, player, camera, exported source, and `reload_error`. Development reload compares JSON contents every 30 ticks; successful rebuilds reset player/door state to authored defaults. R forces a rebuild, and B shows colliders and light-emitter markers. A saved TMJ alone does not update runtime data: re-export its JSON.
+
+For room-data faults, follow [tiled-json-audit](../../tiled-json-audit/SKILL.md). For overlap or seams, distinguish active collision, depth/mounting, atlas crop, and camera/raster placement before changing geometry. Current rendering uses one scene target with metadata sampling; F3/F4 are no longer controls. Review [ADR-0001](../../../../docs/adr/0001-viewport-sized-camera.md) for tested approaches and failed experiments before repeating them.
+
+Static or automated renderer checks do not replace a player's enlarged-window/diagonal-movement playtest. When the user is comparing configurations, change one agreed setup at a time and give a short test scenario.

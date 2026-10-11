@@ -34,6 +34,16 @@ The launchers select this repository's `mygame/` and run from the SDK directory.
 
 Keep project tests under `mygame/tests/`. Confirm the output names the intended file and inspect its test summary; a process exit alone does not establish that tests passed.
 
+The full suite is `tests/all_test.rb`. Targeted room checks are `tests/tiled_deserializer_test.rb`, `tests/room_test.rb`, `tests/render_test.rb`, `tests/room_preview_test.rb`, and `tests/keybinds_test.rb`. Camera regressions remain in `tests/camera_test.rb`. Existing room fixtures read the Ritual Gate export; passing them does not validate an arbitrary new room.
+
+On the installed Linux SDK, native checks can run without a window using:
+
+```sh
+SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 bash scripts/run.sh --test tests/all_test.rb
+```
+
+This software-rendered run checks behavior and integration; it does not establish appearance on the user's display. If the SDK logs path is read-only, use the stdout summary rather than requesting write access just for logging.
+
 ## What to test
 
 Prioritize deterministic rules and regressions:

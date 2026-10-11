@@ -27,3 +27,18 @@ Avoid speculative managers, base classes, registries, component systems, and gen
 - Preserve the logical resolution and coordinate conventions defined by game metadata unless the task changes them.
 
 Use runtime APIs in `$DRAGONRUBY_HOME/docs/api/runtime.md`, state guidance in `$DRAGONRUBY_HOME/docs/api/state.md`, and rendering/input API docs only when relevant.
+
+## Current room and drawing workflow
+
+Use the current [runtime decision](../../../../docs/adr/0005-render-data-and-room-preview.md) and inspect implementation before changing ownership:
+
+- `TiledDeserializer` is a stateless module returning keyword hashes for Room; it owns format validation and coordinate/asset decoding.
+- Room currently holds room data, active door state/collision, and render-data production. Render consumes plain frame hashes and owns sorting, camera conversion, target submission, and compositing.
+- Keybinds translates physical keys to semantic actions. Player processes player actions; RoomPreview handles preview actions and reload lifetime.
+- RoomPreview is a discrete development aid. A future map consumer can reuse room resources and frame data; map assembly and multiplayer are not implemented.
+
+Author scenery and geometry through Tiled. See the [authoring workflow](../../../../README.md#author-and-preview-rooms-in-tiled) for current layers/classes. The former TiledRoom/RoomScene, symbolic atlas catalog, Prop overrides, and collision playground have been removed.
+
+Preserve the tested rendering configuration: `hd=true`, `scale_quality=3`, and camera/artwork alignment through `to_draw_space`. Movement/collision stay precise; camera translation and artwork drawing share the native raster grid. Do not round simulation state, override individual sprites with nearest-neighbor sampling, or restore the removed F3/F4 comparison switches as a default. Diagnose proposed changes against the [camera](../../../../docs/adr/0001-viewport-sized-camera.md) and [display](../../../../docs/adr/0002-reference-resolution-and-ui-fonts.md) decisions.
+
+The installed DragonRuby 7.21 differs from desktop Ruby in verified ways: private module helpers use `class << self` with `private`; dynamic key queries use `send`; `Hash#to_h` ignores transformation blocks, so transform hashes with explicit iteration. Key-held excludes the initial press; movement/sneak use `key_down_or_held?`. Confirm compatibility in native tests rather than assuming desktop Ruby results establish runtime behavior.

@@ -53,8 +53,8 @@ module Descent
 
       {
         path: clip ? (clip[:path] || clip[:variants].fetch(selected_variant)) : @path,
-        # Keep the sub-pixel / fractional world positions the camera follows. Rounding
-        # here would make the sprite drift against its unrounded camera position.
+        # Preserve fractional world positions. The camera places artwork on its
+        # drawing pixel grid without changing gameplay coordinates.
         x: x,
         y: y - (@foot_padding * scale),
         w: source.fetch(:w) * scale,

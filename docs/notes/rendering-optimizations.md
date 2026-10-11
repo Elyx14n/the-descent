@@ -1,9 +1,7 @@
 # DragonRuby rendering optimization findings
 
 Research date: **2026-10-05**. Sources inspected: the local DragonRuby **7.21
-Standard** SDK and current project code. These are options for future work;
-the proposed optimizations below are **not implemented**. No rendering
-bottleneck has been demonstrated in the current three-entity, eight-wall scene.
+Standard** SDK and the then-current collision playground. Pipeline references were updated on **2026-10-12** for the Tiled integration. The options below remain speculative, except imported artwork already reuses world sprite hashes. No rendering bottleneck or measured optimization benefit has been established for the current room.
 
 ## Reading the sources
 
@@ -17,24 +15,16 @@ The accepted framing and text choices are recorded in
 
 ## What the game currently does
 
-[CollisionPlayground.render](../../mygame/app/collision_playground.rb) performs
-the following work each frame:
+[Room.render_data](../../mygame/app/room.rb) supplies imported world-space artwork and mounted draw groups. The preview appends the player's current sprite group. [Render.draw](../../mygame/app/render.rb) then:
 
-1. Access the viewport-sized `:scene` render target.
-2. Build hashes for **all** walls, alongside the red tile.
-3. Sort **all** props and the player by descending foot-position `y`.
-4. Build a sprite hash for **every** entity, then combine the world primitives.
-5. Find intersections with the world-space viewport.
-6. Translate **only visible** primitives into screen coordinates and submit
-   them to `:scene`. Debug borders follow the same filter/translation pattern.
-7. Draw the scene as one viewport sprite, then draw HUD, countdown, and world
-   annotation labels outside the scene target.
+1. Accesses the viewport-sized `:scene` target.
+2. Sorts all scenery/player groups by descending ground Y with stable ties.
+3. Combines floor artwork, sorted groups, and ceiling artwork.
+4. Finds artwork intersections with the world-space viewport.
+5. Converts visible artwork to draw space and submits it. Diagnostic borders use the same viewport and screen translation; emitter markers use draw-space placement.
+6. Composites the target and draws the HUD above it.
 
-[Camera](../../mygame/app/camera.rb) only translates; it does not change artwork
-dimensions. Its target follows `Grid.w`/`Grid.h` (currently 320 × 180 logical
-pixels), regardless of world size. [Sprite.to_primitive](../../mygame/app/sprite.rb)
-creates an anchored artwork hash; [Entity.collision_rect](../../mygame/app/entity.rb)
-describes separate ground collision geometry.
+[Camera](../../mygame/app/camera.rb) only translates and prepares raster alignment; it does not change artwork dimensions. Render's target follows `Grid.w`/`Grid.h` (320 × 180 logical pixels), regardless of world size. [Sprite.to_primitive](../../mygame/app/sprite.rb) creates anchored actor artwork; [Entity.collision_rect](../../mygame/app/entity.rb) describes separate ground collision geometry. Imported static sprite hashes are created once per load, although group collections and ordering are still prepared each frame.
 
 This resembles `SDK: samples/07_advanced_rendering/16_camera_space_world_space_simple/app/main.rb`:
 filter world objects, translate visible objects, render a viewport target, and
@@ -51,14 +41,14 @@ With `N` total objects and `V` visible objects, this still scans `N` bounds,
 but can move primitive creation from `N` to `V` and entity sorting from
 `N log N` to `V log V`. This is an analysis of the proposed pipeline, not a
 measured speedup. The current code only saves translation/submission work for
-offscreen objects. Sources: [current render method](../../mygame/app/collision_playground.rb);
+offscreen objects. Sources: [current render method](../../mygame/app/render.rb);
 `SDK: docs/api/geometry.md`, `find_all_intersect_rect`.
 
 Cull by **artwork bounds**, including scale, foot padding, and anchors. A foot
 collider can be offscreen while the sprite above it remains visible; decorative
 props may have no collider at all. The SDK intersection functions account for
 `anchor_x`/`anchor_y`. Sources: [sprite geometry](../../mygame/app/sprite.rb),
-[prop configuration](../../mygame/app/prop.rb);
+[imported artwork](../../mygame/app/tiled_deserializer.rb);
 `SDK: docs/api/geometry.md`, `find_all_intersect_rect`.
 
 If a future object exposes `render_rect`, the SDK's `using:` lookup must also
@@ -78,16 +68,13 @@ the query-lookup caveat was checked against the installed runtime.
 
 ### Reuse world primitive hashes
 
-For unchanging walls and props, build world sprite hashes once and reuse them
-for viewport queries. Visible screen-space copies still need camera translation.
+The Tiled integration already creates static world sprite hashes once per load and reuses them for viewport queries. Visible screen-space copies still need camera translation.
 Keep world hashes separate from translated hashes so camera motion does not
 overwrite world coordinates. This is the simplest allocation-reduction option
 suggested by `SDK: samples/07_advanced_rendering/16_camera_space_world_space_simple/app/main.rb`.
 
 Invalidate such hashes when positions, dimensions, appearance, or source data
-change. Preserve hot reload: the current [prop refresh](../../mygame/app/collision_playground.rb)
-detects changed placement, override, and tilesheet constants. A future cache
-must refresh with those changes too. Animated player frames still need updating.
+change. [RoomPreview](../../mygame/app/room_preview.rb) rebuilds imported data when the JSON changes; R also rebuilds runtime instances after Ruby configuration changes. A future cache must preserve that lifecycle. Animated player frames still need updating.
 
 ### Retain sprite objects or use classes
 
@@ -111,7 +98,7 @@ membership. Moving entities still require depth-order updates. A retained queue
 therefore needs explicit lifecycle/order management; retaining the current
 world list once would not preserve current scrolling and overlap behavior.
 This is a constraint derived from [the current camera](../../mygame/app/camera.rb)
-and [render ordering](../../mygame/app/collision_playground.rb).
+and [render ordering](../../mygame/app/render.rb).
 
 ### Cache rendered pixels with render targets
 
@@ -151,11 +138,11 @@ a demonstrated cost. Sources:
 
 ## Existing useful choices to preserve
 
-The project uses hash primitives and submits visible batches. `UI.box` and the
-red tile already use `path: :solid`, the SDK's pre-cached solid texture. The
+The project uses hash primitives and submits visible batches. `UI.box` and
+diagnostic emitter markers use `path: :solid`, the SDK's pre-cached solid texture. The
 performance guide recommends these over array primitives, individual pushes,
 and large numbers of ordinary solids. Sources: [UI](../../mygame/app/ui.rb),
-[playground](../../mygame/app/collision_playground.rb);
+[preview diagnostics](../../mygame/app/room_preview.rb);
 `SDK: docs/guides/troubleshoot-performance.md`, Rendering Primitives and Solids.
 
 Glyph sets are cached per font and size combination. Preserve the

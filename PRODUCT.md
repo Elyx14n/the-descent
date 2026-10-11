@@ -1,6 +1,6 @@
 # The Descent — Product
 
-A small, top-down horror game in which the player deciphers a ritual lock inside a monastery while evading the Witness, a pursuer that uses evidence to anticipate where they will go.
+A small, top-down horror game in which the player finds four ritual items inside a monastery while evading the Witness, a pursuer that uses evidence to anticipate where they will go.
 
 ## Intended experience
 
@@ -11,10 +11,10 @@ The Witness knows the arrangement but needs observations to locate the player. I
 ## Core loop
 
 1. Start at the sealed Ritual Gate.
-2. Explore rooms and interpret clues to a three-symbol sequence.
+2. Explore rooms and use vague descriptive hints to identify and find four ritual items.
 3. Choose when to use the lamp, sneak, hide, or risk noise.
 4. Evade the Witness as it investigates evidence and pursues sightings.
-5. Return to the Ritual Gate and enter the sequence.
+5. Return to the Ritual Gate and place all four items on its four pedestals, in no specific order, to unlock it.
 
 Opening the gate completes the run; being caught ends it in failure.
 
@@ -22,9 +22,9 @@ Opening the gate completes the run; being caught ends it in failure.
 
 | System | Requirement |
 | --- | --- |
-| Map | A small set of validated, authored arrangements built from handcrafted rooms and branching passages. Room neighbors may vary, and passages can have multiple exits. |
-| Run variation | Vary the symbol sequence, eligible clue locations, and selected hazards or Witness starting position within an arrangement. |
-| Puzzle | Clues convey relationships or meanings, rather than acting as three fetch items. Any eligible room can host a clue; there are no permanent main/filler room types. |
+| Map | Six initial handcrafted rooms and reusable branching passages within one fixed grid footprint. A permanent connected backbone contains a loop; open two of four or five reserved shortcuts from approved combinations. See the [map decision](docs/adr/0003-fixed-map-footprint-and-approved-shortcuts.md). |
+| Run variation | Vary compatible room assignments, the approved shortcut combination, eligible ritual-item and clue locations, and the Witness's valid starting position and patrol direction. |
+| Puzzle | Find four ritual items using vague descriptive hints, then place them on four pedestals in no specific order to unlock the Ritual Gate. The gate stays locked until all four items are placed. Any eligible room can host an item or clue; there are no permanent main/filler room types. |
 | Player | Walk, sneak, toggle the lamp, inspect/interact, and use a small number of hiding places. |
 | Pressure | Light versus darkness; retain sanity only if playtesting establishes a consequence that improves player choices. |
 | Sound | A few legible hazards, such as creaky boards, glass, or a noisy door, produce located sounds the Witness can investigate. |
@@ -38,7 +38,7 @@ Low-fidelity 2D top-down art. The Witness is a tall, slender, robed figure with 
 ## Out of scope
 
 - Co-op or networking; revisit multiplayer after the single-player loop works.
-- Unrestricted procedural floor plans or generated room geometry.
+- Automatic spatial room placement, corridor routing, maze generation, unrestricted procedural floor plans, generated room geometry, or a general layout solver.
 - The level beyond the Ritual Gate.
 - Lore, journals, monologues, story branches, or a rescue/escort storyline.
 - Complex combat, inventories, crafting, upgrades, multiple enemies, elaborate hallucinations, or learned/ML-driven AI.
@@ -46,4 +46,6 @@ Low-fidelity 2D top-down art. The Witness is a tall, slender, robed figure with 
 
 ## First playable milestone
 
-One short, completable run in one authored arrangement with randomized clues and a Witness responding to sight and sound. Use a gray-box build to test whether inference and pursuit create meaningful choices, including a moment where the player deliberately misleads the Witness. Add curated arrangements and finished presentation after that loop works.
+One short, completable run in one validated configuration of the authored footprint with varied item/clue locations and a Witness responding to sight and sound. Use a gray-box build to test whether interpreting hints and evading pursuit create meaningful choices, including a moment where the player deliberately misleads the Witness. Add further compatible room assignments, approved shortcut combinations, and finished presentation after that loop works.
+
+The four-item pedestal puzzle was agreed on 2026-10-12 and replaces the earlier ordered three-symbol puzzle. Item discovery, carrying, placement, and puzzle-driven unlocking remain to be implemented; current status lives in [CONTEXT.md](CONTEXT.md).
