@@ -61,8 +61,8 @@ def test_player_sprite_and_collider_share_foot_position(_args, assert)
   left = sprite[:x] - (sprite[:w] * sprite[:anchor_x])
   scale = sprite[:w].to_f / sprite[:source_w]
 
-  assert.equal! sprite[:w], 192
-  assert.equal! sprite[:h], 192
+  assert.equal! sprite[:w], 64
+  assert.equal! sprite[:h], 64
   assert.equal! feet[:x] + (feet[:w] / 2.0), left + (sprite[:w] / 2.0)
   # Standing frames have 24 transparent pixels below the feet.
   assert.equal! sprite[:y] + (24 * scale), feet[:y]

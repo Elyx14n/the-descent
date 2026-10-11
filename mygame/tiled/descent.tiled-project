@@ -1,0 +1,140 @@
+{
+    "automappingRulesFile": "",
+    "commands": [
+    ],
+    "compatibilityVersion": 1100,
+    "extensionsPath": "extensions",
+    "folders": [
+        "."
+    ],
+    "properties": [
+    ],
+    "propertyTypes": [
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 3,
+            "members": [
+                {
+                    "name": "close_tile",
+                    "type": "int",
+                    "value": 0
+                },
+                {
+                    "name": "locked",
+                    "type": "bool",
+                    "value": false
+                },
+                {
+                    "name": "open_tile",
+                    "type": "int",
+                    "value": 0
+                }
+            ],
+            "name": "Door",
+            "type": "class",
+            "useAs": [
+                "property",
+                "layer",
+                "object",
+                "tile",
+                "tileset",
+                "project"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 4,
+            "members": [
+                {
+                    "name": "mounted_on",
+                    "type": "object",
+                    "value": 0
+                }
+            ],
+            "name": "Interactable",
+            "type": "class",
+            "useAs": [
+                "property",
+                "layer",
+                "object",
+                "tile",
+                "tileset",
+                "project"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 1,
+            "members": [
+                {
+                    "name": "color",
+                    "type": "color",
+                    "value": ""
+                },
+                {
+                    "name": "enabled",
+                    "type": "bool",
+                    "value": true
+                },
+                {
+                    "name": "intensity",
+                    "type": "float",
+                    "value": 0
+                },
+                {
+                    "name": "mounted_on",
+                    "type": "object",
+                    "value": 0
+                },
+                {
+                    "name": "offset_x",
+                    "type": "float",
+                    "value": 0
+                },
+                {
+                    "name": "offset_y",
+                    "type": "float",
+                    "value": 0
+                },
+                {
+                    "name": "radius",
+                    "type": "float",
+                    "value": 0
+                }
+            ],
+            "name": "Light",
+            "type": "class",
+            "useAs": [
+                "property",
+                "layer",
+                "object",
+                "tile",
+                "tileset",
+                "project"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 8,
+            "members": [
+            ],
+            "name": "Spawn",
+            "type": "class",
+            "useAs": [
+                "property",
+                "map",
+                "layer",
+                "object",
+                "tile",
+                "tileset",
+                "wangcolor",
+                "wangset",
+                "project"
+            ]
+        }
+    ]
+}

@@ -1,6 +1,6 @@
 # The Descent — Glossary
 
-Game vocabulary, including planned concepts. Implementation status lives in [CONTEXT.md](CONTEXT.md).
+Game and rendering vocabulary, including planned concepts. Implementation status lives in [CONTEXT.md](CONTEXT.md).
 
 ## Player and objective
 
@@ -43,3 +43,43 @@ _Avoid_: Main room, filler room (as permanent room types)
 _Avoid_: Arrangement (when referring only to these content choices)
 
 **Prop**: A placed environmental object, such as a coffin or banner, which may block movement or serve as decoration.
+
+## Rendering
+
+These definitions describe our 320 × 180 DragonRuby setup. The accepted configuration and investigation are recorded in [ADR-0001](docs/adr/0001-viewport-sized-camera.md) and [ADR-0002](docs/adr/0002-reference-resolution-and-ui-fonts.md).
+
+**Source pixel / artwork pixel**: One pixel stored in a sprite image. HD changes how that artwork is presented; it does not add newly drawn detail to the source image.
+
+**Logical pixel**: A coordinate unit on our 320 × 180 reference canvas, independent of window size. At entity scale 1, one source pixel occupies one logical unit.
+
+**Reference resolution / logical canvas**: The coordinate dimensions used to frame the game, currently 320 × 180. Enlarging the window preserves this view of the world.
+
+**Raster**: An image stored as a grid of coloured pixels. **Rasterization** converts drawing instructions, such as sprite rectangles or font outlines, into that grid.
+
+**Native raster pixel**: One pixel in the image DragonRuby actually renders before final presentation. With HD off our native raster is 320 × 180; with HD on it can match the larger display viewport.
+
+**Physical pixel / display pixel**: One actual pixel in the displayed output. At a 5.5× window fit, one logical unit spans 5.5 display pixels; with HD off, each low-resolution raster pixel is enlarged into a block of display pixels.
+
+**Render scale**: DragonRuby's multiplier from logical coordinates to its native raster, exposed as `Grid.render_scale`. In our tested 5.5× enlarged window it is 5.5 with HD on and 1 with HD off.
+
+**Window fit scale**: The multiplier fitting the logical canvas into the displayed viewport. It can remain 5.5 even when HD is off and the render scale is 1, because the completed low-resolution frame is enlarged afterward.
+
+**HD mode**: DragonRuby's higher-resolution scene and font rendering while retaining logical coordinates. It provides a finer native raster for drawing alignment and more raster detail for small glyphs.
+
+**World space**: Positions relative to the room or map, used for gameplay, movement, and collision. These positions can remain fractional.
+
+**Screen space**: World positions translated by the camera into logical viewport coordinates. Our conversion shares the camera's snapped translation and can be reversed without rounding the object's position.
+
+**Draw space**: Our screen-coordinate representation prepared for rendering: artwork world positions are rounded to the native raster grid, then translated by the same snapped camera. It uses logical units and is not an additional render buffer or a DragonRuby-defined coordinate system.
+
+**Pixel snapping / drawing alignment**: Rounding drawing positions onto the native raster grid while preserving precise gameplay positions. With HD on at render scale 5.5, one snapping step is 1/5.5 logical units, or one display pixel; with HD off it is one logical unit.
+
+**Sampling**: Choosing or combining source-image colours when drawing a sprite or scaling an image. Nearest-neighbour sampling chooses a source pixel; DragonRuby's pixel-art sampler uses a different filtering policy intended for scaled pixel artwork.
+
+**Glyph**: The drawn shape of one character in a font. A rasterized glyph is its pixel representation at the rendering resolution; glyphs are text-specific and do not determine the sprite snapping calculation.
+
+**Atlas bleed**: Colour sampled from outside a sprite's selected atlas cell, such as a neighbouring tile. It can look like a thin seam even when the destination rectangles meet exactly.
+
+**Tile seam / sub-pixel gap**: A visible line between tiles; this describes appearance rather than establishing a cause. An uncovered background gap and atlas bleed are different causes and should be distinguished when diagnosing it.
+
+**Jitter**: An unwanted visible wobble or uneven step in motion. Specify camera jitter when the room shifts unexpectedly, and player-sprite jitter when the player wobbles relative to the room.

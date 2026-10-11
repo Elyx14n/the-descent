@@ -14,7 +14,9 @@ module Descent
     }.freeze
 
     TEXT = {
-      font: 'fonts/m5x7.ttf', # Sizes tuned at 320x180 with HD rendering enabled.
+      # HD preserves small glyph detail; size-8 m5x7 loses stroke coverage on a
+      # true 320x180 raster. HD-off UI needs different glyphs/sizes (ADR-0002).
+      font: 'fonts/m5x7.ttf',
       body: 8,
       h1: 16,
       color: { r: 220, g: 215, b: 190 }.freeze

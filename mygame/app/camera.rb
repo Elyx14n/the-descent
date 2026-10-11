@@ -2,7 +2,7 @@
 
 module Descent
   # Based on DragonRuby's 16_camera_space_world_space_simple sample. World
-  # positions stay fractional until conversion into a viewport-sized target.
+  # positions stay fractional; drawing snaps to physical display pixels.
   # One world pixel is one logical pixel. DragonRuby scales the 320x180 canvas
   # for display; the camera only translates, without changing sprite dimensions.
   class Camera
@@ -67,16 +67,26 @@ module Descent
       return rect.map { |r| to_world_space(r) } if rect.is_a? Array
       return nil unless rect
 
-      rect.merge(x: rect[:x] - viewport_w_half + @x,
-                 y: rect[:y] - viewport_h_half + @y)
+      rect.merge(x: rect[:x] - screen_offset_x,
+                 y: rect[:y] - screen_offset_y)
     end
 
     def to_screen_space(rect)
       return rect.map { |r| to_screen_space(r) } if rect.is_a? Array
       return nil unless rect
 
-      rect.merge(x: rect[:x] - @x + viewport_w_half,
-                 y: rect[:y] - @y + viewport_h_half)
+      rect.merge(x: rect[:x] + screen_offset_x,
+                 y: rect[:y] + screen_offset_y)
+    end
+
+    # Raster placement is separate from reversible coordinate conversion.
+    # Use one display pixel grid for tiles and actors; gameplay stays precise.
+    def to_draw_space(rect)
+      return rect.map { |r| to_draw_space(r) } if rect.is_a? Array
+      return nil unless rect
+
+      rect.merge(x: pixel_position(rect[:x]) + screen_offset_x,
+                 y: pixel_position(rect[:y]) + screen_offset_y)
     end
 
     def find_all_intersect_viewport(objects)
@@ -84,6 +94,25 @@ module Descent
     end
 
     private
+
+    # HD renders at display resolution. Whole logical pixels can land between
+    # display pixels (e.g. at 5.5x); snap camera and artwork on the actual raster.
+    # The inverse conversion and culling use this same displayed viewport.
+    def screen_offset_x
+      pixel_position(viewport_w_half) - pixel_position(@x)
+    end
+
+    def screen_offset_y
+      pixel_position(viewport_h_half) - pixel_position(@y)
+    end
+
+    def pixel_position(value)
+      ((value * pixel_scale) + 0.5).floor.fdiv(pixel_scale)
+    end
+
+    def pixel_scale
+      Grid.render_scale
+    end
 
     def bounded_center(center, min, size, extent)
       return min + size.fdiv(2) if size <= extent

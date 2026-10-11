@@ -19,4 +19,6 @@ Preserve intended gameplay and accepted camera/display behavior. Existing classe
 
 The six-room MVP, fixed slots, compatible doorway sockets, backbone, and approved shortcuts remain as agreed in ADR-0003. Irregular walkable interiors can occupy compatible slot bounds. Assembly, collision response, and gameplay remain game responsibilities.
 
-This decision accepts the editor and replacement direction; integration is not yet implemented. Current status lives in [CONTEXT.md](../../CONTEXT.md), and source evidence and loader options are in the [Tiled research note](../notes/tiled-room-editor.md).
+The first room is now integrated through a small importer for finite orthogonal JSON exports with embedded image tilesets. It resolves tile IDs and relative image paths, converts coordinates, and emits ordinary DragonRuby sprites, collision rectangles, and gameplay metadata. Ground and Ceiling are tile layers; Walls and Props are object layers. Door bases own optional ceiling pieces immediately above them, and paired artwork defines the starting state. The [README](../../README.md#author-and-preview-rooms-in-tiled) records the current property and export conventions.
+
+Current status lives in [CONTEXT.md](../../CONTEXT.md), and source evidence and earlier loader options are in the [Tiled research note](../notes/tiled-room-editor.md).

@@ -19,3 +19,4 @@ Thumbs.db
 
 # Local link to DragonRuby library for IntelliSense
 /.dragonruby-lsp
+*.tiled-session

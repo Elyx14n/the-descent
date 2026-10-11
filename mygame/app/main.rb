@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'app/collision_playground'
+require 'app/room_scene'
 
 module Main
   def boot
@@ -10,6 +10,6 @@ module Main
   def tick(args)
     args.state.game ||= { paused: false, debug_visible: false }
     args.outputs.background_color = Descent::UI::COLORS.fetch(:bg)
-    Descent::CollisionPlayground.tick(args)
+    Descent::RoomScene.tick(args)
   end
 end

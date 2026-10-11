@@ -128,11 +128,38 @@ Keep the original/source asset and any license or provenance notes alongside the
 
 32 × 32 is the usual sprite cell size, not a strict asset requirement. The player animation sheets use 64 × 64 frames, configured in [player.rb](mygame/app/player.rb). Use each asset's actual source dimensions; see the [display and sprite-size guidance](docs/adr/0002-reference-resolution-and-ui-fonts.md) for how source dimensions, entity scale, and display scaling relate.
 
-For the cathedral tilesheet, use the [tile lookup](.agents/skills/tilesheet/references/tiles.md) to choose art and the [tilesheet workflow](.agents/skills/tilesheet/SKILL.md) for cropping and integration.
+### Author and preview rooms in Tiled
 
-### Try props and tune collision
+Open `mygame/tiled/descent.tiled-project` and edit `ritual_gate.tmj`. Export to `mygame/tiled/ritual_gate.json` as a **JSON map with embedded tilesets and uncompressed tile arrays**. Keep image paths relative to the map. The game reads the export; save and re-export before pressing **R** to reload it and reset the player to Spawn.
 
-Edit `PROP_PLACEMENTS` in [collision_playground.rb](mygame/app/collision_playground.rb) to position tiles, and `PROP_OVERRIDES` in [prop.rb](mygame/app/prop.rb) to tune their footprints. Save to refresh the props; press **B** for collision outlines. Walk into the coffin to test blocking and through the banner to check decoration. The [tilesheet workflow](.agents/skills/tilesheet/SKILL.md#runtime-catalog-and-props) documents defaults, anchors, and hot reload behavior.
+The first room uses finite orthogonal maps with these layers:
+
+| Layer | Type | Purpose |
+| --- | --- | --- |
+| Ground | Tile | Floor and background artwork |
+| FloorDetails | Object | Floor markings and rugs, above Ground and below scenery and the player |
+| Walls | Object | Wall tile objects |
+| Props | Object | Fixtures, door bases, interactables, and Spawn |
+| Ceiling | Tile | Overhead artwork, rendered after the player |
+
+FloorDetails render above Ground and below Walls, Props, and the player, independently of their Y positions. Walls and Props sort together with the player by their ground position. Use bottom-left tile-object alignment. Author rectangular collision shapes in the Tile Collision Editor; all shapes are imported and follow object scaling and horizontal/vertical flips. Tiles without collision shapes are decorative. Rotated objects, diagonal flips, layer offsets, infinite maps, and external tileset references are currently rejected with an error.
+
+Walls and Props currently sort at the lowest world Y of their collision rectangles, or at the artwork's bottom edge when there is no collision. Ceiling always renders above the player and does not block movement. The player's foot collider is 8 × 2. Press **R** after code or map changes to rebuild the room and player.
+
+For wall-mounted artwork on Props, set `mounted_on` to an **Object** reference to its supporting object on Walls. Leave the default empty (exported as 0) for freestanding props. The importer draws the supporting wall and its mounted props as one group at the wall's sorting position, drawing the props after the wall. Keep placing artwork and defining colliders and flame offsets normally; the reference only controls drawing. Hosts must be visible tile objects on Walls; attachments are one level deep. The two ledge candles reference objects 117 and 118. Numeric elevation offsets are no longer used.
+
+Classes and properties:
+
+- **Spawn:** exactly one point object, positioned where the player's feet start. It has no artwork or collider.
+- **Door:** set `close_tile` and `open_tile` to the same closed/open local tile IDs on both artwork variants. Place either variant to choose the starting state. A base on Props owns a Door tile immediately above it on Ceiling, when present; the upper piece follows the base's state. Author collision rectangles separately on the closed and open base tiles; the active variant supplies collision. An open variant without rectangles is passable. Ceiling pieces remain visual only. Keep static stairway artwork unclassed.
+- **Light:** class the fixture tile and set `offset_x`/`offset_y` to the emitter's position in native source pixels, measured right/down from the tile's top-left. Tile properties can be overridden per placed object. Emitter positions follow scaling and flips. `enabled`, `radius`, `intensity`, and `color` are preserved for later lighting; no lighting is rendered yet.
+- **Interactable:** a marker on a tile object. Its metadata is loaded; clue interactions are still to come.
+
+Walk with WASD/arrows, sneak with Shift, and toggle the player lamp with F. **E** toggles a door within 24 world pixels; it cannot change state if the resulting collider would overlap the player's feet. **B** shows collision outlines and orange light emitter markers. Room data is inspectable at `args.state.room_scene[:room]`. The importer is [tiled_room.rb](mygame/app/tiled_room.rb); [room.rb](mygame/app/room.rb) holds loaded data and door state.
+
+For the enlarged-window seam investigation, **F3** toggles direct rendering versus the normal intermediate render target. Artwork placement, crops, and draw order stay the same. The bottom diagnostic label shows the mode and render scale while direct rendering or B is enabled. Reloading with R retains this toggle; F3 returns to normal rendering. The inverse-HD target resizing experiment was reverted after introducing sprite wobble.
+
+The confirmed rendering configuration is **HD on + pixel-art sampling (`scale_quality=3`) + camera/artwork drawing alignment**. The completed enlarged-window playtests reported no jitter or tile seams in this configuration; [ADR-0001](docs/adr/0001-viewport-sized-camera.md) records the comparison and [GLOSSARY](GLOSSARY.md#rendering) defines the rendering terms. **Restart DragonRuby** to load metadata changes. **F4** temporarily switches world sprites and the final scene texture to nearest-neighbor sampling; press it again to restore pixel-art sampling. B shows the current filter and render scale; R retains the choice.
 
 ## Repository guide
 
@@ -142,6 +169,7 @@ Project-owned files:
 mygame/
   app/                  Game Ruby code; main.rb is the entry point
   data/                 Authored game data
+  tiled/                Tiled project, source maps, and JSON exports
   fonts/                Game-specific fonts
   metadata/             DragonRuby game and platform configuration
   sounds/               Music and sound effects

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'app/player'
-require 'app/collision_playground'
 
 def collision_player(left = 0, bottom = 0)
   player = Descent::Player.new(x: 0, y: bottom)
@@ -63,9 +62,10 @@ end
 def test_player_passes_doorway_but_not_wall(_args, assert)
   clear = collision_player(307, 100)
   blocked = collision_player(303, 100)
+  walls = [{ x: 253, y: 113, w: 53, h: 8 }, { x: 317, y: 113, w: 396, h: 8 }]
   30.times do
     [clear, blocked].each do |player|
-      player.update_controls(collision_input(0, 1), walls: Descent::CollisionPlayground::WALLS)
+      player.update_controls(collision_input(0, 1), walls: walls)
     end
   end
   assert.equal! clear.collision_rect[:y], 130
