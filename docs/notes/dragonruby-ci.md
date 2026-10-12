@@ -1,8 +1,10 @@
 # DragonRuby tests in GitHub Actions
 
 Research date: **2026-10-12**. Local evidence uses DragonRuby **7.21 Standard**.
-These are implementation options, not an accepted CI design or an installed
-workflow. SDK paths below are relative to `DRAGONRUBY_HOME`.
+The [installed workflow](../../.github/workflows/ci.yml) uses GitHub-hosted Linux
+runners and private SDK downloads. Account access and the repository secret were
+confirmed by the maintainer on 2026-10-13; the first hosted run is still pending.
+SDK paths below are relative to `DRAGONRUBY_HOME`.
 
 ## Feasibility and SDK provisioning
 
@@ -23,8 +25,8 @@ For CI, itch.io officially supports supplying `BUTLER_API_KEY` as an environment
 variable, using the key obtained through a local `butler login`. Store that key
 as a GitHub Actions secret and expose it to the download step. After extraction,
 set `DRAGONRUBY_HOME` to the directory containing `dragonruby` and run `bundle exec rake test`.
-This combines two documented mechanisms; the actual account's access to the
-DragonRuby channel still needs to be verified. Sources: `SDK:
+This combines two documented mechanisms; the maintainer successfully tested the
+account's DragonRuby channel access locally. Sources: `SDK:
 docs/guides/updating-dragonruby.md`, Linux (Standard License);
 [itch.io CI authentication](https://itch.io/docs/butler/login.html#running-butler-from-ci-builds-github-actions-gitlab-ci-etc);
 [GitHub workflow secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
@@ -39,8 +41,11 @@ defines target and output arguments and reads `Channel.Head.ID`; it has no versi
 selector. To keep the team on the same SDK build, validate the build hash in
 `VERSION.txt` and fail if it differs. The installed file records the build date
 and Git hash, not the human-readable 7.21 version; that appears in the engine's
-startup banner. Exact archive/build pinning needs further investigation, or use a
-fixed SDK installation on a self-hosted runner. Source:
+startup banner. CI currently requires build
+`1067b5956cd044e4a736e07309e4d95b4f5090b3a` and fails on a different download.
+When upgrading, verify the new SDK locally, agree on the team's release, and update
+`DRAGONRUBY_BUILD` in the workflow. Exact archive/build pinning needs further
+investigation, or use a fixed SDK installation on a self-hosted runner. Source:
 [itch.io's fetch implementation](https://github.com/itchio/butler/blob/master/cmd/fetch/fetch.go).
 
 The SDK's project guide distinguishes public runtime redistribution from sharing
@@ -98,7 +103,11 @@ requests can compromise their persistent environment. Sources:
 [self-hosted runner model](https://docs.github.com/en/actions/concepts/runners/self-hosted-runners);
 [self-hosted runner security](https://docs.github.com/en/actions/reference/security/secure-use#hardening-for-self-hosted-runners).
 
-Before implementing a workflow, choose hosted download versus self-hosting,
-confirm the authorized account's download access, decide how SDK upgrades and
-fork contributions are handled, and use the Rake task's native test failure
-reporting. No credentials were read or stored, and no workflow was added.
+The workflow runs separate lint and native test jobs on pushes, pull requests,
+and manual dispatch. Fork pull requests and Dependabot skip the native job; lint
+still runs. Native tests use the Rake completion checks and Linux headless mode.
+Only the SDK download step receives `BUTLER_API_KEY`; the SDK is neither cached
+nor uploaded as an artifact. Actions are pinned to commits, and Ruby gems use the
+setup action's Bundler cache. The first hosted run must confirm SDK extraction and
+Ubuntu's headless graphics dependencies. No credentials were read or stored in
+the repository.

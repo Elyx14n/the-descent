@@ -2,6 +2,11 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.3)
+    brakeman (8.1.0)
+      racc
+    bundler-audit (0.9.3)
+      bundler (>= 1.2.0)
+      thor (~> 1.0)
     json (3.0.2)
     language_server-protocol (3.17.0.6)
     lint_roller (1.1.0)
@@ -38,6 +43,7 @@ GEM
       prism (>= 1.2, < 2.0)
       rbs (>= 3, < 5)
     ruby-progressbar (1.13.0)
+    thor (1.5.0)
     tsort (0.2.0)
     unicode-display_width (3.3.0)
       unicode-emoji (~> 4.3)
@@ -48,9 +54,14 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  brakeman (~> 8.1)
+  bundler-audit (~> 0.9.3)
   rake
   rubocop
   ruby-lsp
+
+RUBY VERSION
+   ruby 3.4.7p58
 
 BUNDLED WITH
    2.7.2

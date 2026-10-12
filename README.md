@@ -75,6 +75,8 @@ bundle exec rake check HEADLESS=1
 
 Linux CI enables headless mode automatically. The test task runs `tests/run.rb` through DragonRuby's `--eval` mode and checks its completion report. Failed or inconclusive tests, empty suites, incomplete runs, and load errors fail the Rake command even when the engine returns exit status 0. Local `focus_test_` methods run with a warning; CI rejects focused runs. Native tests and manual playtesting remain separate checks.
 
+[GitHub Actions](.github/workflows/ci.yml) runs lint and native tests on pushes and pull requests. Add the repository secret `BUTLER_API_KEY` from an itch.io account with DragonRuby access; CI downloads the SDK outside the checkout and checks its build against the team's release. Fork pull requests and Dependabot run lint only. See the [CI notes](docs/notes/dragonruby-ci.md) for download details and SDK upgrades.
+
 ### DragonRuby editor completion
 
 Open `descent.code-workspace` in VS Code with the Ruby LSP extension installed. The `run` and `test` tasks automatically create a Git-ignored `.dragonruby-lsp` symlink to the SDK root in `DRAGONRUBY_HOME`. SDK files stay outside the repository, and each contributor's environment variable supplies their own installation path.

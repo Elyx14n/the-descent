@@ -38,7 +38,7 @@ end
 
 desc 'Lint project Ruby with RuboCop'
 task :lint do
-  ruby '-S', 'rubocop'
+  ruby '-S', 'rubocop', '--parallel', '-f', 'github'
 end
 
 desc 'Run lint and native tests'

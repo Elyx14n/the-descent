@@ -6,13 +6,13 @@ require 'open3'
 module DragonRubyTasks
   ROOT = File.expand_path('..', __dir__)
   GAME = File.join(ROOT, 'mygame')
-  RESULTS = /DESCENT_TEST_RESULTS expected=(\d+) passed=(\d+) failed=(\d+) inconclusive=(\d+) focused=(\d+)/.freeze
+  RESULTS = /DESCENT_TEST_RESULTS expected=(\d+) passed=(\d+) failed=(\d+) inconclusive=(\d+) focused=(\d+)/
 
   class << self
-    def run(*arguments)
+    def run(*)
       sdk, executable = installation
       setup_editor_link(sdk)
-      success = system(executable, GAME, *arguments, chdir: sdk)
+      success = system(executable, GAME, *, chdir: sdk)
       abort 'DragonRuby exited unsuccessfully.' unless success
     end
 

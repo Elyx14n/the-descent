@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  scan_ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      
+      - name: Scan for Rails security vulnerabilities
+        run: bin/brakeman --no-pager
+      
+      - name: Scan for vulnerable gems
+        run: bin/bundler-audit
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Prepare RuboCop cache
+        uses: actions/cache@v6
+        env:
+          DEPENDENCIES_HASH: ${{ hashFiles('.ruby-version', '.rubocop.yml', 'Gemfile.lock') }}
+        with:
+          path: ${{ runner.temp }}/rubocop
+          key: rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}
+          restore-keys: |
+            rubocop-${{ runner.os }}-
+
+
+      - name: Lint code
+        env:
+          RUBOCOP_CACHE_ROOT: ${{ runner.temp }}/rubocop
+        run: bundle exec rake lint
+
+  test:
+    name: DragonRuby tests
+    # Fork PRs and Dependabot cannot access the SDK download secret.
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    env:
+      # DragonRuby 7.21 Standard; update deliberately with the team's SDK.
+      DRAGONRUBY_BUILD: 1067b5956cd044e4a736e07309e4d95b4f5090b3a
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+        
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Install headless graphics dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libgl1-mesa-dri
+      - name: Download DragonRuby
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          if [[ -z "$BUTLER_API_KEY" ]]; then
+            echo '::error::Add the BUTLER_API_KEY repository secret to download DragonRuby.'
+            exit 1
+          fi
+          curl -L --fail --retry 3 https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o "$RUNNER_TEMP/butler.zip"
+          unzip -q "$RUNNER_TEMP/butler.zip" -d "$RUNNER_TEMP/butler"
+          chmod +x "$RUNNER_TEMP/butler/butler"
+          "$RUNNER_TEMP/butler/butler" fetch dragonruby/dragonruby-gtk:linux-amd64 "$RUNNER_TEMP/dragonruby"
+          echo "DRAGONRUBY_HOME=$RUNNER_TEMP/dragonruby/dragonruby-linux-amd64" >> "$GITHUB_ENV"
+
+      - name: Check DragonRuby build
+        run: |
+          actual_build=$(awk '$1 == "git:" { print $2 }' "$DRAGONRUBY_HOME/VERSION.txt")
+          if [[ "$actual_build" != "$DRAGONRUBY_BUILD" ]]; then
+            echo "::error::DragonRuby build $actual_build differs from expected $DRAGONRUBY_BUILD. Review the SDK upgrade and update CI with the team's build."
+            exit 1
+          fi
+          chmod +x "$DRAGONRUBY_HOME/dragonruby"
+
+      - name: Run native suite
+        run: bundle exec rake test
