@@ -2,9 +2,12 @@
 
 Research date: **2026-10-12**. Local evidence uses DragonRuby **7.21 Standard**.
 The [installed workflow](../../.github/workflows/ci.yml) uses GitHub-hosted Linux
-runners and private SDK downloads. Account access and the repository secret were
-confirmed by the maintainer on 2026-10-13; the first hosted run is still pending.
-SDK paths below are relative to `DRAGONRUBY_HOME`.
+runners and private SDK downloads. The initial Butler route failed locally and
+in CI with `invalid game` on 2026-10-13. The maintainer subsequently verified that
+the consumer upload-list endpoint works with a manually generated account key
+and fails with the Wharf key. The workflow now uses that consumer route; archive
+download, extraction, and hosted tests still need verification. SDK paths below
+are relative to `DRAGONRUBY_HOME`.
 
 ## Feasibility and SDK provisioning
 
@@ -14,39 +17,51 @@ self-hosted runner with the SDK already installed outside the checkout. The
 project already launches an external SDK through `DRAGONRUBY_HOME`; see
 [setup and native suite commands](../../README.md#first-time-setup-and-running-the-game).
 
-For the installed Standard tier, the SDK's official update guide documents:
+For the installed Standard tier, the SDK's update guide documents:
 
 ```sh
 butler fetch dragonruby/dragonruby-gtk:linux-amd64 ./dragonruby-tmp
 ```
 
-The guide downloads itch.io's butler tool first and authenticates interactively.
-For CI, itch.io officially supports supplying `BUTLER_API_KEY` as an environment
-variable, using the key obtained through a local `butler login`. Store that key
-as a GitHub Actions secret and expose it to the download step. After extraction,
-set `DRAGONRUBY_HOME` to the directory containing `dragonruby` and run `bin/rake test`.
-This combines two documented mechanisms; the maintainer successfully tested the
-account's DragonRuby channel access locally. Sources: `SDK:
-docs/guides/updating-dragonruby.md`, Linux (Standard License);
-[itch.io CI authentication](https://itch.io/docs/butler/login.html#running-butler-from-ci-builds-github-actions-gitlab-ci-etc);
-[GitHub workflow secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+That command failed with `itch.io API error (400): /wharf/channels/linux-amd64:
+invalid game`. A successful Butler login did not establish download access.
+Butler requests the `wharf` OAuth scope, and `fetch` uses Wharf channel/build
+endpoints. The cause of the account's download failure remains unverified.
+Sources: `SDK: docs/guides/updating-dragonruby.md`, Linux
+(Standard License); [Butler authentication](https://github.com/itchio/butler/blob/master/mansion/authenticate.go);
+[Butler fetch implementation](https://github.com/itchio/butler/blob/master/cmd/fetch/fetch.go).
+
+Set the GitHub repository secret `ITCH_API_KEY` to the manually generated account
+key that passed the upload-list check. A Wharf key from Butler login requests only
+`wharf`; it does not request consumer `game:view:uploads` access. Manually generated
+account keys are unscoped. Sources:
+[Butler authentication](https://github.com/itchio/butler/blob/master/mansion/authenticate.go);
+[itch.io authentication and scopes](https://itch.io/docs/api/serverside#scopes).
+
+The workflow lists `/games/404609/uploads`, selects the single `linux-amd64`
+upload, then downloads `/uploads/UPLOAD_ID/download` with curl and extracts the
+archive outside the checkout. Ruby's standard JSON library parses the upload
+list inside the workflow; no separate SDK Rake task is needed. Curl follows HTTPS
+redirects without using `--location-trusted`, so authorization is not forwarded
+to other hosts. Sources:
+[itch.io consumer client](https://github.com/itchio/go-itchio/blob/master/endpoints_uploads.go);
+[itch.io download scope](https://itch.io/docs/api/oauth#scopes);
+[curl redirect authentication](https://curl.se/docs/manpage.html#-H).
 
 The same SDK guide documents authenticated DragonRuby subscription download
 endpoints for Indie and Pro. Those are alternatives for accounts on those tiers;
 they are unnecessary for the installed Standard SDK. No official dedicated
 DragonRuby setup action was established by this research.
 
-The simple `butler fetch` route selects the channel's latest build. Its source
-defines target and output arguments and reads `Channel.Head.ID`; it has no version
-selector. To keep the team on the same SDK build, validate the build hash in
-`VERSION.txt` and fail if it differs. The installed file records the build date
+The upload download selects the channel's latest build. To keep the team
+on the same SDK build, CI validates the build hash in
+`VERSION.txt` and fails if it differs. The installed file records the build date
 and Git hash, not the human-readable 7.21 version; that appears in the engine's
 startup banner. CI currently requires build
 `1067b5956cd044e4a736e07309e4d95b4f5090b3a` and fails on a different download.
 When upgrading, verify the new SDK locally, agree on the team's release, and update
 `DRAGONRUBY_BUILD` in the workflow. Exact archive/build pinning needs further
-investigation, or use a fixed SDK installation on a self-hosted runner. Source:
-[itch.io's fetch implementation](https://github.com/itchio/butler/blob/master/cmd/fetch/fetch.go).
+investigation, or use a fixed SDK installation on a self-hosted runner.
 
 The SDK's project guide distinguishes public runtime redistribution from sharing
 the complete development toolkit: it permits including the runtime binary for
@@ -106,8 +121,8 @@ requests can compromise their persistent environment. Sources:
 The workflow runs separate lint and native test jobs on pushes, pull requests,
 and manual dispatch. Fork pull requests and Dependabot skip the native job; lint
 still runs. Native tests use the Rake completion checks and Linux headless mode.
-Only the SDK download step receives `BUTLER_API_KEY`; the SDK is neither cached
-nor uploaded as an artifact. Actions are pinned to commits, and Ruby gems use the
-setup action's Bundler cache. The first hosted run must confirm SDK extraction and
+Only the SDK download step receives the `ITCH_API_KEY` secret; the SDK is neither cached
+nor uploaded as an artifact. Actions use version tags, and Ruby gems use the
+setup action's Bundler cache. The next hosted run must confirm account access, SDK extraction, and
 Ubuntu's headless graphics dependencies. No credentials were read or stored in
 the repository.

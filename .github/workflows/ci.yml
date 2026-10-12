@@ -64,7 +64,6 @@ jobs:
         run: bin/rubocop --parallel -f github
 
   test:
-    name: DragonRuby tests
     # Fork PRs and Dependabot cannot access the SDK download secret.
     if: >-
       github.actor != 'dependabot[bot]' &&
@@ -91,16 +90,27 @@ jobs:
           sudo apt-get install -y --no-install-recommends libegl1 libgl1 libgl1-mesa-dri
       - name: Download DragonRuby
         env:
-          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_API_KEY: ${{ secrets.ITCH_API_KEY }}
         run: |
-          if [[ -z "$BUTLER_API_KEY" ]]; then
-            echo '::error::Add the BUTLER_API_KEY repository secret to download DragonRuby.'
+          if [[ -z "$ITCH_API_KEY" ]]; then
+            echo '::error::Add the ITCH_API_KEY repository secret using an account API key with DragonRuby download access.'
             exit 1
           fi
-          curl -L --fail --retry 3 https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o "$RUNNER_TEMP/butler.zip"
-          unzip -q "$RUNNER_TEMP/butler.zip" -d "$RUNNER_TEMP/butler"
-          chmod +x "$RUNNER_TEMP/butler/butler"
-          "$RUNNER_TEMP/butler/butler" fetch dragonruby/dragonruby-gtk:linux-amd64 "$RUNNER_TEMP/dragonruby"
+          upload_id=$(curl --fail --silent --show-error --retry 3 \
+            -H "Authorization: Bearer $ITCH_API_KEY" \
+            https://api.itch.io/games/404609/uploads | ruby -rjson -e '
+              uploads = JSON.parse($stdin.read).fetch("uploads", [])
+              matches = uploads.select { |upload| (upload["channel_name"] || upload["channelName"]) == "linux-amd64" }
+              abort "Expected one linux-amd64 SDK upload; check account download access." unless matches.length == 1
+              id = matches.first.fetch("id")
+              abort "Invalid SDK upload ID." unless id.is_a?(Integer) && id.positive?
+              puts id
+            ')
+          curl --location --fail --silent --show-error --retry 3 \
+            --proto '=https' --proto-redir '=https' \
+            -H "Authorization: Bearer $ITCH_API_KEY" \
+            "https://api.itch.io/uploads/$upload_id/download" -o "$RUNNER_TEMP/dragonruby.zip"
+          unzip -q "$RUNNER_TEMP/dragonruby.zip" -d "$RUNNER_TEMP/dragonruby"
           echo "DRAGONRUBY_HOME=$RUNNER_TEMP/dragonruby/dragonruby-linux-amd64" >> "$GITHUB_ENV"
 
       - name: Check DragonRuby build

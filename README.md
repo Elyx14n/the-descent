@@ -75,8 +75,6 @@ bin/rake check HEADLESS=1
 
 Linux CI enables headless mode automatically. The test task runs `tests/run.rb` through DragonRuby's `--eval` mode and checks its completion report. Failed or inconclusive tests, empty suites, incomplete runs, and load errors fail the Rake command even when the engine returns exit status 0. Local `focus_test_` methods run with a warning; CI rejects focused runs. Native tests and manual playtesting remain separate checks.
 
-[GitHub Actions](.github/workflows/ci.yml) runs lint and native tests on pushes and pull requests. Add the repository secret `BUTLER_API_KEY` from an itch.io account with DragonRuby access; CI downloads the SDK outside the checkout and checks its build against the team's release. Fork pull requests and Dependabot run lint only. See the [CI notes](docs/notes/dragonruby-ci.md) for download details and SDK upgrades.
-
 ### DragonRuby editor completion
 
 Open `descent.code-workspace` in VS Code with the Ruby LSP extension installed. The `run` and `test` tasks automatically create a Git-ignored `.dragonruby-lsp` symlink to the SDK root in `DRAGONRUBY_HOME`. SDK files stay outside the repository, and each contributor's environment variable supplies their own installation path.
@@ -97,19 +95,6 @@ game_dir="$PWD/mygame"
 ```
 
 DragonRuby will create packaged platform builds in a generated build directory. See `docs/guides/deploying-to-itch.md` inside your SDK installation for deployment instructions.
-
-## Author and preview rooms in Tiled
-
-1. Open `mygame/tiled/descent.tiled-project` in Tiled, then open `ritual_gate.tmj`.
-2. Edit the room's floors, walls, doors, and props. Use the existing room and tiles as your starting point.
-3. Save the map and export it as JSON into `mygame/tiled/`, using the existing export settings. For the current room, export to `ritual_gate.json`.
-4. Preview the room:
-
-   ```sh
-   bin/rake run tiled/ritual_gate.json
-   ```
-
-Walk through the room and check that doors and obstacles behave as expected. After further edits, save and re-export to refresh the preview automatically. Press **R** to reload manually.
 
 ## Repository guide
 
