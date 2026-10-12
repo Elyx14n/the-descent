@@ -7,6 +7,7 @@ AllCops:
     - "mygame/app/**/*.rb"
     - "mygame/tests/**/*.rb"
   Exclude:
+    - "vendor/**/*"
     - "docs/**/*"
     - "samples/**/*"
     - ".dragonruby/**/*"
