@@ -1,10 +1,18 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rake
+
 AllCops:
   NewCops: enable
   Include:
     - "Gemfile"
+    - "Rakefile"
+    - "lib/**/*.rb"
     - "mygame/app/**/*.rb"
     - "mygame/tests/**/*.rb"
+
   Exclude:
+    - "vendor/**/*"
     - "docs/**/*"
     - "samples/**/*"
     - ".dragonruby/**/*"
@@ -13,6 +21,7 @@ AllCops:
     - "build/**/*"
     - "builds/**/*"
     - "mygame/app/repl.rb"
+    - "bin/**/*"
 
 Layout/LineLength:
   Max: 120

@@ -2,32 +2,34 @@
 
 require 'app/room_preview'
 
-def tiled_test_map(args)
-  args.gtk.parse_json_file('tiled/ritual_gate.json')
-end
+module RoomTestHelpers
+  def tiled_test_map(args)
+    args.gtk.parse_json_file('tiled/ritual_gate.json')
+  end
 
-def tiled_test_room(args, data = nil)
-  decoded = Descent::TiledDeserializer.deserialize(data || tiled_test_map(args), path: 'tiled/ritual_gate.json')
-  Descent::Room.new(**decoded)
-end
+  def tiled_test_room(args, data = nil)
+    decoded = Descent::TiledDeserializer.deserialize(data || tiled_test_map(args), path: 'tiled/ritual_gate.json')
+    Descent::Room.new(**decoded)
+  end
 
-def tiled_test_error(data)
-  Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json')
-  nil
-rescue ArgumentError => e
-  e.message
-end
+  def tiled_test_error(data)
+    Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json')
+    nil
+  rescue ArgumentError => e
+    e.message
+  end
 
-def clear_room_test_outputs(args)
-  args.outputs.primitives.clear
-  args.outputs.borders.clear
-  args.outputs[Descent::Render::TARGET].primitives.clear
-  args.outputs[Descent::Render::TARGET].borders.clear
-end
+  def clear_room_test_outputs(args)
+    args.outputs.primitives.clear
+    args.outputs.borders.clear
+    args.outputs[Descent::Render::TARGET].primitives.clear
+    args.outputs[Descent::Render::TARGET].borders.clear
+  end
 
-def render_room_test(args)
-  state = args.state.room_preview
-  frame = state[:room].render_data
-  frame[:groups] << state[:player].render_data
-  Descent::Render.draw(args, frame: frame, camera: state[:camera])
+  def render_room_test(args)
+    state = args.state.room_preview
+    frame = state[:room].render_data
+    frame[:groups] << state[:player].render_data
+    Descent::Render.draw(args, frame: frame, camera: state[:camera])
+  end
 end

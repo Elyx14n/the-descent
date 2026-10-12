@@ -5,7 +5,7 @@ Use this reference for failures, incorrect behavior, and performance investigati
 ## Diagnose from evidence
 
 1. Reproduce the smallest failing scenario and record the exact input, initial state, and observed result.
-2. Inspect runtime output and `$DRAGONRUBY_HOME/logs/` (the launchers run from the SDK directory). Also inspect any game-local error output under `mygame/`; use the paths reported by the runtime rather than assuming repository-root logs.
+2. Inspect runtime output and `$DRAGONRUBY_HOME/logs/` (Rake launches from the SDK directory). Also inspect any game-local error output under `mygame/`; use the paths reported by the runtime rather than assuming repository-root logs.
 3. Reduce the problem to input, simulation/state, geometry, rendering, asset data, or engine integration.
 4. Add temporary observability where hidden state changes: logs, labels, debug primitives, state names, paths, detection areas, evidence weights, or random seeds.
 5. Form one testable hypothesis and run the narrowest check that can disprove it.

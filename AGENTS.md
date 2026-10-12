@@ -18,15 +18,16 @@ Follow [documentation guidance](docs/agents/domain.md) for document ownership, v
 - Favor KISS, YAGNI, and the smallest playable vertical slice.
 - Build one concrete mechanic before creating a framework for a category of mechanics.
 - Keep work within `PRODUCT.md`'s MVP scope unless the user changes it.
-- Resolve SDK references through `DRAGONRUBY_HOME` (`$DRAGONRUBY_HOME` in Bash/Zsh; `$env:DRAGONRUBY_HOME` in PowerShell). Prefer that installation's `docs/` and `samples/` before external sources. If unset or inaccessible, follow `README.md` setup and report the missing reference rather than assuming a machine-specific path.
+- Resolve SDK references through `DRAGONRUBY_HOME` (`$DRAGONRUBY_HOME` in Bash/Zsh). Development uses Linux or macOS. Prefer that installation's `docs/` and `samples/` before external sources. If unset or inaccessible, follow `README.md` setup and report the missing reference rather than assuming a machine-specific path.
 - Keep hot reload, restart, and debugging practical. Make important game state inspectable while tuning.
 - Separate deterministic rules from DragonRuby input/output when it creates a useful test seam; do not add layers only for architectural symmetry.
 - Measure before optimizing and preserve project readability for a small amateur team.
 
 ## Verification
 
-- Run `bundle exec rubocop` from the repository root for Ruby linting.
-- Keep native DragonRuby tests for deterministic rules and regressions under `mygame/tests/`. Run them with the platform launcher and a game-relative test path; see the testing reference in `dragonruby-development`.
+- Use the project's `bin/` binstubs for gem commands in code, documentation, and CI. Install dependencies with `bundle install`; generate missing launchers with `bundle binstubs GEM_NAME`.
+- Run `bin/rubocop` from the repository root for Ruby linting.
+- Keep native DragonRuby tests for deterministic rules and regressions under `mygame/tests/`. Run `bin/rake test` or `bin/rake test tests/example_test.rb`; see the testing reference in `dragonruby-development`.
 - Use replay or seeded scenarios for frame-dependent behavior.
 - Use manual playtesting for controls, readability, fairness, tension, and audiovisual feedback.
 - Report automated checks separately from behavior that still needs playtesting.

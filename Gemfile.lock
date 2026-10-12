@@ -2,6 +2,9 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.3)
+    bundler-audit (0.9.3)
+      bundler (>= 1.2.0)
+      thor (~> 1.0)
     json (3.0.2)
     language_server-protocol (3.17.0.6)
     lint_roller (1.1.0)
@@ -13,6 +16,7 @@ GEM
     prism (1.9.0)
     racc (1.8.1)
     rainbow (3.1.1)
+    rake (13.4.2)
     rbs (4.2.0)
       logger
       prism (>= 1.6.0)
@@ -32,11 +36,19 @@ GEM
     rubocop-ast (1.50.0)
       parser (>= 3.3.7.2)
       prism (~> 1.7)
+    rubocop-performance (1.27.0)
+      lint_roller (~> 1.1)
+      rubocop (>= 1.89.0, < 2.0)
+      rubocop-ast (>= 1.47.1, < 2.0)
+    rubocop-rake (0.7.1)
+      lint_roller (~> 1.1)
+      rubocop (>= 1.72.1)
     ruby-lsp (0.26.11)
       language_server-protocol (~> 3.17.0)
       prism (>= 1.2, < 2.0)
       rbs (>= 3, < 5)
     ruby-progressbar (1.13.0)
+    thor (1.5.0)
     tsort (0.2.0)
     unicode-display_width (3.3.0)
       unicode-emoji (~> 4.3)
@@ -47,8 +59,15 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  bundler-audit (~> 0.9.3)
+  rake
   rubocop
+  rubocop-performance (~> 1.27)
+  rubocop-rake (~> 0.7.1)
   ruby-lsp
+
+RUBY VERSION
+   ruby 3.4.7p58
 
 BUNDLED WITH
    2.7.2

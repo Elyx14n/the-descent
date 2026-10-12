@@ -9,6 +9,7 @@ require 'app/render'
 
 module Descent
   # One-room authoring consumer. Owns preview lifetime, not game rules or drawing.
+  # Preview another export with: bin/rake run tiled/other_room.json
   module RoomPreview
     MAP_PATH = 'tiled/ritual_gate.json'
     RELOAD_INTERVAL = 30

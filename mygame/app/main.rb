@@ -8,6 +8,7 @@ module Main
   end
 
   def tick(args)
-    Descent::RoomPreview.tick(args)
+    path = args.gtk.cli_arguments[:map] || Descent::RoomPreview::MAP_PATH
+    Descent::RoomPreview.tick(args, path: path)
   end
 end
