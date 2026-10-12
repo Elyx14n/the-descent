@@ -1,22 +1,20 @@
 # frozen_string_literal: true
 
+require 'app/room_data'
+
 module Descent
   # Loaded world data. Static artwork uses ordinary DragonRuby primitives.
   class Room
-    attr_reader :bounds, :spawn, :ground, :floor_details, :objects, :ceiling, :doors, :lights, :pedestals
+    attr_reader :bounds, :spawn, *RoomData::COLLECTION_KEYS
 
-    def initialize(bounds:, spawn:, ground:, floor_details:, objects:, ceiling:, colliders:, doors:,
-                   lights:, pedestals:)
+    def initialize(bounds:, spawn:, collections:)
       @bounds = bounds
       @spawn = spawn
-      @ground = ground
-      @floor_details = floor_details
-      @objects = objects
-      @ceiling = ceiling
-      @colliders = colliders
-      @doors = doors
-      @lights = lights
-      @pedestals = pedestals
+
+      RoomData::COLLECTION_KEYS.each do |key|
+        instance_variable_set("@#{key}", collections.fetch(key))
+      end
+
       prepare_draw_groups
       @doors.each { |door| apply_door_state(door) }
     end
