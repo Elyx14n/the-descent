@@ -2,8 +2,6 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.3)
-    brakeman (8.1.0)
-      racc
     bundler-audit (0.9.3)
       bundler (>= 1.2.0)
       thor (~> 1.0)
@@ -61,7 +59,6 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  brakeman (~> 8.1)
   bundler-audit (~> 0.9.3)
   rake
   rubocop
