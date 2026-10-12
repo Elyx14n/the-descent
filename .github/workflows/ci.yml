@@ -99,9 +99,16 @@ jobs:
           upload_id=$(curl --fail --silent --show-error --retry 3 \
             -H "Authorization: Bearer $ITCH_API_KEY" \
             https://api.itch.io/games/404609/uploads | ruby -rjson -e '
-              uploads = JSON.parse($stdin.read).fetch("uploads", [])
-              matches = uploads.select { |upload| (upload["channel_name"] || upload["channelName"]) == "linux-amd64" }
-              abort "Expected one linux-amd64 SDK upload; check account download access." unless matches.length == 1
+              response = JSON.parse($stdin.read)
+              abort "itch.io rejected the upload-list request; verify the CI account key." if response.key?("errors")
+              uploads = response["uploads"]
+              abort "itch.io did not return an uploads array." unless uploads.is_a?(Array)
+              matches = uploads.select { |upload| (upload["channel_name"] || upload["channelName"]) == "linux-amd64-jam" }
+              unless matches.length == 1
+                fields = %w[id filename display_name displayName channel_name channelName demo]
+                warn JSON.pretty_generate(uploads.map { |upload| upload.select { |key, _| fields.include?(key) } })
+                abort "Expected one linux-amd64 SDK upload; found #{matches.length}. Available files are listed above."
+              end
               id = matches.first.fetch("id")
               abort "Invalid SDK upload ID." unless id.is_a?(Integer) && id.positive?
               puts id
