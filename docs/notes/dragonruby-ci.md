@@ -36,8 +36,10 @@ DragonRuby setup action was established by this research.
 
 The simple `butler fetch` route selects the channel's latest build. Its source
 defines target and output arguments and reads `Channel.Head.ID`; it has no version
-selector. To keep the team on 7.21, validate the downloaded `VERSION.txt` and fail
-if it differs. Exact archive/build pinning needs further investigation, or use a
+selector. To keep the team on the same SDK build, validate the build hash in
+`VERSION.txt` and fail if it differs. The installed file records the build date
+and Git hash, not the human-readable 7.21 version; that appears in the engine's
+startup banner. Exact archive/build pinning needs further investigation, or use a
 fixed SDK installation on a self-hosted runner. Source:
 [itch.io's fetch implementation](https://github.com/itchio/butler/blob/master/cmd/fetch/fetch.go).
 

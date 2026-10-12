@@ -1,6 +1,6 @@
 # The Descent
 
-The Descent is a small, top-down horror game being built with DragonRuby Game Toolkit. The player explores a monastery, deciphers a ritual lock, and evades the Witness: an enemy that uses evidence left in the world to anticipate where the player will go.
+The Descent is a small, 2D top-down horror game built with DragonRuby. The player explores a monastery, solves clues to find 4 items that unlock the Ritual Gate, and evades the Witness: an enemy that uses evidence left in the world to anticipate where the player will go.
 
 ## Prerequisites
 
@@ -50,11 +50,8 @@ Preview a specific exported map with a game-relative path:
 bundle exec rake run tiled/ritual_gate.json
 ```
 
-Pass extra DragonRuby flags after `--`; for example, `bundle exec rake run -- --record session.txt`. Rake locates `mygame/` relative to the repository and launches from the SDK directory. Quote individual paths containing spaces normally. The tasks read `DRAGONRUBY_HOME` directly and do not load `.env` files. SDK credentials belong outside the repository. Sprite paths remain relative to `mygame/`, such as `sprites/enemy.png`.
-
 The SDK's `dragonruby` binary must have executable permission. If necessary, run `chmod +x "$DRAGONRUBY_HOME/dragonruby"` after extracting your SDK.
 
-The game source starts at `mygame/app/main.rb`. DragonRuby runs this Ruby source directly and hot-reloads saved changes, so there is no compile step during normal development.
 
 ## Development checks
 
@@ -99,19 +96,7 @@ game_dir="$PWD/mygame"
 
 DragonRuby will create packaged platform builds in a generated build directory. See `docs/guides/deploying-to-itch.md` inside your SDK installation for deployment instructions.
 
-## Upload game assets here
-
-Stakeholders contributing assets should upload them to:
-
-- `mygame/sprites/` for sprites
-- `mygame/sounds/` for sounds
-- `mygame/fonts/` for fonts
-
-Keep the original/source asset and any license or provenance notes alongside the delivery when available. Keep project assets in this repository, separate from your SDK installation.
-
-32 × 32 is the usual sprite cell size, not a strict asset requirement. The player animation sheets use 64 × 64 frames, configured in [player.rb](mygame/app/player.rb). Use each asset's actual source dimensions; see the [display and sprite-size guidance](docs/adr/0002-reference-resolution-and-ui-fonts.md) for how source dimensions, entity scale, and display scaling relate.
-
-### Author and preview rooms in Tiled
+## Author and preview rooms in Tiled
 
 1. Open `mygame/tiled/descent.tiled-project` in Tiled, then open `ritual_gate.tmj`.
 2. Edit the room's floors, walls, doors, and props. Use the existing room and tiles as your starting point.
