@@ -2,6 +2,8 @@ AllCops:
   NewCops: enable
   Include:
     - "Gemfile"
+    - "Rakefile"
+    - "lib/**/*.rb"
     - "mygame/app/**/*.rb"
     - "mygame/tests/**/*.rb"
   Exclude:

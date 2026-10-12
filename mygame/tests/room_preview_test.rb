@@ -1,166 +1,171 @@
 # frozen_string_literal: true
 
 require 'tests/support/room_helpers'
-require 'tests/keybinds_test'
+require 'tests/support/keybind_helpers'
 
-# Replace only file I/O for preview tests; parsing still runs in DragonRuby.
-class PreviewTestRuntime
-  attr_accessor :contents, :production
-  attr_reader :reads, :parses, :paths
+class RoomPreviewTests
+  include RoomTestHelpers
+  include KeybindTestHelpers
 
-  def initialize(gtk, contents)
-    @gtk = gtk
-    @contents = contents
-    @production = false
-    @reads = 0
-    @parses = 0
-    @paths = []
+  # Replace only file I/O for preview tests; parsing still runs in DragonRuby.
+  class PreviewTestRuntime
+    attr_accessor :contents, :production
+    attr_reader :reads, :parses, :paths
+
+    def initialize(gtk, contents)
+      @gtk = gtk
+      @contents = contents
+      @production = false
+      @reads = 0
+      @parses = 0
+      @paths = []
+    end
+
+    def read_file(path)
+      @reads += 1
+      @paths << path
+      @contents
+    end
+
+    def parse_json(contents)
+      @parses += 1
+      @gtk.parse_json(contents)
+    end
+
+    def production?
+      @production
+    end
   end
 
-  def read_file(path)
-    @reads += 1
-    @paths << path
-    @contents
+  def preview_test_args(args, contents: args.gtk.read_file('tiled/ritual_gate.json'))
+    { state: { tick_count: 0 }, outputs: args.outputs,
+      inputs: { keyboard: keybind_test_keyboard(args) }, gtk: PreviewTestRuntime.new(args.gtk, contents) }
   end
 
-  def parse_json(contents)
-    @parses += 1
-    @gtk.parse_json(contents)
+  def preview_test_tick(args, tick)
+    args[:state][:tick_count] = tick
+    clear_room_test_outputs(args)
+    Descent::RoomPreview.tick(args)
+    args[:state][:room_preview]
   end
 
-  def production?
-    @production
+  def test_room_preview_uses_spawn_reuses_loaded_data_and_renders_through_camera(args, assert)
+    args.state.room_preview = { show_bounds: true }
+    args.state.room_preview[:player] = nil
+    clear_room_test_outputs(args)
+    Descent::RoomPreview.tick(args)
+    player = args.state.room_preview[:player]
+    room = args.state.room_preview[:room]
+    camera = args.state.room_preview[:camera]
+    target = args.outputs[Descent::Render::TARGET]
+    assert.equal! [player.x, player.y], [176, 176]
+    assert.equal! [target.w, target.h], [320, 180]
+    sprite = target.primitives.flatten.find { |primitive| primitive[:path] == 'sprites/player_idle_lamp_on.png' }
+    assert.equal! sprite, camera.to_draw_space(player.sprite_to_primitive)
+    assert.equal! sprite.values_at(:w, :h), [64, 64]
+    foot_border = camera.to_screen_space(player.collision_rect.merge(r: 90, g: 255, b: 160))
+    assert.true! target.borders.flatten.include?(foot_border)
+    blits = args.outputs.primitives.flatten.select { |primitive| primitive[:path] == :scene }
+    assert.equal! blits, [camera.viewport.merge(path: Descent::Render::TARGET)]
+    clear_room_test_outputs(args)
+    Descent::RoomPreview.tick(args)
+    assert.true! args.state.room_preview[:room].equal?(room)
+    assert.true! args.state.room_preview[:player].equal?(player)
+    player.x = 100
+    Descent::RoomPreview.reload(args)
+    assert.equal! [args.state.room_preview[:player].x, args.state.room_preview[:player].y], [176, 176]
+    assert.false! args.state.room_preview[:player].equal?(player)
+    assert.equal! args.state.room_preview[:player].collision_rect[:w], 8
+    assert.false! args.state.room_preview[:room].equal?(room)
   end
-end
 
-def preview_test_args(args, contents: args.gtk.read_file('tiled/ritual_gate.json'))
-  { state: { tick_count: 0 }, outputs: args.outputs,
-    inputs: { keyboard: keybind_test_keyboard(args) }, gtk: PreviewTestRuntime.new(args.gtk, contents) }
-end
+  def test_preview_reloads_changed_contents_resets_play_and_preserves_toggles(args, assert)
+    original = args.gtk.read_file('tiled/ritual_gate.json')
+    preview = preview_test_args(args, contents: "#{original} ")
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
+    state = preview_test_tick(preview, 0)
+    room = state[:room]
+    player = state[:player]
+    player.x = 100
+    player.toggle_lamp
+    room.set_door_open(218, open: true)
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args)
+    preview[:gtk].contents = "#{original}\n" # Same byte count; contents determine changes.
+    assert.true! preview_test_tick(preview, 29)[:room].equal?(room)
+    assert.equal! preview[:gtk].reads, 1
+    state = preview_test_tick(preview, 30)
+    assert.false! state[:room].equal?(room)
+    assert.false! state[:player].equal?(player)
+    assert.equal! state[:player].x, 176
+    assert.true! state[:player].lamp_on
+    assert.false! state[:room].doors.find { |door| door[:id] == 218 }[:open]
+    assert.true! state[:show_bounds]
+    assert.equal! preview[:gtk].parses, 2
+    replacement = state[:room]
+    assert.true! preview_test_tick(preview, 60)[:room].equal?(replacement)
+    assert.equal! preview[:gtk].reads, 3
+    assert.equal! preview[:gtk].parses, 2
+  end
 
-def preview_test_tick(args, tick)
-  args[:state][:tick_count] = tick
-  clear_room_test_outputs(args)
-  Descent::RoomPreview.tick(args)
-  args[:state][:room_preview]
-end
+  def test_preview_retains_valid_room_during_invalid_exports_and_recovers(args, assert)
+    preview = preview_test_args(args)
+    state = preview_test_tick(preview, 0)
+    room, player, camera = state.values_at(:room, :player, :camera)
+    preview[:gtk].contents = '{'
+    state = preview_test_tick(preview, 30)
+    assert.true! state[:room].equal?(room)
+    assert.true! state[:player].equal?(player)
+    assert.true! state[:camera].equal?(camera)
+    assert.true! state[:reload_error].is_a?(String)
+    assert.true!(preview[:outputs].primitives.flatten.any? { |primitive| primitive[:text]&.start_with?('Reload:') })
+    preview_test_tick(preview, 60)
+    assert.equal! preview[:gtk].parses, 2 # Failed contents are not parsed on every poll.
+    preview[:gtk].contents = "#{args.gtk.read_file('tiled/ritual_gate.json')}\n"
+    state = preview_test_tick(preview, 90)
+    assert.false! state[:room].equal?(room)
+    assert.equal! state[:reload_error], nil
+  end
 
-def test_room_preview_uses_spawn_reuses_loaded_data_and_renders_through_camera(args, assert)
-  args.state.room_preview = { show_bounds: true }
-  args.state.room_preview[:player] = nil
-  clear_room_test_outputs(args)
-  Descent::RoomPreview.tick(args)
-  player = args.state.room_preview[:player]
-  room = args.state.room_preview[:room]
-  camera = args.state.room_preview[:camera]
-  target = args.outputs[Descent::Render::TARGET]
-  assert.equal! [player.x, player.y], [176, 176]
-  assert.equal! [target.w, target.h], [320, 180]
-  sprite = target.primitives.flatten.find { |primitive| primitive[:path] == 'sprites/player_idle_lamp_on.png' }
-  assert.equal! sprite, camera.to_draw_space(player.sprite_to_primitive)
-  assert.equal! sprite.values_at(:w, :h), [64, 64]
-  foot_border = camera.to_screen_space(player.collision_rect.merge(r: 90, g: 255, b: 160))
-  assert.true! target.borders.flatten.include?(foot_border)
-  blits = args.outputs.primitives.flatten.select { |primitive| primitive[:path] == :scene }
-  assert.equal! blits, [camera.viewport.merge(path: Descent::Render::TARGET)]
-  clear_room_test_outputs(args)
-  Descent::RoomPreview.tick(args)
-  assert.true! args.state.room_preview[:room].equal?(room)
-  assert.true! args.state.room_preview[:player].equal?(player)
-  player.x = 100
-  Descent::RoomPreview.reload(args)
-  assert.equal! [args.state.room_preview[:player].x, args.state.room_preview[:player].y], [176, 176]
-  assert.false! args.state.room_preview[:player].equal?(player)
-  assert.equal! args.state.room_preview[:player].collision_rect[:w], 8
-  assert.false! args.state.room_preview[:room].equal?(room)
-end
+  def test_preview_missing_initial_export_can_recover_and_r_forces_rebuild(args, assert)
+    preview = preview_test_args(args, contents: nil)
+    state = preview_test_tick(preview, 0)
+    assert.equal! state[:room], nil
+    assert.true! state[:reload_error].include?('Cannot read Tiled map')
+    preview[:gtk].contents = args.gtk.read_file('tiled/ritual_gate.json')
+    state = preview_test_tick(preview, 30)
+    assert.true! state[:room].is_a?(Descent::Room)
+    room = state[:room]
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:r])
+    assert.false! preview_test_tick(preview, 31)[:room].equal?(room)
+    assert.equal! preview[:gtk].parses, 2
+  end
 
-def test_preview_reloads_changed_contents_resets_play_and_preserves_toggles(args, assert)
-  original = args.gtk.read_file('tiled/ritual_gate.json')
-  preview = preview_test_args(args, contents: "#{original} ")
-  preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
-  state = preview_test_tick(preview, 0)
-  room = state[:room]
-  player = state[:player]
-  player.x = 100
-  player.toggle_lamp
-  room.set_door_open(218, open: true)
-  preview[:inputs][:keyboard] = keybind_test_keyboard(args)
-  preview[:gtk].contents = "#{original}\n" # Same byte count; contents determine changes.
-  assert.true! preview_test_tick(preview, 29)[:room].equal?(room)
-  assert.equal! preview[:gtk].reads, 1
-  state = preview_test_tick(preview, 30)
-  assert.false! state[:room].equal?(room)
-  assert.false! state[:player].equal?(player)
-  assert.equal! state[:player].x, 176
-  assert.true! state[:player].lamp_on
-  assert.false! state[:room].doors.find { |door| door[:id] == 218 }[:open]
-  assert.true! state[:show_bounds]
-  assert.equal! preview[:gtk].parses, 2
-  replacement = state[:room]
-  assert.true! preview_test_tick(preview, 60)[:room].equal?(replacement)
-  assert.equal! preview[:gtk].reads, 3
-  assert.equal! preview[:gtk].parses, 2
-end
+  def test_preview_rejects_invalid_room_data_without_replacing_the_current_room(args, assert)
+    preview = preview_test_args(args)
+    room = preview_test_tick(preview, 0)[:room]
+    preview[:gtk].contents = '{"type":"map","orientation":"orthogonal","infinite":false}'
+    state = preview_test_tick(preview, 30)
+    assert.true! state[:room].equal?(room)
+    assert.true! state[:reload_error].include?('tilewidth')
+  end
 
-def test_preview_retains_valid_room_during_invalid_exports_and_recovers(args, assert)
-  preview = preview_test_args(args)
-  state = preview_test_tick(preview, 0)
-  room, player, camera = state.values_at(:room, :player, :camera)
-  preview[:gtk].contents = '{'
-  state = preview_test_tick(preview, 30)
-  assert.true! state[:room].equal?(room)
-  assert.true! state[:player].equal?(player)
-  assert.true! state[:camera].equal?(camera)
-  assert.true! state[:reload_error].is_a?(String)
-  assert.true!(preview[:outputs].primitives.flatten.any? { |primitive| primitive[:text]&.start_with?('Reload:') })
-  preview_test_tick(preview, 60)
-  assert.equal! preview[:gtk].parses, 2 # Failed contents are not parsed on every poll.
-  preview[:gtk].contents = "#{args.gtk.read_file('tiled/ritual_gate.json')}\n"
-  state = preview_test_tick(preview, 90)
-  assert.false! state[:room].equal?(room)
-  assert.equal! state[:reload_error], nil
-end
+  def test_preview_does_not_poll_in_production_but_allows_explicit_reload(args, assert)
+    preview = preview_test_args(args)
+    preview[:gtk].production = true
+    room = preview_test_tick(preview, 0)[:room]
+    preview[:gtk].contents += "\n"
+    assert.true! preview_test_tick(preview, 60)[:room].equal?(room)
+    assert.equal! preview[:gtk].reads, 1
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:r])
+    assert.false! preview_test_tick(preview, 61)[:room].equal?(room)
+  end
 
-def test_preview_missing_initial_export_can_recover_and_r_forces_rebuild(args, assert)
-  preview = preview_test_args(args, contents: nil)
-  state = preview_test_tick(preview, 0)
-  assert.equal! state[:room], nil
-  assert.true! state[:reload_error].include?('Cannot read Tiled map')
-  preview[:gtk].contents = args.gtk.read_file('tiled/ritual_gate.json')
-  state = preview_test_tick(preview, 30)
-  assert.true! state[:room].is_a?(Descent::Room)
-  room = state[:room]
-  preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:r])
-  assert.false! preview_test_tick(preview, 31)[:room].equal?(room)
-  assert.equal! preview[:gtk].parses, 2
-end
-
-def test_preview_rejects_invalid_room_data_without_replacing_the_current_room(args, assert)
-  preview = preview_test_args(args)
-  room = preview_test_tick(preview, 0)[:room]
-  preview[:gtk].contents = '{"type":"map","orientation":"orthogonal","infinite":false}'
-  state = preview_test_tick(preview, 30)
-  assert.true! state[:room].equal?(room)
-  assert.true! state[:reload_error].include?('tilewidth')
-end
-
-def test_preview_does_not_poll_in_production_but_allows_explicit_reload(args, assert)
-  preview = preview_test_args(args)
-  preview[:gtk].production = true
-  room = preview_test_tick(preview, 0)[:room]
-  preview[:gtk].contents += "\n"
-  assert.true! preview_test_tick(preview, 60)[:room].equal?(room)
-  assert.equal! preview[:gtk].reads, 1
-  preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:r])
-  assert.false! preview_test_tick(preview, 61)[:room].equal?(room)
-end
-
-def test_preview_room_selection_reloads_even_when_export_contents_match(args, assert)
-  preview = preview_test_args(args)
-  room = preview_test_tick(preview, 0)[:room]
-  clear_room_test_outputs(preview)
-  Descent::RoomPreview.tick(preview, path: 'tiled/another_room.json')
-  assert.false! preview[:state][:room_preview][:room].equal?(room)
-  assert.equal! preview[:gtk].paths.last, 'tiled/another_room.json'
+  def test_preview_room_selection_reloads_even_when_export_contents_match(args, assert)
+    preview = preview_test_args(args)
+    room = preview_test_tick(preview, 0)[:room]
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.tick(preview, path: 'tiled/another_room.json')
+    assert.false! preview[:state][:room_preview][:room].equal?(room)
+    assert.equal! preview[:gtk].paths.last, 'tiled/another_room.json'
+  end
 end

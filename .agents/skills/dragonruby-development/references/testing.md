@@ -14,35 +14,27 @@ Linting is a static check, not a substitute for DragonRuby tests or playtesting.
 
 ## Native DragonRuby tests
 
-The bundled example under `$DRAGONRUBY_HOME/samples/10_advanced_debugging/03_unit_tests/` is the local source of truth for the installed test API. Tests use methods beginning with `test_` and accept `args, assert`; `focus_test_` can narrow a run during development.
+The bundled example under `$DRAGONRUBY_HOME/samples/10_advanced_debugging/03_unit_tests/` is the local source of truth for the installed test API. Put tests in named classes ending in `Tests`, with methods beginning with `test_` and accepting `args, assert`. Shared helpers belong in modules under `mygame/tests/support/`; do not require another test file just to reuse its helpers. `focus_test_` can narrow a local run; CI rejects focused tests.
 
-From the repository root, with `DRAGONRUBY_HOME` configured as described in `README.md`, run the current collision tests:
-
-macOS, Linux, or WSL:
+From the repository root on Linux or macOS, with `DRAGONRUBY_HOME` configured as described in `README.md`, run the collision tests:
 
 ```sh
-bash scripts/run.sh --test tests/player_collision_test.rb
+bundle exec rake test tests/player_collision_test.rb
 ```
 
-Native Windows (PowerShell):
+Rake selects this repository's `mygame/` and runs from the SDK directory. The optional test filename is relative to the game directory, so use `tests/...`, without a `mygame/` prefix. `bundle exec rake test` runs the full suite; `bundle exec rake check` runs RuboCop followed by the suite.
 
-```powershell
-.\scripts\run.ps1 --test tests/player_collision_test.rb
-```
-
-The launchers select this repository's `mygame/` and run from the SDK directory. The `--test` filename is relative to the game directory, so use `tests/...`, without a `mygame/` prefix. Supply a test file with `--test`. The SDK's `docs/misc/faq.md` documents this path convention.
-
-Keep project tests under `mygame/tests/`. Confirm the output names the intended file and inspect its test summary; a process exit alone does not establish that tests passed.
+Keep project tests under `mygame/tests/`. The task invokes `tests/run.rb` through `--eval` and checks its completion report: test failures, inconclusive tests, empty suites, incomplete runs, and load errors fail the task even if DragonRuby exits with status 0. Confirm the output names the intended classes and inspect the native summary. Avoid running the engine's `--test` directly for CI; its exit status is unreliable on the installed 7.21 SDK.
 
 The full suite is `tests/all_test.rb`. Targeted room checks are `tests/tiled_deserializer_test.rb`, `tests/room_test.rb`, `tests/render_test.rb`, `tests/room_preview_test.rb`, and `tests/keybinds_test.rb`. Camera regressions remain in `tests/camera_test.rb`. Existing room fixtures read the Ritual Gate export; passing them does not validate an arbitrary new room.
 
-On the installed Linux SDK, native checks can run without a window using:
+On Linux, native checks can run without a window using:
 
 ```sh
-SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 bash scripts/run.sh --test tests/all_test.rb
+bundle exec rake check HEADLESS=1
 ```
 
-This software-rendered run checks behavior and integration; it does not establish appearance on the user's display. If the SDK logs path is read-only, use the stdout summary rather than requesting write access just for logging.
+Linux CI enables headless mode automatically; `HEADLESS=1` selects the same offscreen video, dummy audio, and software rendering locally. This checks behavior and integration; it does not establish appearance on the user's display. macOS uses its normal display. If the SDK logs path is read-only, use the stdout summary rather than requesting write access just for logging.
 
 ## What to test
 
