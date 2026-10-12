@@ -7,7 +7,7 @@ Use this reference when adding, changing, or running automated tests and replays
 Run the project lint check from the repository root:
 
 ```sh
-bundle exec rubocop
+bin/rubocop
 ```
 
 Linting is a static check, not a substitute for DragonRuby tests or playtesting. The root `.rubocop.yml` defines the project lint rules and includes project-owned Ruby, including `mygame/app/main.rb`. The SDK is installed separately.
@@ -19,10 +19,10 @@ The bundled example under `$DRAGONRUBY_HOME/samples/10_advanced_debugging/03_uni
 From the repository root on Linux or macOS, with `DRAGONRUBY_HOME` configured as described in `README.md`, run the collision tests:
 
 ```sh
-bundle exec rake test tests/player_collision_test.rb
+bin/rake test tests/player_collision_test.rb
 ```
 
-Rake selects this repository's `mygame/` and runs from the SDK directory. The optional test filename is relative to the game directory, so use `tests/...`, without a `mygame/` prefix. `bundle exec rake test` runs the full suite; `bundle exec rake check` runs RuboCop followed by the suite.
+Rake selects this repository's `mygame/` and runs from the SDK directory. The optional test filename is relative to the game directory, so use `tests/...`, without a `mygame/` prefix. `bin/rake test` runs the full suite; `bin/rake check` runs RuboCop followed by the suite.
 
 Keep project tests under `mygame/tests/`. The task invokes `tests/run.rb` through `--eval` and checks its completion report: test failures, inconclusive tests, empty suites, incomplete runs, and load errors fail the task even if DragonRuby exits with status 0. Confirm the output names the intended classes and inspect the native summary. Avoid running the engine's `--test` directly for CI; its exit status is unreliable on the installed 7.21 SDK.
 
@@ -31,7 +31,7 @@ The full suite is `tests/all_test.rb`. Targeted room checks are `tests/tiled_des
 On Linux, native checks can run without a window using:
 
 ```sh
-bundle exec rake check HEADLESS=1
+bin/rake check HEADLESS=1
 ```
 
 Linux CI enables headless mode automatically; `HEADLESS=1` selects the same offscreen video, dummy audio, and software rendering locally. This checks behavior and integration; it does not establish appearance on the user's display. macOS uses its normal display. If the SDK logs path is read-only, use the stdout summary rather than requesting write access just for logging.

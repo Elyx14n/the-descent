@@ -109,7 +109,7 @@ class PlayerSpriteTests
 
   def test_player_uses_all_eight_idle_and_walk_frames_with_either_lamp_state(_args, assert)
     [false, true].each do |lamp_on|
-      [0, 1].each do |dx|
+      2.times do |dx|
         player = Descent::Player.new(x: 180, y: 180)
         player.lamp_on = lamp_on
         input = { dx: dx, dy: 0, sneak: false, toggle_lamp: false }

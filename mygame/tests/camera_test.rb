@@ -19,6 +19,8 @@ class CameraTests
   end
 
   CAMERA_TEST_BOUNDS = { x: 21, y: 27, w: 700, h: 400 }.freeze
+  DIAGONAL_AXIS = [-1, 1].freeze
+  COORDS = %i[x y].freeze
 
   def test_world_smaller_than_the_viewport_is_centered_whole(_args, assert)
     camera = CameraAtTestScale.new(bounds: { x: 21, y: 27, w: 100, h: 100 })
@@ -53,7 +55,7 @@ class CameraTests
   def test_diagonal_movement_keeps_the_drawn_player_fixed_at_screen_center(_args, assert)
     camera = CameraAtTestScale.new(bounds: CAMERA_TEST_BOUNDS)
     [false, true].each do |sneak|
-      [-1, 1].product([-1, 1]).each do |dx, dy|
+      DIAGONAL_AXIS.product(DIAGONAL_AXIS).each do |dx, dy|
         player = Descent::Player.new(x: 371, y: 227)
         input = { dx: dx, dy: dy, sneak: sneak, toggle_lamp: false }
         60.times do
@@ -90,7 +92,7 @@ class CameraTests
       camera = CameraAtTestScale.new(bounds: CAMERA_TEST_BOUNDS, pixel_scale: scale)
       centered = [((160 * scale) + 0.5).floor.fdiv(scale),
                   (((90 * scale) + 0.5).floor.fdiv(scale) - 24)]
-      [-1, 1].product([-1, 1]).each do |dx, dy|
+      DIAGONAL_AXIS.product(DIAGONAL_AXIS).each do |dx, dy|
         player = Descent::Player.new(x: 371.125, y: 227.5)
         camera.follow(x: player.x, y: player.y)
         previous = camera.to_draw_space({ x: 350, y: 220 })
@@ -101,7 +103,7 @@ class CameraTests
                                         { x: 382, y: 220, w: 32, h: 32 },
                                         { x: 350, y: 252, w: 32, h: 32 }])
           left, right, above = tiles
-          %i[x y].each do |axis|
+          COORDS.each do |axis|
             display_position = left[axis] * scale
             assert.true! (display_position - display_position.round).abs < 0.00001
             direction = axis == :x ? dx : dy
@@ -114,7 +116,7 @@ class CameraTests
           assert.true! (left[:x] + left[:w] - right[:x]).abs < 0.00001
           assert.true! (left[:y] + left[:h] - above[:y]).abs < 0.00001
           drawn = camera.to_draw_space(player.sprite_to_primitive)
-          %i[x y].each_with_index do |axis, index|
+          COORDS.each_with_index do |axis, index|
             assert.true! (drawn[axis] - centered[index]).abs < 0.00001
           end
           previous = left
@@ -128,7 +130,7 @@ class CameraTests
     player = Descent::Player.new(x: 40, y: 60)
     input = { dx: 1, dy: 1, sneak: false, toggle_lamp: false }
 
-    on_screen = 20.times.map do
+    on_screen = Array.new(20) do
       player.update_controls(input)
       camera.follow(x: player.x, y: player.y)
       camera.to_draw_space(player.sprite_to_primitive)[:x]
@@ -182,7 +184,7 @@ class CameraTests
   def test_player_drawing_crosses_the_camera_clamp_without_backwards_steps(_args, assert)
     camera = CameraAtTestScale.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
     player = Descent::Player.new(x: 154.25, y: 500.25)
-    xs = 30.times.map do
+    xs = Array.new(30) do
       player.update_controls({ dx: 1, dy: 1, sneak: true, toggle_lamp: false })
       camera.follow(x: player.x, y: player.y)
       sprite = camera.to_draw_space(player.sprite_to_primitive)

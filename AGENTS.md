@@ -25,8 +25,9 @@ Follow [documentation guidance](docs/agents/domain.md) for document ownership, v
 
 ## Verification
 
-- Run `bundle exec rubocop` from the repository root for Ruby linting.
-- Keep native DragonRuby tests for deterministic rules and regressions under `mygame/tests/`. Run `bundle exec rake test` or `bundle exec rake test tests/example_test.rb`; see the testing reference in `dragonruby-development`.
+- Use the project's `bin/` binstubs for gem commands in code, documentation, and CI. Install dependencies with `bundle install`; generate missing launchers with `bundle binstubs GEM_NAME`.
+- Run `bin/rubocop` from the repository root for Ruby linting.
+- Keep native DragonRuby tests for deterministic rules and regressions under `mygame/tests/`. Run `bin/rake test` or `bin/rake test tests/example_test.rb`; see the testing reference in `dragonruby-development`.
 - Use replay or seeded scenarios for frame-dependent behavior.
 - Use manual playtesting for controls, readability, fairness, tension, and audiovisual feedback.
 - Report automated checks separately from behavior that still needs playtesting.

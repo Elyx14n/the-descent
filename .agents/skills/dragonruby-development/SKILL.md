@@ -32,7 +32,7 @@ Read `AGENTS.md`, follow [documentation guidance](../../../docs/agents/domain.md
 
 ## Verification and handoff
 
-Run `bundle exec rubocop` from the repository root after changing Ruby files. Use the narrowest reliable behavioral checks first, then an appropriate runtime, replay, or manual check. State:
+Run `bin/rubocop` from the repository root after changing Ruby files. Use the project's `bin/` binstubs for gem commands. Use the narrowest reliable behavioral checks first, then an appropriate runtime, replay, or manual check. State:
 
 - what changed
 - what automated checks passed

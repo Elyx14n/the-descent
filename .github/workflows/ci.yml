@@ -64,7 +64,7 @@ jobs:
       - name: Lint code
         env:
           RUBOCOP_CACHE_ROOT: ${{ runner.temp }}/rubocop
-        run: bundle exec rake lint
+        run: bin/rubocop --parallel -f github
 
   test:
     name: DragonRuby tests
@@ -116,4 +116,4 @@ jobs:
           chmod +x "$DRAGONRUBY_HOME/dragonruby"
 
       - name: Run native suite
-        run: bundle exec rake test
+        run: bin/rake test

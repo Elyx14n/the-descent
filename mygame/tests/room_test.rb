@@ -49,7 +49,8 @@ class RoomTests
   def test_locked_nearest_door_does_not_redirect_interaction_to_another_door(args, assert)
     data = tiled_test_map(args)
     east = data['layers'].find { |layer| layer['name'] == 'Props' }['objects'].find { |entry| entry['id'] == 216 }
-    east.merge!('x' => 160, 'y' => 96)
+    east['x'] = 160
+    east['y'] = 96
     room = tiled_test_room(args, data)
     player = Descent::Player.new(x: 176, y: 318)
     room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
@@ -194,7 +195,8 @@ class RoomTests
       20.times { player.update_controls(input, walls: room.collision_rects) }
       assert.equal! player.y, 158
       player.reset(x: passage_x, y: 176)
-      input.merge!(dx: dx, dy: 0)
+      input[:dx] = dx
+      input[:dy] = 0
       45.times { player.update_controls(input, walls: room.collision_rects) }
       assert.equal! player.x, passage_x + (45 * dx)
     end

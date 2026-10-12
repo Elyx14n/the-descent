@@ -8,6 +8,9 @@ module Descent
   module TiledDeserializer
     LAYERS = { 'Ground' => 'tilelayer', 'FloorDetails' => 'objectgroup', 'Walls' => 'objectgroup',
                'Props' => 'objectgroup', 'Ceiling' => 'tilelayer' }.freeze
+    LAYER_OFFSET_KEYS = %w[x y offsetx offsety].freeze
+    SUPPORTED_OBJECT_ALIGNMENTS = [nil, 'unspecified', 'bottomleft'].freeze
+    UNSUPPORTED_COLLISION_SHAPES = %w[polygon polyline ellipse point].freeze
 
     # Tiled packs a map-wide tile ID and transformation flags into one 32-bit
     # integer (GID). The highest four bits hold flags; the lower 28 hold the ID.
@@ -80,7 +83,7 @@ module Descent
             raise_map_error(context,
                             "Wrong layer type for #{layer['name']}")
           end
-          if %w[x y offsetx offsety].any? { |key| layer.fetch(key, 0) != 0 }
+          if LAYER_OFFSET_KEYS.any? { |key| layer.fetch(key, 0) != 0 }
             raise_map_error(context, "Layer offsets are not supported: #{layer['name']}")
           end
         end
@@ -89,7 +92,7 @@ module Descent
       def prepare_tilesets(context)
         context[:tilesets] = context[:data].fetch('tilesets').map do |tileset|
           raise_map_error(context, 'Embed tilesets in the JSON export') if tileset['source']
-          unless [nil, 'unspecified', 'bottomleft'].include?(tileset['objectalignment'])
+          unless SUPPORTED_OBJECT_ALIGNMENTS.include?(tileset['objectalignment'])
             raise_map_error(context, "Use bottom-left object alignment: #{tileset['name']}")
           end
           raise_map_error(context, 'Tileset drawing offsets are not supported') if tileset['tileoffset']
@@ -266,7 +269,7 @@ module Descent
 
       def collision_shapes(context, tile, sprite)
         tile[:definition].fetch('objectgroup', {}).fetch('objects', []).map do |shape|
-          if %w[polygon polyline ellipse point].any? { |key| shape[key] } || shape.fetch('rotation', 0) != 0
+          if UNSUPPORTED_COLLISION_SHAPES.any? { |key| shape[key] } || shape.fetch('rotation', 0) != 0
             raise_map_error(context, "Use rectangle collision shapes on tile #{tile[:id]}")
           end
           unless shape['width'].positive? && shape['height'].positive?

@@ -1,3 +1,7 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rake
+
 AllCops:
   NewCops: enable
   Include:
@@ -6,6 +10,7 @@ AllCops:
     - "lib/**/*.rb"
     - "mygame/app/**/*.rb"
     - "mygame/tests/**/*.rb"
+
   Exclude:
     - "vendor/**/*"
     - "docs/**/*"
@@ -16,6 +21,7 @@ AllCops:
     - "build/**/*"
     - "builds/**/*"
     - "mygame/app/repl.rb"
+    - "bin/**/*"
 
 Layout/LineLength:
   Max: 120

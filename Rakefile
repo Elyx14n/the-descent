@@ -14,7 +14,7 @@ if requested_tasks.include?('run') && (separator = ARGV.index('--'))
 end
 
 # Rake normally treats positional paths as task names. Consume only the path
-# directly after run/test so commands such as `rake test lint` still work.
+# directly after run/test so commands such as `bin/rake test lint` still work.
 paths = {}
 { 'run' => '.json', 'test' => '.rb' }.each do |command, extension|
   index = requested_tasks.index(command)
@@ -38,7 +38,7 @@ end
 
 desc 'Lint project Ruby with RuboCop'
 task :lint do
-  ruby '-S', 'rubocop', '--parallel', '-f', 'github'
+  ruby 'bin/rubocop', '--parallel'
 end
 
 desc 'Run lint and native tests'

@@ -24,7 +24,7 @@ The guide downloads itch.io's butler tool first and authenticates interactively.
 For CI, itch.io officially supports supplying `BUTLER_API_KEY` as an environment
 variable, using the key obtained through a local `butler login`. Store that key
 as a GitHub Actions secret and expose it to the download step. After extraction,
-set `DRAGONRUBY_HOME` to the directory containing `dragonruby` and run `bundle exec rake test`.
+set `DRAGONRUBY_HOME` to the directory containing `dragonruby` and run `bin/rake test`.
 This combines two documented mechanisms; the maintainer successfully tested the
 account's DragonRuby channel access locally. Sources: `SDK:
 docs/guides/updating-dragonruby.md`, Linux (Standard License);
@@ -63,7 +63,7 @@ The full [native suite](../../mygame/tests/all_test.rb) ran locally with the ext
 7.21 SDK and all **84 tests passed** using:
 
 ```sh
-bundle exec rake test HEADLESS=1
+bin/rake test HEADLESS=1
 ```
 
 This verifies local execution without a desktop window. A GitHub-hosted Linux

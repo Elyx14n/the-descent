@@ -38,6 +38,13 @@ GEM
     rubocop-ast (1.50.0)
       parser (>= 3.3.7.2)
       prism (~> 1.7)
+    rubocop-performance (1.27.0)
+      lint_roller (~> 1.1)
+      rubocop (>= 1.89.0, < 2.0)
+      rubocop-ast (>= 1.47.1, < 2.0)
+    rubocop-rake (0.7.1)
+      lint_roller (~> 1.1)
+      rubocop (>= 1.72.1)
     ruby-lsp (0.26.11)
       language_server-protocol (~> 3.17.0)
       prism (>= 1.2, < 2.0)
@@ -58,6 +65,8 @@ DEPENDENCIES
   bundler-audit (~> 0.9.3)
   rake
   rubocop
+  rubocop-performance (~> 1.27)
+  rubocop-rake (~> 0.7.1)
   ruby-lsp
 
 RUBY VERSION

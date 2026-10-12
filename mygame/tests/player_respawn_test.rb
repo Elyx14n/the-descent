@@ -18,7 +18,7 @@ class PlayerRespawnTests
       end
       assert.equal! frames.uniq, [0, 64, 128, 192, 256, 320, 384, 448]
       assert.true!(frames.each_cons(2).all? { |before, after| after >= before })
-      assert.true!(frames.last(100).all? { |frame| frame == 448 })
+      assert.true!(frames.last(100).all?(448))
       player.reset(x: 400, y: 180)
     end
   end

@@ -41,13 +41,13 @@ From the repository root, install the development gems and launch:
 
 ```sh
 bundle install
-bundle exec rake run
+bin/rake run
 ```
 
 Preview a specific exported map with a game-relative path:
 
 ```sh
-bundle exec rake run tiled/ritual_gate.json
+bin/rake run tiled/ritual_gate.json
 ```
 
 The SDK's `dragonruby` binary must have executable permission. If necessary, run `chmod +x "$DRAGONRUBY_HOME/dragonruby"` after extracting your SDK.
@@ -55,22 +55,22 @@ The SDK's `dragonruby` binary must have executable permission. If necessary, run
 
 ## Development checks
 
-Use the same Rake tasks on Linux and macOS:
+Use the project's `bin/` commands on Linux and macOS. These binstubs select the gem versions from `Gemfile.lock`. Keep them in version control so the same commands are available in CI:
 
 ```sh
-bundle exec rake -T                       # List tasks
-bundle exec rake lint                     # RuboCop
-bundle exec rake test                     # All native tests
-bundle exec rake test tests/room_test.rb   # One test file
-bundle exec rake check                    # Lint and all native tests
+bin/rake -T                       # List tasks
+bin/rake lint                     # RuboCop
+bin/rake test                     # All native tests
+bin/rake test tests/room_test.rb   # One test file
+bin/rake check                    # Lint and all native tests
 ```
 
-Running `bundle exec rake` without a task also runs `check`. Test paths are relative to `mygame/`, so use `tests/...`. Tests live in named `*Tests` classes, use DragonRuby's native assertions, and share helpers through modules under `mygame/tests/support/`. `tests/all_test.rb` loads the full suite.
+Running `bin/rake` without a task also runs `check`. Test paths are relative to `mygame/`, so use `tests/...`. Tests live in named `*Tests` classes, use DragonRuby's native assertions, and share helpers through modules under `mygame/tests/support/`. `tests/all_test.rb` loads the full suite.
 
 For headless testing on Linux:
 
 ```sh
-bundle exec rake check HEADLESS=1
+bin/rake check HEADLESS=1
 ```
 
 Linux CI enables headless mode automatically. The test task runs `tests/run.rb` through DragonRuby's `--eval` mode and checks its completion report. Failed or inconclusive tests, empty suites, incomplete runs, and load errors fail the Rake command even when the engine returns exit status 0. Local `focus_test_` methods run with a warning; CI rejects focused runs. Native tests and manual playtesting remain separate checks.
@@ -106,7 +106,7 @@ DragonRuby will create packaged platform builds in a generated build directory. 
 4. Preview the room:
 
    ```sh
-   bundle exec rake run tiled/ritual_gate.json
+   bin/rake run tiled/ritual_gate.json
    ```
 
 Walk through the room and check that doors and obstacles behave as expected. After further edits, save and re-export to refresh the preview automatically. Press **R** to reload manually.
@@ -126,6 +126,7 @@ mygame/
   sprites/              The Descent sprite upload destination
 
 Rakefile                Linux/macOS development tasks
+bin/                    Bundler-generated command launchers
 lib/                    Desktop Ruby task implementation
 .agents/skills/         Project-specific design and development workflows
 .claude/skills          Symlink to .agents/skills for Claude Code discovery
