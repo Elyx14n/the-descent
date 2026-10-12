@@ -58,7 +58,7 @@ on the same SDK build, CI validates the build hash in
 `VERSION.txt` and fails if it differs. The installed file records the build date
 and Git hash, not the human-readable 7.21 version; that appears in the engine's
 startup banner. CI currently requires build
-`1067b5956cd044e4a736e07309e4d95b4f5090b3a` and fails on a different download.
+`0c37cf3bb50cff40b47bc6b935bdd106e47aebada` and fails on a different download.
 When upgrading, verify the new SDK locally, agree on the team's release, and update
 `DRAGONRUBY_BUILD` in the workflow. Exact archive/build pinning needs further
 investigation, or use a fixed SDK installation on a self-hosted runner.

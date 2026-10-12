@@ -71,8 +71,7 @@ jobs:
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     env:
-      # DragonRuby 7.21 Standard; update deliberately with the team's SDK.
-      DRAGONRUBY_BUILD: 1067b5956cd044e4a736e07309e4d95b4f5090b3a
+      DRAGONRUBY_BUILD: 0c37cf3bb50cff40b47bc6b935bdd106e47aebada
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
