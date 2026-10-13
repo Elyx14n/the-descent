@@ -73,51 +73,26 @@ jobs:
     env:
       DRAGONRUBY_BUILD: 0c37cf3bb50cff40b47bc6b935bdd106e47aebada
     steps:
-      - name: Checkout code
+      - name: Validate API key
+        run: test -n "${{ secrets.DRAGONRUBY_GTK }}" || (echo "::error::Missing DRAGONRUBY_GTK secret." && exit 1)
+
+      - name: Checkout Game code
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-        
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
 
-      - name: Install headless graphics dependencies
+      - name: Checkout Dragonruby GTK repo
+        uses: actions/checkout@v7
+        with:
+          repository: 'Elyx14n/dragonruby-gtk'
+          token: ${{ secrets.DRAGONRUBY_GTK }}
+          path: dragonruby-tmp
+          persist-credentials: false
+      
+      - name: Set DragonRuby Home
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libgl1-mesa-dri
-      - name: Download DragonRuby
-        env:
-          ITCH_API_KEY: ${{ secrets.ITCH_API_KEY }}
-        run: |
-          if [[ -z "$ITCH_API_KEY" ]]; then
-            echo '::error::Add the ITCH_API_KEY repository secret using an account API key with DragonRuby download access.'
-            exit 1
-          fi
-          upload_id=$(curl --fail --silent --show-error --retry 3 \
-            -H "Authorization: Bearer $ITCH_API_KEY" \
-            https://api.itch.io/games/404609/uploads | ruby -rjson -e '
-              response = JSON.parse($stdin.read)
-              abort "itch.io rejected the upload-list request; verify the CI account key." if response.key?("errors")
-              uploads = response["uploads"]
-              abort "itch.io did not return an uploads array." unless uploads.is_a?(Array)
-              matches = uploads.select { |upload| (upload["channel_name"] || upload["channelName"]) == "linux-amd64-jam" }
-              unless matches.length == 1
-                fields = %w[id filename display_name displayName channel_name channelName demo]
-                warn JSON.pretty_generate(uploads.map { |upload| upload.select { |key, _| fields.include?(key) } })
-                abort "Expected one linux-amd64 SDK upload; found #{matches.length}. Available files are listed above."
-              end
-              id = matches.first.fetch("id")
-              abort "Invalid SDK upload ID." unless id.is_a?(Integer) && id.positive?
-              puts id
-            ')
-          curl --location --fail --silent --show-error --retry 3 \
-            --proto '=https' --proto-redir '=https' \
-            -H "Authorization: Bearer $ITCH_API_KEY" \
-            "https://api.itch.io/uploads/$upload_id/download" -o "$RUNNER_TEMP/dragonruby.zip"
-          unzip -q "$RUNNER_TEMP/dragonruby.zip" -d "$RUNNER_TEMP/dragonruby"
-          echo "DRAGONRUBY_HOME=$RUNNER_TEMP/dragonruby/dragonruby-linux-amd64" >> "$GITHUB_ENV"
+          unzip -q "$GITHUB_WORKSPACE/dragonruby-tmp/dragonruby-gtk-linux-amd64.zip" -d "$RUNNER_TEMP/dragonruby"
+          echo "DRAGONRUBY_HOME=$RUNNER_TEMP/dragonruby/dragonruby-linux-amd64" >> "$GITHUB_ENV"       
 
       - name: Check DragonRuby build
         run: |
@@ -127,6 +102,16 @@ jobs:
             exit 1
           fi
           chmod +x "$DRAGONRUBY_HOME/dragonruby"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Install headless graphics dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libgl1-mesa-dri
 
       - name: Run native suite
         run: bin/rake test

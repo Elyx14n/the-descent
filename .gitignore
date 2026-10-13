@@ -12,6 +12,8 @@ logs/
 errors/
 build/
 builds/
+dragonruby-tmp/
+drtmp/
 
 # OS files
 .DS_Store
