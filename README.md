@@ -85,17 +85,6 @@ After the first launch, run **Ruby LSP: Restart** from the command palette to in
 
 Completion covers the Ruby definitions shipped in the SDK; Ruby LSP may still be unable to infer dynamic fields such as `args.state.some_custom_field`.
 
-## Package a distributable build
-
-Before packaging, fill in the release fields near the top of `mygame/metadata/game_metadata.txt`, including `devid`, `devtitle`, `gameid`, `gametitle`, and `version`. From the repository root, run with your external SDK (Linux or macOS):
-
-```sh
-game_dir="$PWD/mygame"
-(cd "$DRAGONRUBY_HOME" && ./dragonruby-publish --package "$game_dir")
-```
-
-DragonRuby will create packaged platform builds in a generated build directory. See `docs/guides/deploying-to-itch.md` inside your SDK installation for deployment instructions.
-
 ## Repository guide
 
 Project-owned files:
