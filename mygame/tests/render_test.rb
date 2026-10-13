@@ -81,7 +81,7 @@ class RenderTests
     Descent::Render.draw(args, frame: frame, camera: camera)
     drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
     assert.equal! drawn.select { |sprite| sprite[:r] }.map { |sprite| [sprite[:r], sprite[:a]] },
-                  [[4, 255], [1, 153], [3, 255], [2, 60]]
+                  [[4, 255], [1, 159], [3, 255], [2, 63]]
     assert.equal! frame.to_s, original
     assert.true! args.outputs.primitives.flatten.include?(hud)
   end
@@ -96,7 +96,7 @@ class RenderTests
       frame = room.render_data
       frame[:groups] << actor
       frame[:fade_actors] = [actor[:fade_actor]]
-      expected = y == 80 ? 153 : 255
+      expected = y == 80 ? 159 : 255
       camera_positions.each do |camera_y|
         camera.follow(x: 144, y: camera_y)
         clear_room_test_outputs(args)

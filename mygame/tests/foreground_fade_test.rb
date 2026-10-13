@@ -31,10 +31,10 @@ class ForegroundFadeTests
 
   def test_type_specific_minimum_opacity_preserves_the_same_distance_curve(_args, assert)
     %i[wall ceiling].each do |type|
-      assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 64 }, type: type), 0.2
+      assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 64 }, type: type), 0.25
     end
-    assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 64 }, type: :door), 0.5
-    assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 80 }, type: :door), 0.75
+    assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 64 }, type: :door), 0.75
+    assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 80 }, type: :door), 0.875
     assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 96 }, type: :door), 1.0
   end
 
@@ -45,15 +45,15 @@ class ForegroundFadeTests
     sprites = [base, cap]
     world = [actor[:sprite]] + sprites
     assert.equal! fade(world, sprites: sprites, actors: [actor], type: :door).last(2).map { |sprite| sprite[:a] },
-                  [128, 128]
+                  [191, 191]
     unit = { type: :door, base: base, footprint: FOOTPRINT, sprites: sprites }
     state = {}
     first = timed_fade(unit, state, 0).last[:a]
-    assert.true! first > 128
+    assert.true! first > 191
     settled = timed_fade(unit, state, Descent::ForegroundFade::FADE_OUT_TICKS).last(2)
-    assert.equal! settled.map { |sprite| sprite[:a] }, [128, 128]
+    assert.equal! settled.map { |sprite| sprite[:a] }, [191, 191]
     restoring = timed_fade(unit, state, Descent::ForegroundFade::FADE_OUT_TICKS + 1, nil).last[:a]
-    assert.true! restoring > 128
+    assert.true! restoring > 191
     assert.true! restoring < 255
   end
 
@@ -64,7 +64,7 @@ class ForegroundFadeTests
     assert.equal! fade([actor_data[:sprite], cap], sprites: [cap], actors: [actor_data]).last[:a], 255
     [32, 63.999].each do |x|
       actor_data = fade_actor(x: x)
-      assert.equal! fade([actor_data[:sprite], cap], sprites: [cap], actors: [actor_data]).last[:a], 51
+      assert.equal! fade([actor_data[:sprite], cap], sprites: [cap], actors: [actor_data]).last[:a], 64
     end
     actor_data = fade_actor(x: 64)
     assert.equal! fade([actor_data[:sprite], cap], sprites: [cap], actors: [actor_data]).last[:a], 255
@@ -98,15 +98,15 @@ class ForegroundFadeTests
     in_ticks = Descent::ForegroundFade::FADE_IN_TICKS
     fading = (0..out_ticks).map { |tick| timed_fade(unit, state, tick).last[:a] }
     assert.true! fading.first < 255
-    assert.true! fading.first > 51
-    assert.equal! fading.last, 51
+    assert.true! fading.first > 64
+    assert.equal! fading.last, 64
     assert.equal! fading.reverse.sort, fading.reverse
     # Cross the column edge while remaining close to the wall.
     outside = fade_actor(x: 64.01)
     restoring = ((out_ticks + 1)..(out_ticks + in_ticks + 1)).map do |tick|
       timed_fade(unit, state, tick, outside).last[:a]
     end
-    assert.true! restoring.first > 51
+    assert.true! restoring.first > 64
     assert.true! restoring.first < 255
     assert.equal! restoring.last, 255
     assert.equal! restoring.sort, restoring
@@ -120,7 +120,7 @@ class ForegroundFadeTests
     state = {}
     out_ticks = Descent::ForegroundFade::FADE_OUT_TICKS
     timed_fade(unit, state, 0)
-    assert.equal! timed_fade(unit, state, out_ticks).last[:a], 51
+    assert.equal! timed_fade(unit, state, out_ticks).last[:a], 64
     restoring = timed_fade(unit, state, out_ticks + 4, nil).last[:a]
     resumed = timed_fade(unit, state, out_ticks + 5).last[:a]
     assert.true! resumed < restoring
@@ -145,7 +145,7 @@ class ForegroundFadeTests
   end
 
   def test_distance_curve_reaches_minimum_halfway_and_full_opacity(_args, assert)
-    [[64, 0.2], [80, 0.6], [96, 1.0], [120, 1.0]].each do |y, expected|
+    [[64, 0.25], [80, 0.625], [96, 1.0], [120, 1.0]].each do |y, expected|
       actual = Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: y }, type: :wall)
       assert.true! (actual - expected).abs < 0.000001
     end
@@ -173,7 +173,7 @@ class ForegroundFadeTests
     after = fade([sprite, wall], sprites: [wall], actors: [actor_data])
     assert.equal! before.last, sprite
     assert.equal! before.first[:a], 255
-    assert.equal! after.last[:a], 51
+    assert.equal! after.last[:a], 64
     unrelated = fade_artwork(FOOTPRINT.merge(x: 200))
     assert.equal! fade([sprite, unrelated], sprites: [unrelated], actors: [actor_data]).last[:a], 255
   end
@@ -184,7 +184,7 @@ class ForegroundFadeTests
     after = before.dup
     world = [before, actor_data[:sprite], after]
     drawn = fade(world, sprites: [before, after], actors: [actor_data], base: after)
-    assert.equal! drawn.first[:a], 51 # A unit shares its strongest contribution across its members.
+    assert.equal! drawn.first[:a], 64 # A unit shares its strongest contribution across its members.
     drawn = fade(world, sprites: [before], actors: [actor_data])
     assert.equal! drawn.first[:a], 255 # An equal later sprite must not stand in for this member.
     assert.equal! drawn.last[:a], 255
@@ -197,7 +197,7 @@ class ForegroundFadeTests
     world = [actor_data[:sprite], wall, cap]
     original = world.to_s
     drawn = fade(world, sprites: [wall, cap], actors: [actor_data])
-    assert.equal! drawn.map { |sprite| sprite[:a] }, [nil, 120, 60]
+    assert.equal! drawn.map { |sprite| sprite[:a] }, [nil, 125, 63]
     assert.equal! world.to_s, original
     assert.equal! fade(world, sprites: [wall, cap], actors: []).last[:a], 100
   end
@@ -208,9 +208,9 @@ class ForegroundFadeTests
     wall = fade_artwork
     world = [near[:sprite], far[:sprite], wall]
     [[near, far], [far, near], [near, near]].each do |actors|
-      assert.equal! fade(world, sprites: [wall], actors: actors).last[:a], 51
+      assert.equal! fade(world, sprites: [wall], actors: actors).last[:a], 64
     end
-    assert.equal! fade(world, sprites: [wall], actors: [far]).last[:a], 153
+    assert.equal! fade(world, sprites: [wall], actors: [far]).last[:a], 159
   end
 
   def test_unrendered_and_offscreen_actors_cannot_trigger_fading(_args, assert)
@@ -228,7 +228,7 @@ class ForegroundFadeTests
     actor_data = fade_actor(x: 330)
     wall = fade_artwork(FOOTPRINT.merge(x: 312, y: 64))
     assert.equal! fade([actor_data[:sprite], wall], sprites: [wall], actors: [actor_data],
-                                                    footprint: FOOTPRINT.merge(x: 312)).last[:a], 51
+                                                    footprint: FOOTPRINT.merge(x: 312)).last[:a], 64
     anchored = { x: 20, y: 30, w: 10, h: 20, anchor_x: 0.5, anchor_y: 1 }
     assert.equal! Descent::ForegroundFade.bounds(anchored), { x: 15, y: 10, w: 10, h: 20 }
   end
@@ -241,7 +241,7 @@ class ForegroundFadeTests
       assert.true! actor_data[:sprite].equal?(group[:sprites].first)
       assert.equal! actor_data[:occlusion_height], actor.class::OCCLUSION_HEIGHT
       wall = fade_artwork
-      assert.equal! fade(group[:sprites] + [wall], sprites: [wall], actors: [actor_data]).last[:a], 51
+      assert.equal! fade(group[:sprites] + [wall], sprites: [wall], actors: [actor_data]).last[:a], 64
     end
   end
 
@@ -253,7 +253,7 @@ class ForegroundFadeTests
     end
     drawn = Descent::ForegroundFade.apply([actor_data[:sprite], wall], units: units,
                                                                        actors: [actor_data], viewport: VIEWPORT)
-    assert.equal! drawn.last[:a], 51
+    assert.equal! drawn.last[:a], 64
   end
 
   def test_north_and_same_y_units_stay_opaque_even_when_the_ceiling_overlaps(_args, assert)
@@ -273,7 +273,7 @@ class ForegroundFadeTests
     footprint = { x: 64, y: 64, w: 32, h: 32 }
     cap = fade_artwork(footprint.merge(y: 96))
     result = fade([actor_data[:sprite], cap], sprites: [cap], actors: [actor_data], footprint: footprint)
-    assert.equal! result.last[:a], 51
+    assert.equal! result.last[:a], 64
   end
 
   def test_side_columns_and_bottom_frame_padding_do_not_count_as_occlusion(_args, assert)
