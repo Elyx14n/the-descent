@@ -1,128 +1,115 @@
 # DragonRuby tests in GitHub Actions
 
-Research date: **2026-10-12**. Local evidence uses DragonRuby **7.21 Standard**.
-The [installed workflow](../../.github/workflows/ci.yml) uses GitHub-hosted Linux
-runners and private SDK downloads. The initial Butler route failed locally and
-in CI with `invalid game` on 2026-10-13. The maintainer subsequently verified that
-the consumer upload-list endpoint works with a manually generated account key
-and fails with the Wharf key. The workflow now uses that consumer route; archive
-download, extraction, and hosted tests still need verification. SDK paths below
-are relative to `DRAGONRUBY_HOME`.
+The maintainer confirmed the private-repository workflow works on **2026-10-14**.
+The [workflow](../../.github/workflows/ci.yml) is the source of truth for the SDK
+repository, archive filename, expected build hash, and job configuration.
 
-## Feasibility and SDK provisioning
+## Private SDK provisioning
 
-The SDK does not need to be committed to this repository. An Actions job can
-obtain it before running the project's [Rake tasks](../../Rakefile), or use a
-self-hosted runner with the SDK already installed outside the checkout. The
-project already launches an external SDK through `DRAGONRUBY_HOME`; see
-[setup and native suite commands](../../README.md#first-time-setup-and-running-the-game).
+CI reads the Linux SDK ZIP from the private repository
+[`Elyx14n/dragonruby-gtk`](https://github.com/Elyx14n/dragonruby-gtk).
+The game repository contains the game's source and development tooling; the SDK
+archive stays in the private repository.
 
-For the installed Standard tier, the SDK's update guide documents:
+The native test job:
 
-```sh
-butler fetch dragonruby/dragonruby-gtk:linux-amd64 ./dragonruby-tmp
-```
+1. Checks out the game repository.
+2. Checks out the private SDK repository into `dragonruby-tmp` under
+   `GITHUB_WORKSPACE`.
+3. Extracts `dragonruby-gtk-linux-amd64.zip` from that checkout into
+   `$RUNNER_TEMP/dragonruby`.
+4. Sets `DRAGONRUBY_HOME` to
+   `$RUNNER_TEMP/dragonruby/dragonruby-linux-amd64`.
+5. Checks the SDK build and ensures `dragonruby` is executable.
+6. Sets up Ruby and Bundler, installs the Linux graphics dependencies, and runs
+   `bin/rake test`.
 
-That command failed with `itch.io API error (400): /wharf/channels/linux-amd64:
-invalid game`. A successful Butler login did not establish download access.
-Butler requests the `wharf` OAuth scope, and `fetch` uses Wharf channel/build
-endpoints. The cause of the account's download failure remains unverified.
-Sources: `SDK: docs/guides/updating-dragonruby.md`, Linux
-(Standard License); [Butler authentication](https://github.com/itchio/butler/blob/master/mansion/authenticate.go);
-[Butler fetch implementation](https://github.com/itchio/butler/blob/master/cmd/fetch/fetch.go).
+The ZIP must contain a top-level `dragonruby-linux-amd64/` directory, including
+`dragonruby` and `VERSION.txt`. Preserve the SDK's hidden `.dragonruby/` directory
+as well, particularly for future packaging. The installed SDK's update guide
+explicitly includes that hidden directory:
+`$DRAGONRUBY_HOME/docs/guides/updating-dragonruby.md`.
 
-Set the GitHub repository secret `ITCH_API_KEY` to the manually generated account
-key that passed the upload-list check. A Wharf key from Butler login requests only
-`wharf`; it does not request consumer `game:view:uploads` access. Manually generated
-account keys are unscoped. Sources:
-[Butler authentication](https://github.com/itchio/butler/blob/master/mansion/authenticate.go);
-[itch.io authentication and scopes](https://itch.io/docs/api/serverside#scopes).
+Ubuntu runs the Linux SDK. A macOS SDK requires a compatible macOS runner.
+Checkout paths must be beneath `GITHUB_WORKSPACE`, so CI stages the archive
+there and extracts the SDK into `RUNNER_TEMP`. Checking out the game first avoids
+a later game checkout cleaning away the SDK checkout. Sources:
+[checkout path validation](https://github.com/actions/checkout/blob/v7/src/input-helper.ts);
+[private repository checkout](https://github.com/actions/checkout#checkout-multiple-repos-private).
 
-The workflow lists `/games/404609/uploads`, selects the single `linux-amd64`
-upload, then downloads `/uploads/UPLOAD_ID/download` with curl and extracts the
-archive outside the checkout. Ruby's standard JSON library parses the upload
-list inside the workflow; no separate SDK Rake task is needed. Curl follows HTTPS
-redirects without using `--location-trusted`, so authorization is not forwarded
-to other hosts. Sources:
-[itch.io consumer client](https://github.com/itchio/go-itchio/blob/master/endpoints_uploads.go);
-[itch.io download scope](https://itch.io/docs/api/oauth#scopes);
-[curl redirect authentication](https://curl.se/docs/manpage.html#-H).
+## GitHub authentication
 
-The same SDK guide documents authenticated DragonRuby subscription download
-endpoints for Indie and Pro. Those are alternatives for accounts on those tiers;
-they are unnecessary for the installed Standard SDK. No official dedicated
-DragonRuby setup action was established by this research.
+Create a fine-grained personal access token with:
 
-The upload download selects the channel's latest build. To keep the team
-on the same SDK build, CI validates the build hash in
-`VERSION.txt` and fails if it differs. The installed file records the build date
-and Git hash, not the human-readable 7.21 version; that appears in the engine's
-startup banner. CI currently requires build
-`0c37cf3bb50cff40b47bc6b935bdd106e47aebada` and fails on a different download.
-When upgrading, verify the new SDK locally, agree on the team's release, and update
-`DRAGONRUBY_BUILD` in the workflow. Exact archive/build pinning needs further
-investigation, or use a fixed SDK installation on a self-hosted runner.
+- **Resource owner:** the account owning the private SDK repository.
+- **Repository access:** only the private SDK repository, `dragonruby-gtk`.
+- **Repository permissions:** Contents → Read-only.
 
-The SDK's project guide distinguishes public runtime redistribution from sharing
-the complete development toolkit: it permits including the runtime binary for
-running a game, prohibits public commits of the publish/bind tools, and recommends
-keeping only game files in public repositories. This is not blanket permission to
-publish the whole SDK as a CI artifact or public cache. Keep download credentials
-and SDK contents private; this research does not establish additional permission
-to redistribute a full SDK or resolve account-specific license terms. Source:
-`SDK: docs/guides/starting-a-new-project.md`, Public Repos; `SDK: eula.txt`.
+Store the token in **The Descent's repository Actions secrets** as
+`DRAGONRUBY_GTK`. The workflow supplies it to the SDK checkout's `token` input and
+uses `persist-credentials: false`. The PAT's repository selection controls which
+repository it can read; storing it as a secret controls where the workflow can
+use it. Source:
+[GitHub PAT configuration](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
 
-## Native suite and CI failure reporting
+If checkout reports `Not Found` from `GET /repos/{owner}/{repo}`, confirm the
+repository name, PAT resource owner, selected SDK repository, token validity,
+and the value stored in `DRAGONRUBY_GTK`. For organization-owned repositories,
+check whether token approval is required. GitHub can return 404 when a private
+repository exists but the supplied credential cannot access it. The workflow's
+initial secret check only verifies that the value is nonempty. Source:
+[GitHub private-resource 404 troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api#404-not-found-for-an-existing-resource).
 
-The full [native suite](../../mygame/tests/all_test.rb) ran locally with the external
-7.21 SDK and all **84 tests passed** using:
+## SDK upgrades and packaging
 
-```sh
-bin/rake test HEADLESS=1
-```
+CI compares the `git:` value in the extracted `VERSION.txt` with
+`DRAGONRUBY_BUILD` in the workflow. A mismatch fails the job before tests run.
+When updating the private ZIP, verify the SDK locally and update the expected
+build deliberately. Preserve the archive filename and internal directory layout,
+or update the workflow paths at the same time. Keep collaborators on the same
+SDK release.
 
-This verifies local execution without a desktop window. A GitHub-hosted Linux
-image still needs its graphics/audio runtime dependencies checked; the local run
-does not prove a hosted runner is provisioned correctly. Native tests exercise
-DragonRuby APIs and runtime differences recorded in
-[ADR-0005](../adr/0005-render-data-and-room-preview.md#consequences-and-verification);
-CRuby alone is not a replacement for this suite.
+For future packaged builds, keep `dragonruby-publish`, `.dragonruby/`, and the
+SDK's support files in the private archive. The installed deployment guide
+documents `dragonruby-publish --package mygame` for packaging and
+`dragonruby-publish mygame` for packaging and publishing:
+`$DRAGONRUBY_HOME/docs/guides/deploying-to-itch.md`. Packaging is not currently a
+CI job. The SDK ZIP is neither cached nor uploaded as a workflow artifact.
 
-**The engine's exit code alone is insufficient on the installed SDK.** An isolated
-temporary test asserting `1 == 2` reported one failed test while the DragonRuby
-process returned exit code **0**. A prior test-load failure also exited 0. A CI
-runner must turn failed or inconclusive tests, zero executed tests, load errors,
-and incomplete runs into a nonzero job status. It must establish positive evidence
-that the suite completed successfully. The SDK exposes `passed`, `failed`, and
-`inconclusive` arrays in `SDK: docs/oss/dragon/tests.rb`. The project's
-[native runner](../../mygame/tests/run.rb) now emits completion counts, and
-[Rake](../../lib/dragonruby_tasks.rb) rejects failed, inconclusive, empty, or
-incomplete runs and focused tests in CI. Workflow setup should use this task
-rather than relying on the engine's exit status.
+## Tests and event coverage
 
-## Trigger choices and recommendation
+Dependency auditing, RuboCop, and native tests run in separate jobs on pushes to
+`master`, pull requests, and manual dispatch. Fork pull requests and Dependabot
+skip native tests because they cannot access the private SDK secret; audit and
+lint still run. Source:
+[GitHub secret availability](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#using-secrets-in-a-workflow).
 
-A GitHub-hosted Linux job that downloads the SDK privately is the practical first
-option for trusted team branches. Keep RuboCop as a separate ordinary Ruby job.
-Fork-triggered workflows do not receive download secrets, and Dependabot events
-also lack them, so the native job needs an explicit policy for those contributions.
-Do not bypass this restriction by checking out untrusted pull-request code in a
-privileged `pull_request_target` job. Sources:
-[GitHub secrets limitations](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#using-secrets-in-a-workflow);
-[GitHub guidance on untrusted checkout](https://docs.github.com/en/actions/reference/security/secure-use#mitigating-the-risks-of-untrusted-code-checkout).
+Native tests use the project's [Rake runner](../../lib/dragonruby_tasks.rb) and
+[completion report](../../mygame/tests/run.rb). Failed or inconclusive tests,
+empty suites, incomplete runs, load failures, and focused runs in CI fail the
+task even when the engine returns exit status 0. Linux CI sets headless video,
+dummy audio, and software rendering automatically. Native tests exercise runtime
+behavior described in [ADR-0005](../adr/0005-render-data-and-room-preview.md#consequences-and-verification);
+desktop Ruby alone does not replace this suite.
 
-A self-hosted runner can retain the team's exact external SDK and avoid download
-credentials. It adds machine upkeep and must be restricted to trusted code;
-GitHub cautions against public-repository self-hosted runners because pull
-requests can compromise their persistent environment. Sources:
-[self-hosted runner model](https://docs.github.com/en/actions/concepts/runners/self-hosted-runners);
-[self-hosted runner security](https://docs.github.com/en/actions/reference/security/secure-use#hardening-for-self-hosted-runners).
+Earlier local verification used DragonRuby **7.21 Standard**, with **84 tests
+passing** via `bin/rake test HEADLESS=1`. That historical result is separate from
+the maintainer's confirmation of the working private-repository CI. Automated
+tests do not replace manual playtesting.
 
-The workflow runs separate lint and native test jobs on pushes, pull requests,
-and manual dispatch. Fork pull requests and Dependabot skip the native job; lint
-still runs. Native tests use the Rake completion checks and Linux headless mode.
-Only the SDK download step receives the `ITCH_API_KEY` secret; the SDK is neither cached
-nor uploaded as an artifact. Actions use version tags, and Ruby gems use the
-setup action's Bundler cache. The next hosted run must confirm account access, SDK extraction, and
-Ubuntu's headless graphics dependencies. No credentials were read or stored in
-the repository.
+## Earlier provisioning attempts
+
+The original Butler proposal combined the installed SDK's local update example
+in `docs/guides/updating-dragonruby.md` with itch.io's
+[Butler CI authentication instructions](https://itch.io/docs/butler/login.html#running-butler-from-ci-builds-github-actions-gitlab-ci-etc).
+Those CI instructions describe pushing builds with a Wharf key. The proposal was
+a project-specific adaptation, not a documented DragonRuby CI workflow. Butler
+fetch returned `invalid game`, including after testing the corrected channel;
+the precise server-side cause was not established.
+
+The subsequent itch.io consumer API approach worked with a manually generated
+account key, but the uploads available to the maintainer exposed the jam/demo
+version. The maintainer chose the private SDK repository to supply the intended
+SDK distribution. Neither Butler fetch nor the itch.io consumer API is used by
+the current workflow; `BUTLER_API_KEY` and `ITCH_API_KEY` are no longer required
+for CI provisioning.
