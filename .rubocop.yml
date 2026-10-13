@@ -64,3 +64,6 @@ Metrics/PerceivedComplexity:
 
 Style/MultilineTernaryOperator:
   Enabled: false
+
+Lint/HashCompareByIdentity:
+  Enabled: false

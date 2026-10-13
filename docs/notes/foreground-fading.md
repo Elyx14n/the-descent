@@ -1,0 +1,28 @@
+# Actor-relative foreground fading
+
+Researched and implemented on 2026-10-14 for the Ritual Gate's southern walls, ceiling caps, and door. The implemented behavior is recorded in the [render-data decision](../adr/0005-render-data-and-room-preview.md#render-data-interface); status lives in [CONTEXT.md](../../CONTEXT.md).
+
+## Primary-source evidence
+
+- The installed DragonRuby 7.21 SDK documents sprite `a` in the range 0–255, default 255, and default alpha blending in `$DRAGONRUBY_HOME/docs/api/outputs.md`, under **Sprites → Blending**. Ordinary primitive alpha is sufficient; a shader is unnecessary for whole-sprite fading.
+- Traditional camera-near fading concerns surface distance from a 3D camera. Epic describes that behavior in its [opacity material functions](https://dev.epicgames.com/documentation/en-us/unreal-engine/opacity-material-functions-in-unreal-engine). In this game, the useful distance is between actor feet and foreground artwork in world space.
+- Separately fading overlapping sprites can make their overlap more opaque than either sprite alone. Godot explicitly documents group compositing as a remedy in [CanvasGroup](https://docs.godotengine.org/en/stable/classes/class_canvasgroup.html). Direct per-sprite alpha is the chosen first implementation; additional compositing needs visual evidence.
+- [Tiled custom properties](https://doc.mapeditor.org/en/stable/manual/custom-properties/) support explicit authoring metadata, including tile defaults overridden on instances. This remains an alternative if automatic geometry proves too permissive.
+
+## Project-specific approach and limits
+
+The geometry rule and distance curve are a project design, not an engine-prescribed algorithm. The deserializer normalizes authored classes and layer defaults into mandatory `type` metadata; runtime fade candidates use `:wall`, `:door`, and `:ceiling` without reinterpreting Tiled fields. A base's world Y must be below the actor's ground Y, its final drawing order must be after the actor, and its horizontal bounds must contain the actor's center X. A member drawn after the actor must intersect the vertical feet-to-head center line. Each local column fades independently, with caps and mounted artwork sharing the base's distance reference and opacity setting. Use continuous world Y rather than quantized tile rows, since the stepped southern wall can cover actors sharing its base's grid row.
+
+Player frames are 64×64 with 24 source pixels of foot padding, whereas map tiles are 32×32. Comparing full frame dimensions to identify blockers would reject real wall tiles. Playtesting found that both full-frame and foot-width overlap faded nonblocking neighbors too aggressively. The center line now excludes side padding and grazing contacts; its height is the measured visible artwork envelope above the feet (Player 26 source pixels, Enemy 54), excluding top padding. Source-alpha inspection of the current idle/walk sheets establishes those heights. Supporting-base drawing order prevents overhead caps from incorrectly fading walls behind the actor. Exact silhouettes and per-pixel occlusion remain deferred.
+
+`ForegroundFade::RADIUS` defaults to 32 world pixels. Its frozen `MIN_OPACITIES` table uses 0.25 for walls and standalone ceiling pieces, and 0.75 for doors. A fade unit inherits its supporting base's type, regardless of individual cap or mounted-prop types. The distance target is `minimum + (1 - minimum) * smoothstep(clamp(distance / 32, 0, 1))`. Playtesting found that losing binary eligibility instantly restored opacity, so the preview now retains per-unit opacity history. `FADE_OUT_TICKS = 16` and `FADE_IN_TICKS = 32` bound transition rates (about 267ms out, 533ms in at 60 ticks/second), scaled to each type's opacity range. Partial transitions take proportionately less time; reentry reverses from current opacity. Eligibility flicker can no longer jump from minimum to full opacity within one frame. Multiple actors use the strongest contribution, including on-screen enemies independent of player proximity. This can reveal an enemy's presence through scenery; it does not change future AI sight or lighting rules.
+
+Native regression testing found that DragonRuby 7.21's `Hash#compare_by_identity` returns nil and `Enumerator#to_h` does not perform the requested block transformation. The renderer therefore builds explicit object-ID indices to distinguish equal-looking primitives with different drawing orders.
+
+## Playtest
+
+Run `bin/rake run`; press R if existing instances need rebuilding after Ruby hot reload. Walk and sneak toward the southern wall, slide sideways along both stepped shoulders, and open/close the southern door with E. Approach and retreat diagonally across adjacent columns.
+
+Check that actors remain readable behind south-side structures, caps and faces fade together, adjacent columns transition acceptably, and overlap does not leave distracting dark patches. Hug side walls and north-facing corners: background bases, head-padding overlaps, and contacts that miss the actor's center should remain opaque. Step sideways out of a faded column, retreat, and immediately reenter; opacity should restore gradually and reverse smoothly. Repeat at the usual enlarged window size to check pixel alignment and atlas seams. B displays fade footprints in blue alongside collision and light diagnostics.
+
+The automated suite verifies geometry, drawing order, distance, multi-actor behavior, immutable artwork, door variants, viewport boundaries, and reset/reload. It does not establish visual feel or fairness; the preview has no spawned Enemy yet.

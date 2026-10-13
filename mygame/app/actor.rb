@@ -21,6 +21,17 @@ module Descent
       super(animation: animation, variant: animation_variant)
     end
 
+    def render_data
+      sprite = sprite_to_primitive
+      { depth: @y,
+        sprites: [sprite],
+        fade_actor:
+        { x: @x,
+          y: @y,
+          sprite: sprite,
+          occlusion_height: self.class::OCCLUSION_HEIGHT * @scale } }
+    end
+
     def reset(x:, y:, facing: :south)
       super(x: x, y: y, facing: facing)
       @moving = false

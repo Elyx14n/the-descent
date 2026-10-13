@@ -8,6 +8,13 @@ module Descent
   module TiledDeserializer
     LAYERS = { 'Ground' => 'tilelayer', 'FloorDetails' => 'objectgroup', 'Walls' => 'objectgroup',
                'Props' => 'objectgroup', 'Ceiling' => 'tilelayer' }.freeze
+    TYPES_BY_CLASS = { 'Ground' => :ground, 'FloorDetail' => :floor_detail, 'Wall' => :wall, 'Prop' => :prop,
+                       'Ceiling' => :ceiling, 'Door' => :door, 'Light' => :light, 'Pedestal' => :pedestal,
+                       'Spawn' => :spawn }.freeze
+    # The first type is the default for unclassified artwork on that layer.
+    LAYER_TYPES = { 'Ground' => %i[ground].freeze, 'FloorDetails' => %i[floor_detail].freeze,
+                    'Walls' => %i[wall].freeze, 'Props' => %i[prop door light pedestal].freeze,
+                    'Ceiling' => %i[ceiling door].freeze }.freeze
     LAYER_OFFSET_KEYS = %w[x y offsetx offsety].freeze
     SUPPORTED_OBJECT_ALIGNMENTS = [nil, 'unspecified', 'bottomleft'].freeze
     UNSUPPORTED_COLLISION_SHAPES = %w[polygon polyline ellipse point].freeze
@@ -144,10 +151,32 @@ module Descent
       end
 
       def tile_class(value)
-        value['class'] || value['type']
+        authored = value['class']
+        authored.nil? || authored == '' ? value['type'] : authored
       end
 
-      def sprite_for(tile, rect, gid: 0, opacity: 1)
+      # Resolve authoring classes and placement defaults once, at the boundary.
+      # Downstream room/rendering code consumes only these canonical symbols.
+      def entry_type(context, layer, tile: nil, object: nil)
+        authored = tile_class(object) if object
+        authored = tile_class(tile[:definition]) if tile && (authored.nil? || authored == '')
+        allowed = LAYER_TYPES.fetch(layer['name'])
+        type = if authored.nil? || authored == ''
+                 allowed.first
+               else
+                 TYPES_BY_CLASS.fetch(authored) do
+                   raise_map_error(context, "Unknown tile class #{authored.inspect} on #{layer['name']}")
+                 end
+               end
+        if type == :spawn
+          raise_map_error(context, 'Spawn must be a point object') unless object && object['point']
+        elsif !allowed.include?(type)
+          raise_map_error(context, "Type #{type} is not supported on #{layer['name']}")
+        end
+        type
+      end
+
+      def sprite_for(tile, rect, type:, gid: 0, opacity: 1)
         tileset = tile[:tileset]
         w = tileset.fetch('tilewidth')
         h = tileset.fetch('tileheight')
@@ -157,7 +186,7 @@ module Descent
         row = tile[:id].div(tileset.fetch('columns'))
         # Test flags on the original GID, not the tile ID that had them cleared.
         # anybits? returns a boolean for DragonRuby's sprite flip settings.
-        rect.merge(path: tileset.fetch('resolved_image'),
+        rect.merge(type: type, path: tileset.fetch('resolved_image'),
                    source_x: margin + (column * (w + spacing)),
                    source_y: tileset.fetch('imageheight') - margin - (row * (h + spacing)) - h,
                    source_w: w, source_h: h, a: (opacity * 255).round,
@@ -173,18 +202,15 @@ module Descent
           next if gid.zero?
 
           tile = tile_for_gid(context, gid)
+          type = entry_type(context, layer, tile: tile)
           column = index % layer['width']
           row = index.div(layer['width'])
           rect = { x: column * context[:tile_w], y: context[:height] - ((row + 1) * context[:tile_h]),
                    w: tile[:tileset]['tilewidth'], h: tile[:tileset]['tileheight'] }
-          sprite = sprite_for(tile, rect, gid: gid, opacity: layer.fetch('opacity', 1))
+          sprite = sprite_for(tile, rect, type: type, gid: gid, opacity: layer.fetch('opacity', 1))
           target = layer['name'] == 'Ground' ? collections[:ground] : collections[:ceiling]
           target << sprite if layer.fetch('visible', true)
-          if tile_class(tile[:definition]) == 'Door'
-            unless layer['name'] == 'Ceiling'
-              raise_map_error(context,
-                              'Door bases belong on Props, upper pieces on Ceiling')
-            end
+          if type == :door
             context[:caps][[column, row]] = door_part(context, tile, sprite, properties(tile[:definition]))
           elsif layer['name'] == 'Ground'
             collections[:colliders].concat(collision_shapes(context, tile, sprite))
@@ -198,28 +224,25 @@ module Descent
           unless object.fetch('rotation', 0).zero?
             raise_map_error(context, "Rotated objects are not supported: #{object['id']}")
           end
-          if object['point'] && tile_class(object) == 'Spawn'
+          if object['point'] && entry_type(context, layer, object: object) == :spawn
             context[:spawns] << { x: object.fetch('x'), y: context[:height] - object.fetch('y'), facing: :south }
             next
           end
           raise_map_error(context, "Expected a tile object or Spawn point: #{object['id']}") unless object['gid']
           tile = tile_for_gid(context, object['gid'])
-          kind = tile_class(object)
-          kind = tile_class(tile[:definition]) if kind.nil? || kind.empty?
-          raise_map_error(context, 'Spawn must be a point object') if kind == 'Spawn'
+          type = entry_type(context, layer, tile: tile, object: object)
           rect = { x: object.fetch('x'), y: context[:height] - object.fetch('y'),
                    w: object.fetch('width'), h: object.fetch('height') }
-          sprite = sprite_for(tile, rect, gid: object['gid'],
+          sprite = sprite_for(tile, rect, type: type, gid: object['gid'],
                                           opacity: layer.fetch('opacity', 1) * object.fetch('opacity', 1))
           props = properties(tile[:definition]).merge(properties(object))
           shapes = collision_shapes(context, tile, sprite)
-          entry = { id: object.fetch('id'), kind: kind, layer: layer['name'], sprite: sprite, properties: props,
+          entry = { id: object.fetch('id'), type: type, sprite: sprite, properties: props,
                     colliders: shapes }
           target = layer['name'] == 'FloorDetails' ?
           collections[:floor_details] : collections[:objects]
           target << entry if layer.fetch('visible', true) && object.fetch('visible', true)
-          if kind == 'Door'
-            raise_map_error(context, 'Door bases belong on Props') unless layer['name'] == 'Props'
+          if type == :door
             part = door_part(context, tile, sprite, props)
             closed = local_tile(context, tile[:tileset], props.fetch('close_tile'))
             opened = local_tile(context, tile[:tileset], props.fetch('open_tile'))
@@ -229,8 +252,8 @@ module Descent
             collections[:doors] << entry
           else
             collections[:colliders].concat(shapes)
-            collections[:lights] << light_source(entry, sprite, props) if kind == 'Light'
-            if kind == 'Pedestal'
+            collections[:lights] << light_source(entry, sprite, props) if type == :light
+            if type == :pedestal
               # Item anchor uses the same source-pixel convention as light offsets.
               entry[:item_position] = local_point(sprite, props.fetch('offset_x', 0), props.fetch('offset_y', 0))
               collections[:pedestals] << entry
@@ -247,11 +270,11 @@ module Descent
           target_id = entry[:properties].fetch('mounted_on', 0)
           next if target_id.is_a?(Integer) && target_id.zero?
 
-          unless target_id.is_a?(Integer) && target_id.positive? && entry[:layer] == 'Props'
+          unless target_id.is_a?(Integer) && target_id.positive? && LAYER_TYPES['Props'].include?(entry[:type])
             raise_map_error(context, "Set mounted_on on a Props object to a Walls object reference: #{entry[:id]}")
           end
           wall = by_id[target_id]
-          unless wall && wall[:layer] == 'Walls'
+          unless wall && wall[:type] == :wall
             raise_map_error(context,
                             "mounted_on target #{target_id} for object #{entry[:id]} is not a visible Walls object")
           end
@@ -312,7 +335,7 @@ module Descent
 
       def door_sprite(context, tileset, id, sprite)
         # Retain placement, scaling and flips while changing only the atlas crop.
-        sprite_for(local_tile(context, tileset, id), sprite).merge(
+        sprite_for(local_tile(context, tileset, id), sprite, type: sprite.fetch(:type)).merge(
           flip_horizontally: sprite[:flip_horizontally], flip_vertically: sprite[:flip_vertically], a: sprite[:a]
         )
       end

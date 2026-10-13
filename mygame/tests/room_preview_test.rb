@@ -7,6 +7,47 @@ class RoomPreviewTests
   include RoomTestHelpers
   include KeybindTestHelpers
 
+  def test_preview_reveals_south_door_and_cap_then_reload_restores_authored_artwork(args, assert)
+    preview = preview_test_args(args)
+    state = preview_test_tick(preview, 0)
+    room = state[:room]
+    door = room.doors.find { |entry| entry[:id] == 267 }
+    closed = door[:parts].map { |part| part[:sprite].dup }
+    state[:player].reset(x: 176, y: 72)
+    out_ticks = Descent::ForegroundFade::FADE_OUT_TICKS
+    (1..out_ticks).each { |tick| preview_test_tick(preview, tick) }
+    opacity = (Descent::ForegroundFade.multiplier({ x: 160, y: 32, w: 32, h: 32 },
+                                                  { x: 176, y: 72 }, type: :door) * 255).round
+    closed.each do |sprite|
+      assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
+        state[:camera].to_draw_space(sprite.merge(a: opacity))
+      )
+    end
+    assert.equal! door[:parts].map { |part| part[:sprite] }, closed
+    room.set_door_open(267, open: true)
+    preview_test_tick(preview, out_ticks + 1)
+    door[:parts].each do |part|
+      assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
+        state[:camera].to_draw_space(part[:sprite].merge(a: opacity))
+      )
+    end
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:r])
+    state = preview_test_tick(preview, out_ticks + 2)
+    assert.true!(state[:fade_state].values.all? { |entry| entry[:opacity] >= 1.0 })
+    assert.equal! state[:player].y, 176
+    assert.equal! state[:room].doors.find { |entry| entry[:id] == 267 }[:parts].map { |part| part[:sprite] }, closed
+    # Spawn's camera culls the southern bases. Inspect them with a lower camera
+    # while the reset actor remains far enough away to leave them fully opaque.
+    state[:camera].follow(x: 176, y: 90)
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    closed.each do |sprite|
+      assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
+        state[:camera].to_draw_space(sprite)
+      )
+    end
+  end
+
   # Replace only file I/O for preview tests; parsing still runs in DragonRuby.
   class PreviewTestRuntime
     attr_accessor :contents, :production
