@@ -5,6 +5,66 @@ require 'tests/support/room_helpers'
 class TiledDeserializerTests
   include RoomTestHelpers
 
+  def test_deserializer_assigns_a_canonical_type_to_every_scenery_entry_and_sprite(args, assert)
+    room = tiled_test_room(args)
+    assert.equal! room.ground.map { |sprite| sprite[:type] }.uniq, [:ground]
+    assert.equal! room.floor_details.map { |entry| entry[:type] }.uniq, [:floor_detail]
+    assert.equal! room.ceiling.map { |sprite| sprite[:type] }.uniq.sort, %i[ceiling door]
+    assert.equal! room.objects.map { |entry| entry[:type] }.uniq.sort, %i[door light pedestal wall]
+    (room.objects + room.floor_details).each do |entry|
+      assert.equal! entry[:type], entry[:sprite][:type]
+      assert.false! entry.key?(:kind)
+      assert.false! entry.key?(:layer)
+    end
+    room.doors.each do |door|
+      door[:parts].each do |part|
+        assert.equal! part.values_at(:sprite, :open_sprite, :closed_sprite).map { |sprite| sprite[:type] },
+                      %i[door door door]
+      end
+    end
+  end
+
+  def test_type_resolution_uses_object_class_then_tile_class_then_layer_default(args, assert)
+    data = tiled_test_map(args)
+    object = data['layers'].find { |layer| layer['name'] == 'Props' }['objects'].find { |entry| entry['id'] == 6 }
+    # Modern object class takes precedence over legacy type and inherited Light.
+    object['class'] = 'Prop'
+    room = tiled_test_room(args, data)
+    assert.equal! room.objects.find { |entry| entry[:id] == 6 }[:type], :prop
+    assert.false!(room.lights.any? { |entry| entry[:id] == 6 })
+    object['class'] = ''
+    object['type'] = 'Prop'
+    assert.equal! tiled_test_room(args, data).objects.find { |entry| entry[:id] == 6 }[:type], :prop
+    object.delete('class')
+    object['type'] = ''
+    assert.equal! tiled_test_room(args, data).objects.find { |entry| entry[:id] == 6 }[:type], :light
+    object['gid'] = 302 # Unclassified props tile, with no inherited class.
+    assert.equal! tiled_test_room(args, data).objects.find { |entry| entry[:id] == 6 }[:type], :prop
+  end
+
+  def test_import_rejects_unknown_classes_and_unsupported_class_layer_combinations(args, assert)
+    data = tiled_test_map(args)
+    wall = data['layers'].find { |layer| layer['name'] == 'Walls' }['objects'].first
+    wall['type'] = 'Typo'
+    assert.true! tiled_test_error(data).include?('Unknown tile class "Typo" on Walls')
+    wall['type'] = 'Light'
+    assert.true! tiled_test_error(data).include?('Type light is not supported on Walls')
+    wall['class'] = 123
+    assert.true! tiled_test_error(data).include?('Unknown tile class 123 on Walls')
+  end
+
+  def test_modern_tile_classes_normalize_door_variants_and_caps(args, assert)
+    data = tiled_test_map(args)
+    tiles = data['tilesets'].find { |tileset| tileset['name'] == 'doors' }['tiles']
+    tiles.each { |tile| tile['class'] = tile.delete('type') }
+    room = tiled_test_room(args, data)
+    room.doors.each do |door|
+      room.set_door_open(door[:id], open: true)
+      assert.equal! door[:type], :door
+      assert.true!(door[:parts].all? { |part| part[:sprite][:type] == :door })
+    end
+  end
+
   def test_deserializer_returns_independent_data_and_does_not_mutate_the_export(args, assert)
     data = tiled_test_map(args)
     before = data.to_s
@@ -36,7 +96,7 @@ class TiledDeserializerTests
     assert.equal! [room.ground.length, room.floor_details.length, room.ceiling.length, room.doors.length,
                    room.lights.length, room.pedestals.length], [71, 1, 26, 4, 6, 4]
     assert.equal! room.collision_rects.length, 54
-    assert.true!(room.objects.all? { |entry| entry[:kind] != 'Spawn' })
+    assert.true!(room.objects.all? { |entry| entry[:type] != :spawn })
     assert.true!(room.floor_details.any? { |entry| entry[:id] == 161 })
     assert.false!(room.objects.any? { |entry| entry[:id] == 161 })
     assert.true!(room.ground.any? { |sprite| sprite[:path] == 'sprites/doors.png' })

@@ -33,6 +33,7 @@ module Descent
       }
     }.freeze
     COLLIDER_CONFIG = { w: 8, h: 2 }.freeze
+    OCCLUSION_HEIGHT = 26
     SNEAK_SPEED = 0.5
     WALK_SPEED = 1.0
 
@@ -74,10 +75,6 @@ module Descent
       end
       update_controls(actions, walls: room.collision_rects)
       update_animation
-    end
-
-    def render_data
-      { depth: @y, sprites: [sprite_to_primitive] }
     end
 
     def update_controls(input, walls: [])

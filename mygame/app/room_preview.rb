@@ -49,7 +49,7 @@ module Descent
         player = Player.new
         player.reset(**room.spawn)
         camera = Camera.new(bounds: room.bounds)
-        state.merge!(room: room, player: player, camera: camera, reload_error: nil)
+        state.merge!(room: room, player: player, camera: camera, fade_state: {}, reload_error: nil)
       rescue StandardError => e
         # Only rebuilding is guarded. Gameplay/rendering errors still surface normally.
         state[:reload_error] = e.message
@@ -58,7 +58,11 @@ module Descent
       def render(args)
         state = args.state.room_preview
         frame = state[:room] ? state[:room].render_data : { floor: [], groups: [], ceiling: [] }
-        frame[:groups] << state[:player].render_data if state[:room]
+        if state[:room]
+          actor = state[:player].render_data
+          frame[:groups] << actor
+          frame[:fade_actors] = [actor[:fade_actor]]
+        end
         frame[:world_borders] = []
         frame[:world_markers] = []
         add_diagnostics(frame, state) if state[:room] && state[:show_bounds]
@@ -68,7 +72,8 @@ module Descent
           message = "#{message[0, 72]}..." if message.length > 75
           frame[:hud] << UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 20 }, text: message, color: UI::COLORS[:accent])
         end
-        Render.draw(args, frame: frame, camera: state[:camera])
+        Render.draw(args, frame: frame, camera: state[:camera], fade_state: state[:fade_state] ||= {},
+                          tick: args.state.tick_count)
       end
 
       private
@@ -76,6 +81,9 @@ module Descent
       def add_diagnostics(frame, state)
         frame[:world_borders] = state[:room].collision_rects.map { |rect| rect.merge(r: 235, g: 185, b: 94) }
         frame[:world_borders] << state[:player].collision_rect.merge(r: 90, g: 255, b: 160)
+        frame[:world_borders].concat(state[:room].fade_units.map do |unit|
+          unit[:footprint].merge(r: 100, g: 160, b: 255)
+        end)
         frame[:world_markers] = state[:room].lights.map do |light|
           { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 255, g: 170, b: 60 }
         end

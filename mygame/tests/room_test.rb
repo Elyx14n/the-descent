@@ -5,6 +5,69 @@ require 'tests/support/room_helpers'
 class RoomTests
   include RoomTestHelpers
 
+  def test_south_fade_units_pair_caps_faces_and_corners_without_joining_neighbor_columns(args, assert)
+    room = tiled_test_room(args)
+    [[128, 64, [241], 32], [96, 64, [245, 265], 32], [64, 96, [246], 64]].each do |x, y, ids, base_y|
+      cap = room.ceiling.find { |sprite| sprite[:x] == x && sprite[:y] == y }
+      unit = room.fade_units.find { |candidate| candidate[:sprites].any? { |sprite| sprite.equal?(cap) } }
+      assert.equal! unit[:footprint], { x: x, y: base_y, w: 32, h: 32 }
+      assert.equal! unit[:type], :wall
+      members = room.objects.select do |entry|
+        unit[:sprites].any? { |sprite| sprite.equal?(entry[:sprite]) }
+      end
+      assert.equal! members.map { |entry| entry[:id] }.sort, ids.sort
+      assert.equal! unit[:sprites].length, ids.length + 1
+    end
+  end
+
+  def test_fade_units_include_mounted_artwork_and_doors_but_exclude_ordinary_props(args, assert)
+    room = tiled_test_room(args)
+    wall = room.objects.find { |entry| entry[:id] == 117 }
+    candle = room.objects.find { |entry| entry[:id] == 121 }
+    unit = room.fade_units.find do |candidate|
+      candidate[:sprites].any? { |sprite| sprite.equal?(wall[:sprite]) }
+    end
+    assert.true!(unit[:sprites].any? { |sprite| sprite.equal?(candle[:sprite]) })
+    prop_types = %i[prop light pedestal]
+    ordinary = room.objects.select { |entry| prop_types.include?(entry[:type]) && !entry[:mounted_on] }
+    all_sprites = room.fade_units.flat_map { |candidate| candidate[:sprites] }
+    assert.false!(ordinary.any? { |entry| all_sprites.any? { |sprite| sprite.equal?(entry[:sprite]) } })
+    room.doors.each do |door|
+      assert.true!(all_sprites.any? { |sprite| sprite.equal?(door[:sprite]) })
+    end
+  end
+
+  def test_door_fade_units_keep_active_base_cap_references_and_stable_footprints(args, assert)
+    room = tiled_test_room(args)
+    door = room.doors.find { |entry| entry[:id] == 267 }
+    base, cap = door[:parts].map { |part| part[:sprite] }
+    unit = room.fade_units.find { |candidate| candidate[:sprites].any? { |sprite| sprite.equal?(base) } }
+    assert.equal! unit[:type], :door
+    assert.true!(unit[:sprites].any? { |sprite| sprite.equal?(cap) })
+    footprint = unit[:footprint].dup
+    closed = cap.dup
+    room.set_door_open(267, open: true)
+    assert.equal! unit[:footprint], footprint
+    assert.true!(unit[:sprites].any? { |sprite| sprite.equal?(cap) && sprite[:source_x].zero? })
+    room.set_door_open(267, open: false)
+    assert.equal! cap, closed
+    frame = room.render_data
+    frame[:fade_units].clear
+    assert.true! room.fade_units.any?
+  end
+
+  def test_room_reuses_prepared_fade_geometry_after_door_changes(args, assert)
+    room = tiled_test_room(args)
+    units = room.fade_units
+    assert.true! units.any?
+    room.set_door_open(267, open: true)
+    frame = room.render_data
+    assert.true! room.fade_units.equal?(units)
+    assert.true! frame[:fade_units].first.equal?(units.first)
+    assert.true! room.doors.find { |door| door[:id] == 267 }[:open]
+    assert.true! frame[:fade_units].first[:sprites].last.equal?(room.ceiling.first)
+  end
+
   def test_player_processes_interaction_before_movement_and_animation(args, assert)
     room = tiled_test_room(args)
     room.doors.find { |door| door[:id] == 218 }[:properties]['locked'] = false

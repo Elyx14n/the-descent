@@ -5,6 +5,110 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
+  def test_render_preserves_opacity_history_when_an_actor_leaves_the_column(args, assert)
+    room = tiled_test_room(args)
+    camera = Descent::Camera.new(bounds: room.bounds)
+    camera.follow(x: 144, y: 90)
+    cap = room.ceiling.find { |sprite| sprite[:x] == 128 && sprite[:y] == 64 }
+    state = {}
+    alphas = []
+    out_ticks = Descent::ForegroundFade::FADE_OUT_TICKS
+    in_ticks = Descent::ForegroundFade::FADE_IN_TICKS
+    [[0, 144, 68], [out_ticks, 144, 68], [out_ticks + 1, 180, 100],
+     [out_ticks + in_ticks + 1, 180, 100]].each do |tick, x, y|
+      actor = Descent::Player.new(x: x, y: y).render_data
+      frame = room.render_data
+      frame[:groups] << actor
+      frame[:fade_actors] = [actor[:fade_actor]]
+      original = frame.to_s
+      clear_room_test_outputs(args)
+      Descent::Render.draw(args, frame: frame, camera: camera, fade_state: state, tick: tick)
+      position = camera.to_draw_space(cap)
+      drawn = args.outputs[Descent::Render::TARGET].primitives.flatten.find do |sprite|
+        sprite.except(:a) == position.except(:a)
+      end
+      alphas << drawn[:a]
+      assert.equal! frame.to_s, original
+    end
+    assert.true! alphas[0] > alphas[1]
+    assert.true! alphas[2] > alphas[1]
+    assert.true! alphas[2] < 255
+    assert.equal! alphas.last, 255
+  end
+
+  def test_south_reveal_leaves_neighboring_columns_and_north_gate_opaque(args, assert)
+    room = tiled_test_room(args)
+    camera = Descent::Camera.new(bounds: room.bounds)
+    neighboring_columns = [96, 160]
+    [[144, 68], [176, 318]].each do |x, y|
+      camera.follow(x: x, y: y)
+      actor = Descent::Player.new(x: x, y: y).render_data
+      frame = room.render_data
+      frame[:groups] << actor
+      frame[:fade_actors] = [actor[:fade_actor]]
+      clear_room_test_outputs(args)
+      Descent::Render.draw(args, frame: frame, camera: camera)
+      drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+      if y == 68
+        # Neighbor caps previously faded solely because the empty 64px frame overlapped them.
+        neighboring_columns.each do |cap_x|
+          cap = room.ceiling.find { |sprite| sprite[:x] == cap_x && sprite[:y] == 64 }
+          assert.true! drawn.include?(camera.to_draw_space(cap))
+        end
+        cap = room.ceiling.find { |sprite| sprite[:x] == 128 && sprite[:y] == 64 }
+        assert.false! drawn.include?(camera.to_draw_space(cap))
+      else
+        room.doors.find { |door| door[:id] == 218 }[:parts].each do |part|
+          assert.true! drawn.include?(camera.to_draw_space(part[:sprite]))
+        end
+      end
+    end
+  end
+
+  def test_render_fades_after_sorting_and_preserves_floor_props_hud_and_frame(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    actor = Descent::Player.new(x: 48, y: 80).render_data
+    wall = { x: 32, y: 32, w: 32, h: 32, path: :solid, r: 1, a: 255 }
+    cap = wall.merge(y: 64, r: 2, a: 100)
+    prop = wall.merge(r: 3)
+    floor = wall.merge(r: 4)
+    hud = { x: 10, y: 10, text: 'HUD' }
+    frame = { floor: [floor], groups: [{ depth: 32, sprites: [wall, prop] }, actor], ceiling: [cap],
+              fade_units: [{ type: :wall, base: wall, footprint: wall, sprites: [wall, cap] }],
+              fade_actors: [actor[:fade_actor]], hud: [hud] }
+    original = frame.to_s
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: frame, camera: camera)
+    drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.equal! drawn.select { |sprite| sprite[:r] }.map { |sprite| [sprite[:r], sprite[:a]] },
+                  [[4, 255], [1, 153], [3, 255], [2, 60]]
+    assert.equal! frame.to_s, original
+    assert.true! args.outputs.primitives.flatten.include?(hud)
+  end
+
+  def test_render_restores_opacity_on_retreat_and_keeps_camera_translation_out_of_falloff(args, assert)
+    room = tiled_test_room(args)
+    camera = Descent::Camera.new(bounds: room.bounds)
+    wall = room.objects.find { |entry| entry[:id] == 241 }[:sprite]
+    camera_positions = [80, 120]
+    [80, 96, 80].each do |y|
+      actor = Descent::Player.new(x: 144, y: y).render_data
+      frame = room.render_data
+      frame[:groups] << actor
+      frame[:fade_actors] = [actor[:fade_actor]]
+      expected = y == 80 ? 153 : 255
+      camera_positions.each do |camera_y|
+        camera.follow(x: 144, y: camera_y)
+        clear_room_test_outputs(args)
+        Descent::Render.draw(args, frame: frame, camera: camera)
+        assert.true! args.outputs[Descent::Render::TARGET].primitives.flatten.include?(
+          camera.to_draw_space(wall.merge(a: expected))
+        )
+      end
+    end
+    assert.equal! wall[:a], 255
+  end
+
   def test_render_target_size_is_independent_of_world_size_and_origin(args, assert)
     [{ x: 21, y: 27, w: 100, h: 100 },
      { x: -20_000, y: -30_000, w: 100_000, h: 100_000 }].each do |bounds|

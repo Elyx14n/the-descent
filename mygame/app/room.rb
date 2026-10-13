@@ -5,7 +5,9 @@ require 'app/room_data'
 module Descent
   # Loaded world data. Static artwork uses ordinary DragonRuby primitives.
   class Room
-    attr_reader :bounds, :spawn, *RoomData::COLLECTION_KEYS
+    FADE_BASE_TYPES = %i[wall door].freeze
+
+    attr_reader :bounds, :spawn, :fade_units, *RoomData::COLLECTION_KEYS
 
     def initialize(bounds:, spawn:, collections:)
       @bounds = bounds
@@ -16,6 +18,7 @@ module Descent
       end
 
       prepare_draw_groups
+      prepare_fade_units
       @doors.each { |door| apply_door_state(door) }
     end
 
@@ -29,9 +32,9 @@ module Descent
       { floor: @ground + @floor_details.map { |entry| entry[:sprite] },
         groups: @objects.reject { |entry| entry[:mounted_on] }.map do |entry|
           { depth: entry[:depth],
-            sprites: [entry[:sprite]] + entry.fetch(:mounted_objects, []).map { |mounted| mounted[:sprite] } }
+            sprites: scenery_sprites(entry) }
         end,
-        ceiling: @ceiling.dup }
+        ceiling: @ceiling.dup, fade_units: fade_units.dup }
     end
 
     def toggle_nearest_door(point:, collision_rect:, radius: 24)
@@ -65,6 +68,39 @@ module Descent
     end
 
     private
+
+    def scenery_sprites(entry)
+      [entry[:sprite]] + entry.fetch(:mounted_objects, []).map { |mounted| mounted[:sprite] }
+    end
+
+    # Associate caps locally, without joining a connected wall into one large
+    # fade. Same-cell walls handle corners where face and ceiling art overlap.
+    def prepare_fade_units
+      bases = @objects.select do |entry|
+        !entry[:mounted_on] && FADE_BASE_TYPES.include?(entry[:type])
+      end
+      associated = {}
+      @fade_units = @ceiling.map do |cap|
+        owners = bases.select { |entry| cap_above_base?(cap, entry) }
+        owners.each { |entry| associated[entry[:id]] = true }
+        footprint = owners.min_by { |entry| entry[:sprite][:y] }&.fetch(:sprite) || cap
+        { type: footprint.fetch(:type), base: footprint, footprint: footprint.slice(:x, :y, :w, :h),
+          sprites: owners.flat_map { |entry| scenery_sprites(entry) } + [cap] }
+      end
+      bases.reject { |entry| associated[entry[:id]] }.each do |entry|
+        @fade_units << { type: entry.fetch(:type), base: entry[:sprite],
+                         footprint: entry[:sprite].slice(:x, :y, :w, :h),
+                         sprites: scenery_sprites(entry) }
+      end
+    end
+
+    def cap_above_base?(cap, entry)
+      return true if entry[:type] == :door && entry[:parts].any? { |part| part[:sprite].equal?(cap) }
+
+      base = entry[:sprite]
+      base[:x] == cap[:x] && base[:w] == cap[:w] &&
+        (base[:y] == cap[:y] || base[:y] + base[:h] == cap[:y])
+    end
 
     def apply_door_state(door)
       door[:parts].each do |part|

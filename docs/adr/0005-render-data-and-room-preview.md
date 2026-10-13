@@ -11,7 +11,7 @@ The Tiled integration combined input translation, door interaction, loading, ord
 
 | Module | Owns |
 | --- | --- |
-| `TiledDeserializer` | Validate and decode Tiled JSON into keyword data for `Room.new`; resolve coordinates, crops, collision, and authored references |
+| `TiledDeserializer` | Validate and decode Tiled JSON into keyword data for `Room.new`; normalize scenery types and resolve coordinates, crops, collision, and authored references |
 | `Room` | Room state, active door collision/artwork, nearby-door interaction, and room render data |
 | `Player` | Process semantic player actions, request room interaction, move, and advance animation |
 | `Keybinds` | Physical key assignments, held/pressed semantics, action hashes, and controls hints |
@@ -21,6 +21,20 @@ The Tiled integration combined input translation, door interaction, loading, ord
 The deserializer is a module with private helpers and an explicit per-call context hash. It constructs no Room and retains no mutable module state. `load(gtk, path:)` reads/parses an export; `deserialize(data, path:)` accepts parsed JSON. Both return the keyword data consumed by Room. Room applies the initial door state once, after the deserializer associates bases with ceiling pieces.
 
 Keep Door, Light, and Pedestal data concrete. On 2026-10-12 the user replaced the Tiled Interactable marker with Pedestal and deferred a shared interaction parent or wrapper until mechanics demonstrate a need. `room.pedestals` references the same hashes as room scenery; `item_position` is the world-space placement anchor decoded from source-pixel `offset_x`/`offset_y`. This imports the metadata without implementing item placement or adding another object identity. The gameplay requirement lives in [PRODUCT.md](../../PRODUCT.md).
+
+## Normalized scenery types
+
+Every imported scenery entry and sprite has a mandatory symbolic `type`. Resolve it once in `TiledDeserializer.entry_type`: a nonempty placed-object class overrides the tile class, which overrides the layer default. Both current Tiled `class` and legacy `type` source fields are accepted. Reject unknown classes and unsupported class/layer combinations during import. Room and rendering code consume the canonical symbols; legacy runtime `kind` and `layer` fields are removed.
+
+| Tiled layer | Default type | Other allowed types |
+| --- | --- | --- |
+| Ground | `:ground` | — |
+| FloorDetails | `:floor_detail` | — |
+| Walls | `:wall` | — |
+| Props | `:prop` | `:door`, `:light`, `:pedestal` |
+| Ceiling | `:ceiling` | `:door` |
+
+An authored Spawn remains a point marker and supplies the existing spawn coordinates. Door state variants retain `:door`. Authoring classes and layers still determine how exports are validated and assembled inside the deserializer; they are not reinterpreted by runtime consumers. This keeps existing unclassified environment artwork usable without a Tiled migration. New classes/defaults belong in the central deserializer tables.
 
 ## Development preview and map reuse
 
@@ -34,18 +48,28 @@ These are current capabilities and limits, not an implemented map contract. The 
 
 ## Render-data interface
 
-`Render.draw(args, frame:, camera:)` consumes ordinary hashes. The DTO is the data passed to Render, rather than a separate DTO class. Render reads no Room, Player, input, or gameplay state and does not mutate its input collections or primitives.
+`Render.draw(args, frame:, camera:, fade_state: nil, tick: 0)` consumes ordinary hashes. The DTO is the data passed to Render, rather than a separate DTO class. Render reads no Room, Player, input, or gameplay state and does not mutate its input collections or primitives. The caller may supply a separate mutable opacity-history hash and simulation tick for transitions; omitting that history renders the instantaneous distance target.
 
 | Frame field | Meaning |
 | --- | --- |
 | `floor` | World-space sprites drawn first, including Ground and FloorDetails |
 | `groups` | Hashes with `depth` and `sprites`; world-space groups sorted by descending ground Y, preserving insertion order on ties |
 | `ceiling` | World-space sprites drawn after the sorted groups |
+| `fade_units` | Hashes with the base's canonical `type`, original supporting `base`, world-space `footprint`, and original `sprites` references; associated base/cap artwork shares opacity |
+| `fade_actors` | Hashes with actor ground-anchor `x`, `y`, scaled `occlusion_height`, and an original actor `sprite` reference identifying its final drawing order |
 | `world_borders` | World-space diagnostic border primitives |
 | `world_markers` | World-space diagnostic sprites, such as light-emitter markers |
 | `hud` | Screen-space primitives submitted above the scene |
 
-Omitted collections behave as empty arrays. Room returns fresh floor/group/ceiling collections containing its current artwork; Player returns one depth group. A mounted prop remains inside its supporting wall's group. The consumer appends actor groups and diagnostic/HUD primitives. With no valid room yet, a nil camera allows HUD-only rendering.
+Omitted collections behave as empty arrays. Room returns fresh floor/group/ceiling/fade-unit collections containing its current artwork; Actor returns one depth group plus `fade_actor`. A mounted prop remains inside its supporting wall's group. The consumer appends actor groups, their fade actor data, and diagnostic/HUD primitives. With no valid room yet, a nil camera allows HUD-only rendering.
+
+On 2026-10-14, actor-relative foreground fading extended this interface. Room derives local fade units from Walls, Doors, and Ceiling geometry once when constructed. A ceiling cell shares a unit with bases in the same column occupying its cell or immediately below it; existing door-cap ownership also establishes the association. Mounted artwork inherits its wall's unit. The lowest associated base sprite rectangle supplies the footprint; standalone pieces supply their own. This requires no new Tiled metadata or atlas-ID list.
+
+After stable sorting, Render delegates to `ForegroundFade`, which filters actors by anchored sprite bounds against the viewport. A unit's supporting base must have Y strictly below the actor's ground Y, render after the actor, and contain the actor's center X (left-inclusive, right-exclusive). At least one member rendered after the actor must intersect the vertical center line between feet and visible head with positive height. Actor supplies `occlusion_height` from its measured artwork envelope, scaled with the actor: Player 26 source pixels, Enemy 54. This excludes empty side, bottom, and top padding. Caps inherit eligibility from a qualifying foreground base; a ceiling-pass member cannot make a background base fade. Compare continuous world Y rather than occupied grid rows because the stepped southern wall can cover an actor whose feet share the base's grid cell.
+
+Distance is Euclidean from actor feet to the unit footprint; the target multiplier rises from the type's configured minimum at contact to 1 at 32 world pixels using smoothstep. `ForegroundFade::MIN_OPACITIES` is a frozen table: walls and standalone ceiling pieces use 0.25, doors use 0.75. A whole unit uses its supporting base's type, so a door's cap shares the door setting; a wall's cap and mounted props share the wall setting. The strongest eligible actor controls a unit. The preview supplies per-unit opacity history and ticks so opacity approaches its target at bounded rates: at most 16 ticks for full fade-out and 32 for full fade-in. Transition rates scale to the type's opacity range. Losing eligibility, leaving the viewport, or removing actors targets full opacity through that same transition. Reentering reverses from the current opacity; repeated draws within a tick do not advance it. Shared members receive the strongest multiplier without repeatedly multiplying contributions. Multiply authored alpha on copies, preserving gameplay/artwork state. Keep sprite references shared between drawing collections and fade data when assembling a frame, including any future world translation.
+
+All on-screen actors independently reveal occluding scenery, including Enemy actors when a consumer supplies them. The current preview supplies only Player and owns opacity history in `room_preview[:fade_state]`. Successful room rebuilds reset that history; invalid exports preserve it with the last valid room. Removed units are pruned. Collision, AI sight, lighting, and multiplayer remain independent. The center line approximates occlusion rather than testing artwork pixels; overlapping translucent pieces can compound opacity. [Research and playtest guidance](../notes/foreground-fading.md) records these limits.
 
 Render owns the viewport-sized `:scene` target and always draws its compositing sprite to the screen. The temporary F3/F4 diagnostics were removed on 2026-10-12; sprite and scene-texture sampling inherit game metadata without per-primitive overrides. Camera retains following, clamping, visibility queries, and the tested coordinate/snapping calculations. The accepted HD, pixel-art sampling, and native-raster alignment in [ADR-0001](0001-viewport-sized-camera.md) and [ADR-0002](0002-reference-resolution-and-ui-fonts.md) remain in force.
 

@@ -15,6 +15,7 @@ module Descent
       }.freeze
     }.freeze
     COLLIDER_CONFIG = { w: 24, h: 8 }.freeze
+    OCCLUSION_HEIGHT = 54
     WALK_SPEED = 1.0
 
     def initialize(x: 0, y: 0, scale: 1)
