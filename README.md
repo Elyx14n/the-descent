@@ -1,5 +1,5 @@
 # The Descent
-![alt text](images(1).png)
+![alt text](<big fix.png>)
 
 The Descent is a small, 2D top-down horror game built with DragonRuby. The player explores a monastery, deciphers riddles to find four fabled relics that unlock the Ritual Gate, whilst evading the Witness: an enemy that uses evidence left in the world to anticipate where the player will go.
 
