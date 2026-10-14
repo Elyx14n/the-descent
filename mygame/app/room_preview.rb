@@ -45,7 +45,10 @@ module Descent
         state[:source] = contents
         raise ArgumentError, "#{state[:path]}: Cannot read Tiled map" unless contents
 
-        room = Room.new(**TiledDeserializer.deserialize(args.gtk.parse_json(contents), path: state[:path]))
+        decoded = TiledDeserializer.deserialize(
+          args.gtk.parse_json(contents), path: state[:path], image_loader: ->(image) { args.gtk.get_pixels(image) }
+        )
+        room = Room.new(**decoded)
         player = Player.new
         player.reset(**room.spawn)
         camera = Camera.new(bounds: room.bounds)
@@ -84,6 +87,10 @@ module Descent
         frame[:world_borders].concat(state[:room].fade_units.map do |unit|
           unit[:footprint].merge(r: 100, g: 160, b: 255)
         end)
+        state[:room].fade_units.flat_map { |unit| unit[:sprites] }.uniq.each do |sprite|
+          rect = ForegroundFade.visible_bounds(sprite)
+          frame[:world_borders] << rect.merge(r: 220, g: 100, b: 220) if rect
+        end
         frame[:world_markers] = state[:room].lights.map do |light|
           { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 255, g: 170, b: 60 }
         end

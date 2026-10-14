@@ -46,11 +46,11 @@ class TiledDeserializerTests
     data = tiled_test_map(args)
     wall = data['layers'].find { |layer| layer['name'] == 'Walls' }['objects'].first
     wall['type'] = 'Typo'
-    assert.true! tiled_test_error(data).include?('Unknown tile class "Typo" on Walls')
+    assert.true! tiled_test_error(args, data).include?('Unknown tile class "Typo" on Walls')
     wall['type'] = 'Light'
-    assert.true! tiled_test_error(data).include?('Type light is not supported on Walls')
+    assert.true! tiled_test_error(args, data).include?('Type light is not supported on Walls')
     wall['class'] = 123
-    assert.true! tiled_test_error(data).include?('Unknown tile class 123 on Walls')
+    assert.true! tiled_test_error(args, data).include?('Unknown tile class 123 on Walls')
   end
 
   def test_modern_tile_classes_normalize_door_variants_and_caps(args, assert)
@@ -68,8 +68,10 @@ class TiledDeserializerTests
   def test_deserializer_returns_independent_data_and_does_not_mutate_the_export(args, assert)
     data = tiled_test_map(args)
     before = data.to_s
-    first = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json')
-    second = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json')
+    first = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
+                                                         image_loader: ->(image) { args.gtk.get_pixels(image) })
+    second = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
+                                                          image_loader: ->(image) { args.gtk.get_pixels(image) })
     assert.true! first.is_a?(Hash)
     assert.equal! data.to_s, before
     room = Descent::Room.new(**first)
@@ -86,7 +88,7 @@ class TiledDeserializerTests
     assert.equal! Descent::Room.new(**decoded).spawn, { x: 176, y: 176, facing: :south }
     invalid = tiled_test_map(args)
     invalid['type'] = 'tileset'
-    assert.true! tiled_test_error(invalid).start_with?('tiled/ritual_gate.json:')
+    assert.true! tiled_test_error(args, invalid).start_with?('tiled/ritual_gate.json:')
   end
 
   def test_tiled_export_loads_spawn_artwork_and_gameplay_metadata(args, assert)
@@ -201,7 +203,7 @@ class TiledDeserializerTests
       data = tiled_test_map(args)
       candle = data['layers'].find { |layer| layer['name'] == 'Props' }['objects'].find { |entry| entry['id'] == 121 }
       candle['properties'].find { |prop| prop['name'] == 'mounted_on' }['value'] = target
-      assert.true! tiled_test_error(data).include?("mounted_on target #{target}")
+      assert.true! tiled_test_error(args, data).include?("mounted_on target #{target}")
     end
   end
 
@@ -209,13 +211,13 @@ class TiledDeserializerTests
     data = tiled_test_map(args)
     props = data['layers'].find { |layer| layer['name'] == 'Props' }
     props['objects'].reject! { |object| object['point'] }
-    assert.true! tiled_test_error(data).include?('exactly one point')
+    assert.true! tiled_test_error(args, data).include?('exactly one point')
     data = tiled_test_map(args)
     data['layers'].first['data'][0] = 9999
-    assert.true! tiled_test_error(data).include?('Invalid tile ID')
+    assert.true! tiled_test_error(args, data).include?('Invalid tile ID')
     data = tiled_test_map(args)
     door_tiles = data['tilesets'].find { |tileset| tileset['name'] == 'doors' }['tiles']
     door_tiles.find { |tile| tile['id'] == 2 }['properties'].find { |prop| prop['name'] == 'close_tile' }['value'] = 0
-    assert.true! tiled_test_error(data).include?('Inconsistent Door pair')
+    assert.true! tiled_test_error(args, data).include?('Inconsistent Door pair')
   end
 end

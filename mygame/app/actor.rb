@@ -29,6 +29,7 @@ module Descent
         { x: @x,
           y: @y,
           sprite: sprite,
+          occlusion_width: self.class::OCCLUSION_WIDTH * @scale,
           occlusion_height: self.class::OCCLUSION_HEIGHT * @scale } }
     end
 

@@ -83,14 +83,12 @@ module Descent
       @fade_units = @ceiling.map do |cap|
         owners = bases.select { |entry| cap_above_base?(cap, entry) }
         owners.each { |entry| associated[entry[:id]] = true }
-        footprint = owners.min_by { |entry| entry[:sprite][:y] }&.fetch(:sprite) || cap
-        { type: footprint.fetch(:type), base: footprint, footprint: footprint.slice(:x, :y, :w, :h),
-          sprites: owners.flat_map { |entry| scenery_sprites(entry) } + [cap] }
+        base = owners.min_by { |entry| entry[:sprite][:y] }&.fetch(:sprite) || cap
+        sprites = owners.flat_map { |entry| scenery_sprites(entry) } + [cap]
+        fade_unit(base, sprites: sprites)
       end
       bases.reject { |entry| associated[entry[:id]] }.each do |entry|
-        @fade_units << { type: entry.fetch(:type), base: entry[:sprite],
-                         footprint: entry[:sprite].slice(:x, :y, :w, :h),
-                         sprites: scenery_sprites(entry) }
+        @fade_units << fade_unit(entry[:sprite], sprites: scenery_sprites(entry))
       end
     end
 
@@ -121,6 +119,15 @@ module Descent
         wall[:mounted_objects] ||= []
         wall[:mounted_objects] << entry
       end
+    end
+
+    def fade_unit(base, sprites:)
+      {
+        type: base.fetch(:type),
+        base: base,
+        footprint: base.slice(:x, :y, :w, :h),
+        sprites: sprites
+      }
     end
   end
 end

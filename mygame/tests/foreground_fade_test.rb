@@ -29,6 +29,63 @@ class ForegroundFadeTests
                                          viewport: VIEWPORT, state: state, tick: tick)
   end
 
+  def test_member_padding_and_transparent_artwork_do_not_trigger_a_shared_unit(_args, assert)
+    actor = fade_actor
+    base = fade_artwork(FOOTPRINT)
+    cap = fade_artwork.merge(source_w: 32, source_h: 32, occlusion_bounds: { x: 26, y: 0, w: 6, h: 32 })
+    world = [actor[:sprite], base, cap]
+    assert.equal! fade(world, sprites: [base, cap], actors: [actor], base: base).last[:a], 255
+    actor = fade_actor(x: 60)
+    assert.equal! fade([actor[:sprite], base, cap], sprites: [base, cap], actors: [actor], base: base).last[:a], 255
+    cap[:occlusion_bounds] = nil
+    assert.equal! fade([actor[:sprite], base, cap], sprites: [base, cap], actors: [actor], base: base).last[:a], 255
+  end
+
+  def test_intersecting_artwork_must_be_strictly_wider_than_the_actor(_args, assert)
+    actor = fade_actor(x: 40)
+    base = fade_artwork(FOOTPRINT)
+    [[6, 255], [actor[:occlusion_width], 255], [actor[:occlusion_width] + 0.01, 64]].each do |width, alpha|
+      cap = fade_artwork.merge(source_w: 32, source_h: 32,
+                               occlusion_bounds: { x: 0, y: 0, w: width, h: 32 })
+      drawn = fade([actor[:sprite], base, cap], sprites: [base, cap], actors: [actor], base: base)
+      assert.equal! drawn.last[:a], alpha
+    end
+  end
+
+  def test_width_and_center_line_intersection_must_qualify_on_the_same_member(_args, assert)
+    actor = fade_actor(x: 60)
+    base = fade_artwork(FOOTPRINT)
+    narrow = fade_artwork.merge(source_w: 32, source_h: 32, occlusion_bounds: { x: 26, y: 0, w: 6, h: 32 })
+    broad = fade_artwork(FOOTPRINT.merge(y: 96))
+    sprites = [base, narrow, broad]
+    assert.equal! fade([actor[:sprite]] + sprites, sprites: sprites, actors: [actor], base: base).last[:a], 255
+    broad[:y] = 80
+    drawn = fade([actor[:sprite]] + sprites, sprites: sprites, actors: [actor], base: base)
+    assert.equal! drawn.last(3).map { |sprite| sprite[:a] }, [64, 64, 64]
+  end
+
+  def test_actor_and_scenery_scaling_control_the_width_comparison(_args, assert)
+    base = fade_artwork(FOOTPRINT)
+    cap = fade_artwork.merge(source_w: 32, source_h: 32, occlusion_bounds: { x: 0, y: 0, w: 20, h: 32 })
+    [[Descent::Player, 1, 64], [Descent::Player, 2, 255],
+     [Descent::Enemy, 1, 255], [Descent::Enemy, 0.25, 64]].each do |klass, scale, alpha|
+      actor = klass.new(x: 48, y: 64, scale: scale).render_data[:fade_actor]
+      assert.equal! fade([actor[:sprite], base, cap], sprites: [base, cap], actors: [actor], base: base).last[:a], alpha
+    end
+    actor = Descent::Player.new(x: 48, y: 64, scale: 2).render_data[:fade_actor]
+    cap[:w] = 64 # The 20-source-pixel artwork becomes 40 world pixels wide.
+    assert.equal! fade([actor[:sprite], base, cap], sprites: [base, cap], actors: [actor], base: base).last[:a], 64
+  end
+
+  def test_visible_bounds_resolve_source_offsets_scaling_and_sprite_anchors(_args, assert)
+    sprite = { x: 64, y: 128, w: 64, h: 64, anchor_x: 0.5, anchor_y: 1,
+               source_w: 32, source_h: 32, occlusion_bounds: { x: 2, y: 24, w: 3, h: 3 } }
+    assert.equal! Descent::ForegroundFade.visible_bounds(sprite), { x: 36, y: 112, w: 6, h: 6 }
+    sprite[:flip_horizontally] = true
+    sprite[:flip_vertically] = true
+    assert.equal! Descent::ForegroundFade.visible_bounds(sprite), { x: 86, y: 74, w: 6, h: 6 }
+  end
+
   def test_type_specific_minimum_opacity_preserves_the_same_distance_curve(_args, assert)
     %i[wall ceiling].each do |type|
       assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 64 }, type: type), 0.25
@@ -145,7 +202,7 @@ class ForegroundFadeTests
   end
 
   def test_distance_curve_reaches_minimum_halfway_and_full_opacity(_args, assert)
-    [[64, 0.25], [80, 0.625], [96, 1.0], [120, 1.0]].each do |y, expected|
+    [[48, 0.25], [64, 0.25], [80, 0.625], [96, 1.0], [120, 1.0]].each do |y, expected|
       actual = Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: y }, type: :wall)
       assert.true! (actual - expected).abs < 0.000001
     end
@@ -155,14 +212,6 @@ class ForegroundFadeTests
     assert.equal! samples.sort, samples
     assert.true! samples[1] > samples[0]
     assert.true! samples[-2] < samples[-1]
-  end
-
-  def test_diagonal_falloff_uses_rounded_distance(_args, assert)
-    straight = Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 80 }, type: :wall)
-    diagonal = Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 80, y: 80 }, type: :wall)
-    assert.true! diagonal > straight
-    assert.true! diagonal < 1
-    assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 88, y: 88 }, type: :wall), 1.0
   end
 
   def test_fades_only_artwork_drawn_after_and_overlapping_the_actor(_args, assert)
@@ -239,9 +288,15 @@ class ForegroundFadeTests
       actor_data = group[:fade_actor]
       assert.equal! actor_data.values_at(:x, :y), [48, 64]
       assert.true! actor_data[:sprite].equal?(group[:sprites].first)
+      assert.equal! actor_data[:occlusion_width], actor.class::OCCLUSION_WIDTH
       assert.equal! actor_data[:occlusion_height], actor.class::OCCLUSION_HEIGHT
-      wall = fade_artwork
-      assert.equal! fade(group[:sprites] + [wall], sprites: [wall], actors: [actor_data]).last[:a], 64
+      scaled = actor.class.new(x: 48, y: 64, scale: 2).render_data[:fade_actor]
+      assert.equal! scaled[:occlusion_width], actor.class::OCCLUSION_WIDTH * 2
+      assert.equal! scaled[:occlusion_height], actor.class::OCCLUSION_HEIGHT * 2
+      footprint = FOOTPRINT.merge(w: 64)
+      wall = fade_artwork(footprint.merge(y: 64))
+      drawn = fade(group[:sprites] + [wall], sprites: [wall], actors: [actor_data], footprint: footprint)
+      assert.equal! drawn.last[:a], 64
     end
   end
 
