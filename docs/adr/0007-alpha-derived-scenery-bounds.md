@@ -13,7 +13,7 @@ An outside-room playtest found that the vertical side walls and closed side door
 
 Every imported sprite carries `occlusion_bounds`, a rectangle in source pixels relative to the crop's bottom-left corner. It includes the offset as well as width and height. Alpha greater than zero contributes to the rectangle, regardless of the sprite's authored opacity. An entirely transparent crop carries `occlusion_bounds: nil`. Missing or out-of-range image data rejects loading rather than silently falling back to frame bounds.
 
-The drawing rectangle and atlas crop remain unchanged. `ForegroundFade.visible_bounds` transforms the local measurement into world coordinates, accounting for sprite anchors, scaling, and horizontal/vertical flips. Door state changes replace the measurement together with the artwork while retaining the original sprite reference. Hand-built primitives lacking `occlusion_bounds` use their drawing rectangle; an explicitly measured empty sprite has no occluding rectangle.
+The drawing rectangle and atlas crop remain unchanged. `ForegroundFade.alpha_bounds` transforms the local measurement into world coordinates, accounting for sprite anchors, scaling, and horizontal/vertical flips. Door state changes replace the measurement together with the artwork while retaining the original sprite reference. Hand-built primitives lacking `occlusion_bounds` use their drawing rectangle; an explicitly measured empty sprite has no occluding rectangle.
 
 ## Fade behavior
 

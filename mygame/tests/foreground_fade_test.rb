@@ -77,13 +77,13 @@ class ForegroundFadeTests
     assert.equal! fade([actor[:sprite], base, cap], sprites: [base, cap], actors: [actor], base: base).last[:a], 64
   end
 
-  def test_visible_bounds_resolve_source_offsets_scaling_and_sprite_anchors(_args, assert)
+  def test_alpha_bounds_resolve_source_offsets_scaling_and_sprite_anchors(_args, assert)
     sprite = { x: 64, y: 128, w: 64, h: 64, anchor_x: 0.5, anchor_y: 1,
                source_w: 32, source_h: 32, occlusion_bounds: { x: 2, y: 24, w: 3, h: 3 } }
-    assert.equal! Descent::ForegroundFade.visible_bounds(sprite), { x: 36, y: 112, w: 6, h: 6 }
+    assert.equal! Descent::ForegroundFade.alpha_bounds(sprite), { x: 36, y: 112, w: 6, h: 6 }
     sprite[:flip_horizontally] = true
     sprite[:flip_vertically] = true
-    assert.equal! Descent::ForegroundFade.visible_bounds(sprite), { x: 86, y: 74, w: 6, h: 6 }
+    assert.equal! Descent::ForegroundFade.alpha_bounds(sprite), { x: 86, y: 74, w: 6, h: 6 }
   end
 
   def test_type_specific_minimum_opacity_preserves_the_same_distance_curve(_args, assert)

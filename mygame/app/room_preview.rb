@@ -88,7 +88,7 @@ module Descent
           unit[:footprint].merge(r: 100, g: 160, b: 255)
         end)
         state[:room].fade_units.flat_map { |unit| unit[:sprites] }.uniq.each do |sprite|
-          rect = ForegroundFade.visible_bounds(sprite)
+          rect = ForegroundFade.alpha_bounds(sprite)
           frame[:world_borders] << rect.merge(r: 220, g: 100, b: 220) if rect
         end
         frame[:world_markers] = state[:room].lights.map do |light|
