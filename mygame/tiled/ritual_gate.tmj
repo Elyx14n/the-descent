@@ -623,7 +623,7 @@
                  "y":196
                 }, 
                 {
-                 "gid":412,
+                 "gid":652,
                  "height":32,
                  "id":6,
                  "name":"",
@@ -642,7 +642,7 @@
                         {
                          "name":"intensity",
                          "type":"float",
-                         "value":0
+                         "value":1
                         }, 
                         {
                          "name":"offset_x",
@@ -667,7 +667,7 @@
                  "y":152
                 }, 
                 {
-                 "gid":412,
+                 "gid":652,
                  "height":32,
                  "id":7,
                  "name":"",
@@ -686,7 +686,7 @@
                         {
                          "name":"intensity",
                          "type":"float",
-                         "value":0
+                         "value":1
                         }, 
                         {
                          "name":"offset_x",
@@ -711,7 +711,7 @@
                  "y":152
                 }, 
                 {
-                 "gid":412,
+                 "gid":652,
                  "height":32,
                  "id":8,
                  "name":"",
@@ -730,7 +730,7 @@
                         {
                          "name":"intensity",
                          "type":"float",
-                         "value":0
+                         "value":1
                         }, 
                         {
                          "name":"offset_x",
@@ -755,7 +755,7 @@
                  "y":280
                 }, 
                 {
-                 "gid":412,
+                 "gid":652,
                  "height":32,
                  "id":9,
                  "name":"",
@@ -774,7 +774,7 @@
                         {
                          "name":"intensity",
                          "type":"float",
-                         "value":0
+                         "value":1
                         }, 
                         {
                          "name":"offset_x",
@@ -799,7 +799,7 @@
                  "y":280
                 }, 
                 {
-                 "gid":429,
+                 "gid":617,
                  "height":16,
                  "id":121,
                  "name":"",
@@ -818,7 +818,7 @@
                         {
                          "name":"intensity",
                          "type":"float",
-                         "value":0
+                         "value":1
                         }, 
                         {
                          "name":"mounted_on",
@@ -848,7 +848,7 @@
                  "y":86
                 }, 
                 {
-                 "gid":2147484077,
+                 "gid":2147484265,
                  "height":16,
                  "id":122,
                  "name":"",
@@ -867,7 +867,7 @@
                         {
                          "name":"intensity",
                          "type":"float",
-                         "value":0
+                         "value":1
                         }, 
                         {
                          "name":"mounted_on",
@@ -2812,6 +2812,399 @@
                          "value":24
                         }],
                  "type":"Door"
+                }],
+         "tilewidth":32
+        }, 
+        {
+         "columns":5,
+         "firstgid":616,
+         "image":"..\/sprites\/lights.png",
+         "imageheight":256,
+         "imagewidth":160,
+         "margin":0,
+         "name":"lightss",
+         "spacing":0,
+         "tilecount":40,
+         "tileheight":32,
+         "tiles":[
+                {
+                 "id":0,
+                 "type":"Light"
+                }, 
+                {
+                 "animation":[
+                        {
+                         "duration":125,
+                         "tileid":1
+                        }, 
+                        {
+                         "duration":125,
+                         "tileid":2
+                        }, 
+                        {
+                         "duration":125,
+                         "tileid":3
+                        }, 
+                        {
+                         "duration":125,
+                         "tileid":4
+                        }],
+                 "id":1,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":2,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":3,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":4,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":5,
+                 "type":"Light"
+                }, 
+                {
+                 "id":6,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":7,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":8,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":9,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":10,
+                 "type":"Light"
+                },
+            
+                {
+                 "id":11,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":12,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":13,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":14,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":15,
+                 "type":"Light"
+                }, 
+                {
+                 "id":16,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":17,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":18,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":19,
+                 "properties":[
+                        {
+                         "name":"offset_x",
+                         "type":"float",
+                         "value":15
+                        }, 
+                        {
+                         "name":"offset_y",
+                         "type":"float",
+                         "value":6
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":20,
+                 "type":"Light"
+                }, 
+                {
+                 "id":21,
+                 "type":"Light"
+                },
+            
+                {
+                 "id":22,
+                 "type":"Light"
+                }, 
+                {
+                 "id":23,
+                 "type":"Light"
+                }, 
+                {
+                 "id":24,
+                 "type":"Light"
+                }, 
+                {
+                 "id":25,
+                 "type":"Light"
+                }, 
+                {
+                 "id":26,
+                 "type":"Light"
+                }, 
+                {
+                 "id":27,
+                 "type":"Light"
+                }, 
+                {
+                 "id":28,
+                 "type":"Light"
+                }, 
+                {
+                 "id":29,
+                 "type":"Light"
+                }, 
+                {
+                 "id":30,
+                 "type":"Light"
+                }, 
+                {
+                 "id":31,
+                 "type":"Light"
+                }, 
+                {
+                 "id":32,
+                 "type":"Light"
+                },
+            
+                {
+                 "id":33,
+                 "type":"Light"
+                }, 
+                {
+                 "id":34,
+                 "type":"Light"
+                }, 
+                {
+                 "id":35,
+                 "type":"Light"
+                }, 
+                {
+                 "animation":[
+                        {
+                         "duration":125,
+                         "tileid":36
+                        }, 
+                        {
+                         "duration":125,
+                         "tileid":37
+                        }, 
+                        {
+                         "duration":125,
+                         "tileid":38
+                        }, 
+                        {
+                         "duration":125,
+                         "tileid":39
+                        }],
+                 "id":36,
+                 "properties":[
+                        {
+                         "name":"unlit_id",
+                         "type":"int",
+                         "value":35
+                        }],
+                 "type":"Light"
+                }, 
+                {
+                 "id":37,
+                 "type":"Light"
+                }, 
+                {
+                 "id":38,
+                 "type":"Light"
+                }, 
+                {
+                 "id":39,
+                 "type":"Light"
                 }],
          "tilewidth":32
         }],
