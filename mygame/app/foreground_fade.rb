@@ -19,7 +19,7 @@ module Descent
         indices = {}
         world.each_with_index { |sprite, index| indices[sprite.object_id] = index }
         visible = actors.select do |actor|
-          indices.key?(actor[:sprite].object_id) && Geometry.intersect_rect?(bounds(actor[:sprite]), viewport)
+          indices.key?(actor[:sprite].object_id) && Geometry.intersect_rect?(actor[:sprite], viewport)
         end
         multipliers = {}
         active = {}
@@ -33,7 +33,7 @@ module Descent
           if state
             id = unit.object_id
             active[id] = true
-            opacity = transition(opacity, state: state, id: id, tick: tick, min_opacity: min_opacity)
+            opacity = approach_opacity(opacity, state: state, id: id, tick: tick, min_opacity: min_opacity)
           end
           next if opacity >= 1.0
 
@@ -55,23 +55,43 @@ module Descent
           w: sprite[:w], h: sprite[:h] }
       end
 
-      def multiplier(footprint, point, type:)
-        dx = point[:x] - point[:x].clamp(footprint[:x], footprint[:x] + footprint[:w])
-        dy = point[:y] - point[:y].clamp(footprint[:y], footprint[:y] + footprint[:h])
-        t = Math.hypot(dx, dy).fdiv(RADIUS).clamp(0, 1)
+      def alpha_bounds(sprite)
+        return bounds(sprite) unless sprite.key?(:occlusion_bounds)
+
+        local = sprite[:occlusion_bounds]
+        return unless local
+
+        frame = bounds(sprite)
+        x = sprite[:flip_horizontally] ? sprite[:source_w] - local[:x] - local[:w] : local[:x]
+        y = sprite[:flip_vertically] ? sprite[:source_h] - local[:y] - local[:h] : local[:y]
+        scale_x = sprite[:w].fdiv(sprite[:source_w])
+        scale_y = sprite[:h].fdiv(sprite[:source_h])
+        { x: frame[:x] + (x * scale_x), y: frame[:y] + (y * scale_y),
+          w: local[:w] * scale_x, h: local[:h] * scale_y }
+      end
+
+      def multiplier(footprint, actor, type:)
+        # Measure vertical gap between the player's y above the footprint's top edge; inside it, the gap is zero.
+        d = [actor[:y] - (footprint[:y] + footprint[:h]), 0].max
+        # Normalize the gap to 0–1 across the fade radius.
+        t = d.fdiv(RADIUS).clamp(0, 1)
         min_opacity = MIN_OPACITIES.fetch(type)
-        min_opacity + ((1 - min_opacity) * (t**2) * (3 - (2 * t)))
+        # Smoothstep formula = 3t^2 - 2t^3 for S-shaped transformation
+        smooth_step = (3 * (t**2)) - (2 * (t**3))
+        # Interpolate opacity values using smoothstep to full opacity
+        min_opacity.lerp(1.0, smooth_step)
       end
 
       private
 
-      def transition(target, state:, id:, tick:, min_opacity:)
+      def approach_opacity(target, state:, id:, tick:, min_opacity:)
         previous = state[id] || { opacity: 1.0, tick: tick - 1 }
         elapsed = [tick - previous[:tick], 0].max
         opacity = previous[:opacity]
         duration = target < opacity ? FADE_OUT_TICKS : FADE_IN_TICKS
         step = (1 - min_opacity) * elapsed.fdiv(duration)
-        opacity += (target - opacity).clamp(-step, step)
+        # Move opacity toward the target by at most step, stopping exactly at the target
+        opacity = opacity.towards(target, step)
         state[id] = { opacity: opacity, tick: tick }
         opacity
       end
@@ -91,9 +111,13 @@ module Descent
         base_bounds = bounds(base)
         return false unless base_bounds[:x] <= actor[:x] && actor[:x] < base_bounds[:x] + base_bounds[:w]
 
+        # A member must cross the center line and be wider than the actor's body.
         unit[:sprites].any? do |sprite|
           index = indices[sprite.object_id]
-          index && index > actor_index && crosses_center?(bounds(sprite), actor)
+          next false unless index && index > actor_index
+
+          rect = alpha_bounds(sprite)
+          rect && rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
         end
       end
 

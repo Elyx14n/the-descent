@@ -73,6 +73,10 @@ class RoomPreviewTests
       @gtk.parse_json(contents)
     end
 
+    def get_pixels(path)
+      @gtk.get_pixels(path)
+    end
+
     def production?
       @production
     end

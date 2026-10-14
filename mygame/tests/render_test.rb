@@ -5,6 +5,30 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
+  def test_narrow_side_walls_and_closed_doors_stay_opaque_even_when_crossing_the_actor_center(args, assert)
+    room = tiled_test_room(args)
+    camera = Descent::Camera.new(bounds: room.bounds)
+    [193, 166, 217, 216].each do |id|
+      base = room.objects.find { |entry| entry[:id] == id }[:sprite]
+      visible = Descent::ForegroundFade.alpha_bounds(base)
+      [base[:x] + 16, visible[:x] + (visible[:w] / 2)].each do |x|
+        actor = Descent::Player.new(x: x, y: base[:y] + 8).render_data
+        frame = room.render_data
+        frame[:groups] << actor
+        frame[:fade_actors] = [actor[:fade_actor]]
+        camera.follow(x: x, y: base[:y] + 8)
+        clear_room_test_outputs(args)
+        Descent::Render.draw(args, frame: frame, camera: camera)
+        position = camera.to_draw_space(base)
+        drawn = args.outputs[Descent::Render::TARGET].primitives.flatten.find do |sprite|
+          sprite.except(:a) == position.except(:a)
+        end
+        assert.equal! drawn[:a], 255
+      end
+      assert.equal! base[:a], 255
+    end
+  end
+
   def test_render_preserves_opacity_history_when_an_actor_leaves_the_column(args, assert)
     room = tiled_test_room(args)
     camera = Descent::Camera.new(bounds: room.bounds)
@@ -91,12 +115,13 @@ class RenderTests
     camera = Descent::Camera.new(bounds: room.bounds)
     wall = room.objects.find { |entry| entry[:id] == 241 }[:sprite]
     camera_positions = [80, 120]
-    [80, 96, 80].each do |y|
+    # At 68 the center line crosses the cap's artwork; 80 only crossed its padding.
+    [68, 96, 68].each do |y|
       actor = Descent::Player.new(x: 144, y: y).render_data
       frame = room.render_data
       frame[:groups] << actor
       frame[:fade_actors] = [actor[:fade_actor]]
-      expected = y == 80 ? 159 : 255
+      expected = y == 68 ? 72 : 255
       camera_positions.each do |camera_y|
         camera.follow(x: 144, y: camera_y)
         clear_room_test_outputs(args)

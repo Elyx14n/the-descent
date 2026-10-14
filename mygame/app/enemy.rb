@@ -15,6 +15,8 @@ module Descent
       }.freeze
     }.freeze
     COLLIDER_CONFIG = { w: 24, h: 8 }.freeze
+    # Maximum visible body width across the current walking frames and facings.
+    OCCLUSION_WIDTH = 60
     OCCLUSION_HEIGHT = 54
     WALK_SPEED = 1.0
 

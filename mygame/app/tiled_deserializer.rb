@@ -32,16 +32,19 @@ module Descent
         contents = gtk.read_file(path)
         raise ArgumentError, "#{path}: Cannot read Tiled map" unless contents
 
-        deserialize(gtk.parse_json(contents), path: path)
+        deserialize(gtk.parse_json(contents), path: path, image_loader: ->(image) { gtk.get_pixels(image) })
       end
 
-      def deserialize(data, path:)
+      def deserialize(data, path:, image_loader:)
         context = {
           data: data,
           path: path,
           collections: RoomData.empty_collections,
           caps: {},
-          spawns: []
+          spawns: [],
+          image_loader: image_loader,
+          images: {},
+          alpha_bounds: {}
         }
         validate_map(context)
         prepare_tilesets(context)
@@ -176,7 +179,7 @@ module Descent
         type
       end
 
-      def sprite_for(tile, rect, type:, gid: 0, opacity: 1)
+      def sprite_for(context, tile, rect, type:, gid: 0, opacity: 1)
         tileset = tile[:tileset]
         w = tileset.fetch('tilewidth')
         h = tileset.fetch('tileheight')
@@ -186,11 +189,47 @@ module Descent
         row = tile[:id].div(tileset.fetch('columns'))
         # Test flags on the original GID, not the tile ID that had them cleared.
         # anybits? returns a boolean for DragonRuby's sprite flip settings.
-        rect.merge(type: type, path: tileset.fetch('resolved_image'),
-                   source_x: margin + (column * (w + spacing)),
-                   source_y: tileset.fetch('imageheight') - margin - (row * (h + spacing)) - h,
-                   source_w: w, source_h: h, a: (opacity * 255).round,
-                   flip_horizontally: gid.anybits?(HORIZONTAL), flip_vertically: gid.anybits?(VERTICAL))
+        sprite = rect.merge(type: type, path: tileset.fetch('resolved_image'),
+                            source_x: margin + (column * (w + spacing)),
+                            source_y: tileset.fetch('imageheight') - margin - (row * (h + spacing)) - h,
+                            source_w: w, source_h: h, a: (opacity * 255).round,
+                            flip_horizontally: gid.anybits?(HORIZONTAL), flip_vertically: gid.anybits?(VERTICAL))
+        sprite.merge(occlusion_bounds: alpha_bounds(context, sprite))
+      end
+
+      # Measure each crop once per load. Store source-local bottom-left bounds,
+      # retaining offsets so padding rejection follows placement, scale and flips.
+      def alpha_bounds(context, sprite)
+        key = sprite.values_at(:path, :source_x, :source_y, :source_w, :source_h)
+        cache = context[:alpha_bounds]
+        return cache[key] if cache.key?(key)
+
+        image = context[:images][sprite[:path]] ||= context[:image_loader].call(sprite[:path])
+        unless image && image[:pixels] && image[:w].positive? && image[:h].positive?
+          raise_map_error(context, "Cannot read tile image: #{sprite[:path]}")
+        end
+        top = image[:h] - sprite[:source_y] - sprite[:source_h]
+        if top.negative? || sprite[:source_x].negative? ||
+           sprite[:source_x] + sprite[:source_w] > image[:w] || top + sprite[:source_h] > image[:h]
+          raise_map_error(context, "Tile crop is outside image: #{sprite[:path]}")
+        end
+
+        left = sprite[:source_w]
+        upper = sprite[:source_h]
+        right = lower = 0
+        sprite[:source_h].times do |row|
+          offset = ((top + row) * image[:w]) + sprite[:source_x]
+          sprite[:source_w].times do |column|
+            alpha = (image[:pixels][offset + column] >> 24) & 255
+            next if alpha.zero?
+
+            left = [left, column].min
+            upper = [upper, row].min
+            right = [right, column + 1].max
+            lower = [lower, row + 1].max
+          end
+        end
+        cache[key] = ({ x: left, y: sprite[:source_h] - lower, w: right - left, h: lower - upper } if right > left)
       end
 
       def load_tile_layer(context, layer)
@@ -207,7 +246,7 @@ module Descent
           row = index.div(layer['width'])
           rect = { x: column * context[:tile_w], y: context[:height] - ((row + 1) * context[:tile_h]),
                    w: tile[:tileset]['tilewidth'], h: tile[:tileset]['tileheight'] }
-          sprite = sprite_for(tile, rect, type: type, gid: gid, opacity: layer.fetch('opacity', 1))
+          sprite = sprite_for(context, tile, rect, type: type, gid: gid, opacity: layer.fetch('opacity', 1))
           target = layer['name'] == 'Ground' ? collections[:ground] : collections[:ceiling]
           target << sprite if layer.fetch('visible', true)
           if type == :door
@@ -233,8 +272,8 @@ module Descent
           type = entry_type(context, layer, tile: tile, object: object)
           rect = { x: object.fetch('x'), y: context[:height] - object.fetch('y'),
                    w: object.fetch('width'), h: object.fetch('height') }
-          sprite = sprite_for(tile, rect, type: type, gid: object['gid'],
-                                          opacity: layer.fetch('opacity', 1) * object.fetch('opacity', 1))
+          sprite = sprite_for(context, tile, rect, type: type, gid: object['gid'],
+                                                   opacity: layer.fetch('opacity', 1) * object.fetch('opacity', 1))
           props = properties(tile[:definition]).merge(properties(object))
           shapes = collision_shapes(context, tile, sprite)
           entry = { id: object.fetch('id'), type: type, sprite: sprite, properties: props,
@@ -335,7 +374,7 @@ module Descent
 
       def door_sprite(context, tileset, id, sprite)
         # Retain placement, scaling and flips while changing only the atlas crop.
-        sprite_for(local_tile(context, tileset, id), sprite, type: sprite.fetch(:type)).merge(
+        sprite_for(context, local_tile(context, tileset, id), sprite, type: sprite.fetch(:type)).merge(
           flip_horizontally: sprite[:flip_horizontally], flip_vertically: sprite[:flip_vertically], a: sprite[:a]
         )
       end
