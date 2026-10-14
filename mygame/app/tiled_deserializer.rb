@@ -291,7 +291,11 @@ module Descent
             collections[:doors] << entry
           else
             collections[:colliders].concat(shapes)
-            collections[:lights] << light_source(entry, sprite, props) if type == :light
+            if type == :light
+              entry.merge!(light_source(entry, sprite, props))
+              entry.merge!(light_animation(context, tile, sprite, props))
+              collections[:lights] << entry
+            end
             if type == :pedestal
               # Item anchor uses the same source-pixel convention as light offsets.
               entry[:item_position] = local_point(sprite, props.fetch('offset_x', 0), props.fetch('offset_y', 0))
@@ -351,6 +355,33 @@ module Descent
         )
       end
 
+      def light_animation(context, tile, sprite, props)
+        unless [true, false].include?(props.fetch('enabled', true))
+          raise_map_error(context, "Light enabled must be boolean on tile #{tile[:id]}")
+        end
+        unlit = local_tile(context, tile[:tileset], props['unlit_id'])
+        if unlit[:definition].key?('animation')
+          raise_map_error(context, "Light unlit_id must reference a static tile: #{tile[:id]}")
+        end
+        authored = tile[:definition]['animation']
+        unless authored.is_a?(Array) && authored.any?
+          raise_map_error(context, "Place an animated lit Light tile: #{tile[:id]}")
+        end
+        duration = 0
+        frames = authored.map do |frame|
+          unless frame['duration'].is_a?(Integer) && frame['duration'].positive?
+            raise_map_error(context, "Light animation durations must be positive milliseconds: #{tile[:id]}")
+          end
+          duration += frame['duration']
+          { sprite: variant_sprite(context, tile[:tileset], frame['tileid'], sprite), end_ms: duration }
+        end
+        durations = authored.map { |frame| frame['duration'] }.uniq
+        frame_ticks = durations.first * 60
+        { unlit_sprite: variant_sprite(context, tile[:tileset], unlit[:id], sprite),
+          animation: frames, animation_duration: duration,
+          frame_ticks: (frame_ticks.div(1000) if durations.length == 1 && (frame_ticks % 1000).zero?) }
+      end
+
       def door_part(context, tile, sprite, props)
         closed = props['close_tile']
         opened = props['open_tile']
@@ -368,11 +399,11 @@ module Descent
             raise_map_error(context, "Inconsistent Door pair #{closed}/#{opened}")
           end
         end
-        { sprite: sprite, closed_sprite: door_sprite(context, tile[:tileset], closed, sprite),
-          open_sprite: door_sprite(context, tile[:tileset], opened, sprite) }
+        { sprite: sprite, closed_sprite: variant_sprite(context, tile[:tileset], closed, sprite),
+          open_sprite: variant_sprite(context, tile[:tileset], opened, sprite) }
       end
 
-      def door_sprite(context, tileset, id, sprite)
+      def variant_sprite(context, tileset, id, sprite)
         # Retain placement, scaling and flips while changing only the atlas crop.
         sprite_for(context, local_tile(context, tileset, id), sprite, type: sprite.fetch(:type)).merge(
           flip_horizontally: sprite[:flip_horizontally], flip_vertically: sprite[:flip_vertically], a: sprite[:a]

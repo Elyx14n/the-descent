@@ -134,6 +134,7 @@ class RoomPreviewTests
     player.x = 100
     player.toggle_lamp
     room.set_door_open(218, open: true)
+    room.set_light_enabled(6, enabled: false)
     preview[:inputs][:keyboard] = keybind_test_keyboard(args)
     preview[:gtk].contents = "#{original}\n" # Same byte count; contents determine changes.
     assert.true! preview_test_tick(preview, 29)[:room].equal?(room)
@@ -144,6 +145,7 @@ class RoomPreviewTests
     assert.equal! state[:player].x, 176
     assert.true! state[:player].lamp_on
     assert.false! state[:room].doors.find { |door| door[:id] == 218 }[:open]
+    assert.true! state[:room].lights.find { |light| light[:id] == 6 }[:enabled]
     assert.true! state[:show_bounds]
     assert.equal! preview[:gtk].parses, 2
     replacement = state[:room]
@@ -156,11 +158,13 @@ class RoomPreviewTests
     preview = preview_test_args(args)
     state = preview_test_tick(preview, 0)
     room, player, camera = state.values_at(:room, :player, :camera)
+    room.set_light_enabled(6, enabled: false)
     preview[:gtk].contents = '{'
     state = preview_test_tick(preview, 30)
     assert.true! state[:room].equal?(room)
     assert.true! state[:player].equal?(player)
     assert.true! state[:camera].equal?(camera)
+    assert.false! state[:room].lights.find { |light| light[:id] == 6 }[:enabled]
     assert.true! state[:reload_error].is_a?(String)
     assert.true!(preview[:outputs].primitives.flatten.any? { |primitive| primitive[:text]&.start_with?('Reload:') })
     preview_test_tick(preview, 60)
@@ -212,5 +216,31 @@ class RoomPreviewTests
     Descent::RoomPreview.tick(preview, path: 'tiled/another_room.json')
     assert.false! preview[:state][:room_preview][:room].equal?(room)
     assert.equal! preview[:gtk].paths.last, 'tiled/another_room.json'
+  end
+
+  def test_preview_drives_light_animation_and_e_only_toggles_on_press(args, assert)
+    preview = preview_test_args(args)
+    state = preview_test_tick(preview, 0)
+    light = state[:room].lights.find { |entry| entry[:id] == 6 }
+    sprite = light[:sprite]
+    assert.equal! sprite[:source_x], 32
+    state[:player].reset(x: 240, y: 220)
+    preview_test_tick(preview, 9)
+    assert.equal! sprite[:source_x], 64
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:e])
+    preview_test_tick(preview, 10)
+    assert.false! light[:enabled]
+    assert.equal! sprite[:source_x], 0
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, held: [:e])
+    preview_test_tick(preview, 18)
+    assert.false! light[:enabled]
+    assert.equal! sprite[:source_x], 0
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:e])
+    preview_test_tick(preview, 27)
+    assert.true! light[:enabled]
+    assert.equal! sprite[:source_x], 128
+    assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
+      state[:camera].to_draw_space(sprite)
+    )
   end
 end

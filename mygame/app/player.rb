@@ -73,7 +73,7 @@ module Descent
     # opened this tick immediately supplies its open variant's collision.
     def update(actions, room:)
       if actions[:interact] && @sanity.positive?
-        room.toggle_nearest_door(point: { x: @x, y: @y }, collision_rect: collision_rect)
+        room.toggle_nearest_interactable(point: { x: @x, y: @y }, collision_rect: collision_rect)
       end
       update_controls(actions, walls: room.collision_rects)
       update_animation

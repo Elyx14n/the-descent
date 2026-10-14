@@ -2834,19 +2834,19 @@
                 {
                  "animation":[
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":1
                         }, 
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":2
                         }, 
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":3
                         }, 
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":4
                         }],
                  "id":1,
@@ -3165,27 +3165,75 @@
                 }, 
                 {
                  "id":35,
+                 "objectgroup":
+                    {
+                     "draworder":"index",
+                     "id":2,
+                     "name":"",
+                     "objects":[
+                            {
+                             "height":4,
+                             "id":1,
+                             "name":"",
+                             "opacity":1,
+                             "rotation":0,
+                             "type":"",
+                             "visible":true,
+                             "width":10,
+                             "x":11,
+                             "y":26
+                            }],
+                     "opacity":1,
+                     "type":"objectgroup",
+                     "visible":true,
+                     "x":0,
+                     "y":0
+                    },
                  "type":"Light"
                 }, 
                 {
                  "animation":[
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":36
                         }, 
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":37
                         }, 
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":38
                         }, 
                         {
-                         "duration":125,
+                         "duration":150,
                          "tileid":39
                         }],
                  "id":36,
+                 "objectgroup":
+                    {
+                     "draworder":"index",
+                     "id":2,
+                     "name":"",
+                     "objects":[
+                            {
+                             "height":4,
+                             "id":1,
+                             "name":"",
+                             "opacity":1,
+                             "rotation":0,
+                             "type":"",
+                             "visible":true,
+                             "width":10,
+                             "x":11,
+                             "y":26
+                            }],
+                     "opacity":1,
+                     "type":"objectgroup",
+                     "visible":true,
+                     "x":0,
+                     "y":0
+                    },
                  "properties":[
                         {
                          "name":"unlit_id",
@@ -3196,14 +3244,86 @@
                 }, 
                 {
                  "id":37,
+                 "objectgroup":
+                    {
+                     "draworder":"index",
+                     "id":2,
+                     "name":"",
+                     "objects":[
+                            {
+                             "height":4,
+                             "id":1,
+                             "name":"",
+                             "opacity":1,
+                             "rotation":0,
+                             "type":"",
+                             "visible":true,
+                             "width":10,
+                             "x":11,
+                             "y":26
+                            }],
+                     "opacity":1,
+                     "type":"objectgroup",
+                     "visible":true,
+                     "x":0,
+                     "y":0
+                    },
                  "type":"Light"
                 }, 
                 {
                  "id":38,
+                 "objectgroup":
+                    {
+                     "draworder":"index",
+                     "id":2,
+                     "name":"",
+                     "objects":[
+                            {
+                             "height":4,
+                             "id":1,
+                             "name":"",
+                             "opacity":1,
+                             "rotation":0,
+                             "type":"",
+                             "visible":true,
+                             "width":10,
+                             "x":11,
+                             "y":26
+                            }],
+                     "opacity":1,
+                     "type":"objectgroup",
+                     "visible":true,
+                     "x":0,
+                     "y":0
+                    },
                  "type":"Light"
                 }, 
                 {
                  "id":39,
+                 "objectgroup":
+                    {
+                     "draworder":"index",
+                     "id":2,
+                     "name":"",
+                     "objects":[
+                            {
+                             "height":4,
+                             "id":1,
+                             "name":"",
+                             "opacity":1,
+                             "rotation":0,
+                             "type":"",
+                             "visible":true,
+                             "width":10,
+                             "x":11,
+                             "y":26
+                            }],
+                     "opacity":1,
+                     "type":"objectgroup",
+                     "visible":true,
+                     "x":0,
+                     "y":0
+                    },
                  "type":"Light"
                 }],
          "tilewidth":32

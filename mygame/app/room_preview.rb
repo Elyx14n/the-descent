@@ -26,6 +26,7 @@ module Descent
         end
         state[:show_bounds] = !state[:show_bounds] if actions[:preview][:toggle_bounds]
         if state[:room]
+          state[:room].update_animations(tick: args.state.tick_count)
           player = state[:player]
           player.update(actions[:player], room: state[:room])
           state[:camera].follow(x: player.x, y: player.y)
@@ -92,8 +93,17 @@ module Descent
           frame[:world_borders] << rect.merge(r: 220, g: 100, b: 220) if rect
         end
         frame[:world_markers] = state[:room].lights.map do |light|
-          { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 255, g: 170, b: 60 }
+          { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 0, g: 255, b: 0 }
         end
+        frame[:world_borders] << {
+          x: state[:room].spawn[:x] - 8,
+          y: state[:room].spawn[:y] - 8,
+          w: 16,
+          h: 16,
+          r: 255,
+          g: 255,
+          b: 255
+        }
       end
     end
   end

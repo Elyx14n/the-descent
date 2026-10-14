@@ -116,7 +116,7 @@ class RoomTests
     east['y'] = 96
     room = tiled_test_room(args, data)
     player = Descent::Player.new(x: 176, y: 318)
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.false! room.doors.find { |door| door[:id] == 218 }[:open]
     assert.false! room.doors.find { |door| door[:id] == 216 }[:open]
   end
@@ -227,14 +227,14 @@ class RoomTests
     room = tiled_test_room(args)
     room.doors.find { |door| door[:id] == 218 }[:properties]['locked'] = false
     player = Descent::Player.new(x: 176, y: 316)
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     door = room.doors.find { |candidate| candidate[:id] == 218 }
     assert.true! door[:open]
     player.y = 321
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.true! door[:open]
     player.y = 316
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.false! door[:open]
   end
 
@@ -269,13 +269,13 @@ class RoomTests
     room = tiled_test_room(args)
     player = Descent::Player.new(x: 16, y: 160)
     door = room.doors.find { |candidate| candidate[:id] == 217 }
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.false! door[:open]
     player.y = 176
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.true! door[:open]
     player.x = 28
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.true! door[:open]
   end
 

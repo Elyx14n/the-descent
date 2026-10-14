@@ -110,7 +110,7 @@ class TiledDeserializerTests
     room = tiled_test_room(args)
     lamp = room.lights.find { |light| light[:id] == 6 }
     assert.equal! lamp.values_at(:x, :y), [240, 260]
-    assert.equal! lamp.values_at(:radius, :intensity, :color), [0, 0, '']
+    assert.equal! lamp.values_at(:radius, :intensity, :color), [0, 1, '']
     small = room.lights.find { |light| light[:id] == 121 }
     mirrored = room.lights.find { |light| light[:id] == 122 }
     assert.equal! small.values_at(:x, :y), [271.5, 311]
@@ -144,18 +144,18 @@ class TiledDeserializerTests
     tile['properties'].find { |prop| prop['name'] == 'locked' }['value'] = true
     player = Descent::Player.new(x: 312, y: 176)
     room = tiled_test_room(args, data)
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.false! room.doors.find { |door| door[:id] == 216 }[:open]
 
     east['properties'] << { 'name' => 'locked', 'type' => 'bool', 'value' => false }
     room = tiled_test_room(args, data)
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.true! room.doors.find { |door| door[:id] == 216 }[:open]
 
     east['properties'].reject! { |prop| prop['name'] == 'locked' }
     tile['properties'].reject! { |prop| prop['name'] == 'locked' }
     room = tiled_test_room(args, data)
-    room.toggle_nearest_door(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
+    room.toggle_nearest_interactable(point: { x: player.x, y: player.y }, collision_rect: player.collision_rect)
     assert.true! room.doors.find { |door| door[:id] == 216 }[:open]
   end
 
