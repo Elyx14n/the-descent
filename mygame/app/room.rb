@@ -7,6 +7,8 @@ module Descent
   class Room
     FADE_BASE_TYPES = %i[wall door].freeze
     INTERACTABLE_TYPES = %i[door light].freeze
+    INTERACTABLE_RADIUS = 24
+    SQUARE_RADIUS = INTERACTABLE_RADIUS**2
 
     attr_reader :bounds, :spawn, :fade_units, *RoomData::COLLECTION_KEYS
 
@@ -55,13 +57,12 @@ module Descent
       end
     end
 
-    def toggle_nearest_interactable(point:, collision_rect:, radius: 24)
-      entry = nearest_interactable(point, radius)
+    def toggle_nearest_interactable(point:, collision_rect:)
+      entry = nearest_interactable(point)
       return unless entry
 
       case entry[:type]
       when :door
-        # Check after targeting: a blocked target must not redirect E.
         return if entry[:properties].fetch('locked', false)
 
         next_colliders = entry.fetch(entry[:open] ? :closed_colliders : :open_colliders)
@@ -94,9 +95,9 @@ module Descent
 
     private
 
-    def nearest_interactable(point, radius)
+    def nearest_interactable(point)
       nearest = nil
-      nearest_distance = radius**2
+      nearest_distance = SQUARE_RADIUS
       @interactables.each do |entry|
         rects = entry[:type] == :door ? entry[:closed_colliders] : [entry[:sprite]]
         distance = rects.map do |rect|
