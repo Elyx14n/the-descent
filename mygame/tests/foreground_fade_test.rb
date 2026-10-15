@@ -84,6 +84,8 @@ class ForegroundFadeTests
     sprite[:flip_horizontally] = true
     sprite[:flip_vertically] = true
     assert.equal! Descent::ForegroundFade.alpha_bounds(sprite), { x: 86, y: 74, w: 6, h: 6 }
+    sprite[:occlusion_regions] = [sprite[:occlusion_bounds]]
+    assert.equal! Descent::ForegroundFade.alpha_regions(sprite), [{ x: 86, y: 74, w: 6, h: 6 }]
   end
 
   def test_type_specific_minimum_opacity_preserves_the_same_distance_curve(_args, assert)
