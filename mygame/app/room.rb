@@ -6,6 +6,9 @@ module Descent
   # Loaded world data. Static artwork uses ordinary DragonRuby primitives.
   class Room
     FADE_BASE_TYPES = %i[wall door].freeze
+    INTERACTABLE_TYPES = %i[door light].freeze
+    INTERACTABLE_RADIUS = 24
+    SQUARE_RADIUS = INTERACTABLE_RADIUS**2
 
     attr_reader :bounds, :spawn, :fade_units, *RoomData::COLLECTION_KEYS
 
@@ -19,7 +22,9 @@ module Descent
 
       prepare_draw_groups
       prepare_fade_units
+      @interactables = @objects.select { |entry| INTERACTABLE_TYPES.include?(entry[:type]) }
       @doors.each { |door| apply_door_state(door) }
+      update_animations(tick: 0)
     end
 
     def collision_rects
@@ -37,25 +42,36 @@ module Descent
         ceiling: @ceiling.dup, fade_units: fade_units.dup }
     end
 
-    def toggle_nearest_door(point:, collision_rect:, radius: 24)
-      distances = @doors.map do |door|
-        distance = door[:closed_colliders].map do |rect|
-          x = point[:x].clamp(rect[:x], rect[:x] + rect[:w])
-          y = point[:y].clamp(rect[:y], rect[:y] + rect[:h])
-          ((point[:x] - x)**2) + ((point[:y] - y)**2)
-        end.min
-        [door, distance]
+    # The preview or map supplies time; Room owns no animation clock.
+    def update_animations(tick:)
+      @lights.each do |light|
+        frames = light[:animation]
+        frame = if light[:frame_ticks]
+                  frames[tick.div(light[:frame_ticks]) % frames.length]
+                else
+                  elapsed_ms = (tick * 1000) % (light[:animation_duration] * 60)
+                  frames.find { |candidate| elapsed_ms < candidate[:end_ms] * 60 }
+                end
+        light[:lit_sprite] = frame[:sprite]
+        apply_light_state(light)
       end
-      distances.select! { |_door, distance| distance && distance <= radius**2 }
-      door = distances.min_by { |_candidate, distance| distance }&.first
-      return unless door
-      # Check after targeting: a locked door must not redirect E to another door.
-      return if door[:properties].fetch('locked', false)
+    end
 
-      next_colliders = door.fetch(door[:open] ? :closed_colliders : :open_colliders)
-      return if Geometry.find_all_intersect_rect(collision_rect, next_colliders).any?
+    def toggle_nearest_interactable(point:, collision_rect:)
+      entry = nearest_interactable(point)
+      return unless entry
 
-      set_door_open(door[:id], open: !door[:open])
+      case entry[:type]
+      when :door
+        return if entry[:properties].fetch('locked', false)
+
+        next_colliders = entry.fetch(entry[:open] ? :closed_colliders : :open_colliders)
+        return if Geometry.find_all_intersect_rect(collision_rect, next_colliders).any?
+
+        set_door_open(entry[:id], open: !entry[:open])
+      when :light
+        set_light_enabled(entry[:id], enabled: !entry[:enabled])
+      end
     end
 
     def set_door_open(id, open:)
@@ -67,7 +83,40 @@ module Descent
       door
     end
 
+    def set_light_enabled(id, enabled:)
+      light = @lights.find { |candidate| candidate[:id] == id }
+      raise ArgumentError, "Unknown light object #{id}" unless light
+      raise ArgumentError, 'Light enabled must be boolean' unless [true, false].include?(enabled)
+
+      light[:enabled] = enabled
+      apply_light_state(light)
+      light
+    end
+
     private
+
+    def nearest_interactable(point)
+      nearest = nil
+      nearest_distance = SQUARE_RADIUS
+      @interactables.each do |entry|
+        rects = entry[:type] == :door ? entry[:closed_colliders] : [entry[:sprite]]
+        distance = rects.map do |rect|
+          x = point[:x].clamp(rect[:x], rect[:x] + rect[:w])
+          y = point[:y].clamp(rect[:y], rect[:y] + rect[:h])
+          ((point[:x] - x)**2) + ((point[:y] - y)**2)
+        end.min
+        next unless distance && distance <= nearest_distance
+        next if nearest && distance == nearest_distance
+
+        nearest = entry
+        nearest_distance = distance
+      end
+      nearest
+    end
+
+    def apply_light_state(light)
+      light[:sprite].replace(light.fetch(light[:enabled] ? :lit_sprite : :unlit_sprite))
+    end
 
     def scenery_sprites(entry)
       [entry[:sprite]] + entry.fetch(:mounted_objects, []).map { |mounted| mounted[:sprite] }

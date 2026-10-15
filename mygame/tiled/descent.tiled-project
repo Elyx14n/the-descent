@@ -60,7 +60,7 @@
                 {
                     "name": "intensity",
                     "type": "float",
-                    "value": 0
+                    "value": 1
                 },
                 {
                     "name": "mounted_on",
@@ -70,16 +70,21 @@
                 {
                     "name": "offset_x",
                     "type": "float",
-                    "value": 0
+                    "value": 16
                 },
                 {
                     "name": "offset_y",
                     "type": "float",
-                    "value": 0
+                    "value": 4
                 },
                 {
                     "name": "radius",
                     "type": "float",
+                    "value": 0
+                },
+                {
+                    "name": "unlit_id",
+                    "type": "int",
                     "value": 0
                 }
             ],
