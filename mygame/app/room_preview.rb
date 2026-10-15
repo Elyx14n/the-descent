@@ -85,12 +85,23 @@ module Descent
       def add_diagnostics(frame, state)
         frame[:world_borders] = state[:room].collision_rects.map { |rect| rect.merge(r: 235, g: 185, b: 94) }
         frame[:world_borders] << state[:player].collision_rect.merge(r: 90, g: 255, b: 160)
+        occlusion_box = state[:player].render_data[:fade_actor]
+        frame[:world_borders] << {
+          x: occlusion_box[:x] - 8,
+          y: occlusion_box[:y] - 8,
+          h: occlusion_box[:occlusion_height],
+          w: occlusion_box[:occlusion_width],
+          r: 255,
+          g: 105,
+          b: 180
+        }
         frame[:world_borders].concat(state[:room].fade_units.map do |unit|
           unit[:footprint].merge(r: 100, g: 160, b: 255)
         end)
         state[:room].fade_units.flat_map { |unit| unit[:sprites] }.uniq.each do |sprite|
-          rect = ForegroundFade.alpha_bounds(sprite)
-          frame[:world_borders] << rect.merge(r: 220, g: 100, b: 220) if rect
+          ForegroundFade.alpha_regions(sprite).each do |rect|
+            frame[:world_borders] << rect.merge(r: 220, g: 100, b: 220)
+          end
         end
         frame[:world_markers] = state[:room].lights.map do |light|
           { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 0, g: 255, b: 0 }

@@ -61,13 +61,16 @@ module Descent
         local = sprite[:occlusion_bounds]
         return unless local
 
-        frame = bounds(sprite)
-        x = sprite[:flip_horizontally] ? sprite[:source_w] - local[:x] - local[:w] : local[:x]
-        y = sprite[:flip_vertically] ? sprite[:source_h] - local[:y] - local[:h] : local[:y]
-        scale_x = sprite[:w].fdiv(sprite[:source_w])
-        scale_y = sprite[:h].fdiv(sprite[:source_h])
-        { x: frame[:x] + (x * scale_x), y: frame[:y] + (y * scale_y),
-          w: local[:w] * scale_x, h: local[:h] * scale_y }
+        transform_alpha_rect(sprite, local)
+      end
+
+      def alpha_regions(sprite)
+        unless sprite.key?(:occlusion_regions)
+          rect = alpha_bounds(sprite)
+          return rect ? [rect] : []
+        end
+
+        sprite[:occlusion_regions].map { |local| transform_alpha_rect(sprite, local) }
       end
 
       def multiplier(footprint, actor, type:)
@@ -83,6 +86,16 @@ module Descent
       end
 
       private
+
+      def transform_alpha_rect(sprite, local)
+        frame = bounds(sprite)
+        x = sprite[:flip_horizontally] ? sprite[:source_w] - local[:x] - local[:w] : local[:x]
+        y = sprite[:flip_vertically] ? sprite[:source_h] - local[:y] - local[:h] : local[:y]
+        scale_x = sprite[:w].fdiv(sprite[:source_w])
+        scale_y = sprite[:h].fdiv(sprite[:source_h])
+        { x: frame[:x] + (x * scale_x), y: frame[:y] + (y * scale_y),
+          w: local[:w] * scale_x, h: local[:h] * scale_y }
+      end
 
       def approach_opacity(target, state:, id:, tick:, min_opacity:)
         previous = state[id] || { opacity: 1.0, tick: tick - 1 }
@@ -116,8 +129,15 @@ module Descent
           index = indices[sprite.object_id]
           next false unless index && index > actor_index
 
-          rect = alpha_bounds(sprite)
-          rect && rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
+          if sprite.key?(:occlusion_regions)
+            sprite[:occlusion_regions].any? do |local|
+              rect = transform_alpha_rect(sprite, local)
+              rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
+            end
+          else
+            rect = alpha_bounds(sprite)
+            rect && rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
+          end
         end
       end
 

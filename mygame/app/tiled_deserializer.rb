@@ -44,7 +44,7 @@ module Descent
           spawns: [],
           image_loader: image_loader,
           images: {},
-          alpha_bounds: {}
+          alpha_geometry: {}
         }
         validate_map(context)
         prepare_tilesets(context)
@@ -194,14 +194,14 @@ module Descent
                             source_y: tileset.fetch('imageheight') - margin - (row * (h + spacing)) - h,
                             source_w: w, source_h: h, a: (opacity * 255).round,
                             flip_horizontally: gid.anybits?(HORIZONTAL), flip_vertically: gid.anybits?(VERTICAL))
-        sprite.merge(occlusion_bounds: alpha_bounds(context, sprite))
+        sprite.merge(alpha_geometry(context, sprite))
       end
 
-      # Measure each crop once per load. Store source-local bottom-left bounds,
-      # retaining offsets so padding rejection follows placement, scale and flips.
-      def alpha_bounds(context, sprite)
+      # Measure each crop once per load. Keep occupied row spans as well as the
+      # outer bounds so an L's narrow arm cannot borrow the other arm's width.
+      def alpha_geometry(context, sprite)
         key = sprite.values_at(:path, :source_x, :source_y, :source_w, :source_h)
-        cache = context[:alpha_bounds]
+        cache = context[:alpha_geometry]
         return cache[key] if cache.key?(key)
 
         image = context[:images][sprite[:path]] ||= context[:image_loader].call(sprite[:path])
@@ -214,22 +214,50 @@ module Descent
           raise_map_error(context, "Tile crop is outside image: #{sprite[:path]}")
         end
 
-        left = sprite[:source_w]
-        upper = sprite[:source_h]
-        right = lower = 0
+        regions = []
+        previous = {}
         sprite[:source_h].times do |row|
           offset = ((top + row) * image[:w]) + sprite[:source_x]
-          sprite[:source_w].times do |column|
-            alpha = (image[:pixels][offset + column] >> 24) & 255
-            next if alpha.zero?
+          current = {}
+          alpha_row_spans(image[:pixels], offset, sprite[:source_w]).each do |x, w|
+            span_key = [x, w]
+            y = sprite[:source_h] - row - 1
+            region = previous[span_key]
+            if region
+              region[:y] = y
+              region[:h] += 1
+            else
+              region = { x: x, y: y, w: w, h: 1 }
+              regions << region
+            end
+            current[span_key] = region
+          end
+          previous = current
+        end
+        outer = nil
+        unless regions.empty?
+          left = regions.map { |rect| rect[:x] }.min
+          bottom = regions.map { |rect| rect[:y] }.min
+          right = regions.map { |rect| rect[:x] + rect[:w] }.max
+          top = regions.map { |rect| rect[:y] + rect[:h] }.max
+          outer = { x: left, y: bottom, w: right - left, h: top - bottom }
+        end
+        cache[key] = { occlusion_bounds: outer, occlusion_regions: regions }
+      end
 
-            left = [left, column].min
-            upper = [upper, row].min
-            right = [right, column + 1].max
-            lower = [lower, row + 1].max
+      def alpha_row_spans(pixels, offset, width)
+        spans = []
+        start = nil
+        (0..width).each do |column|
+          occupied = column < width && (pixels[offset + column] >> 24).anybits?(255)
+          if occupied
+            start ||= column
+          elsif start
+            spans << [start, column - start]
+            start = nil
           end
         end
-        cache[key] = ({ x: left, y: sprite[:source_h] - lower, w: right - left, h: lower - upper } if right > left)
+        spans
       end
 
       def load_tile_layer(context, layer)
