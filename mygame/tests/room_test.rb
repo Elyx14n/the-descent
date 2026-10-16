@@ -5,6 +5,33 @@ require 'tests/support/room_helpers'
 class RoomTests
   include RoomTestHelpers
 
+  def test_render_collections_isolate_appends_and_keep_door_and_mounted_light_artwork_live(args, assert)
+    room = tiled_test_room(args)
+    frame = room.render_data
+    original = room.render_data
+    frame.each_value(&:clear)
+    assert.equal! room.render_data, original
+
+    door = room.doors.find { |entry| entry[:id] == 267 }
+    candle = room.lights.find { |entry| entry[:id] == 121 }
+    group = original[:groups].find { |entry| entry[:sprites].any? { |sprite| sprite.equal?(candle[:sprite]) } }
+    assert.true! group
+    assert.equal! group[:sprites].length, 2
+    assert.equal! original[:groups].sum { |entry| entry[:sprites].count { |sprite| sprite.equal?(candle[:sprite]) } }, 1
+    closed = door[:sprite].dup
+    lit = candle[:sprite].dup
+    room.set_door_open(267, open: true)
+    room.set_light_enabled(121, enabled: false)
+    assert.false! door[:sprite] == closed
+    assert.false! candle[:sprite] == lit
+    assert.true!(original[:groups].any? { |entry| entry[:sprites].any? { |sprite| sprite.equal?(door[:sprite]) } })
+    assert.true! group[:sprites].last.equal?(candle[:sprite])
+    assert.equal! original, room.render_data
+
+    replacement = tiled_test_room(args)
+    assert.false! replacement.render_data[:groups].first.equal?(original[:groups].first)
+  end
+
   def test_south_fade_units_pair_caps_faces_and_corners_without_joining_neighbor_columns(args, assert)
     room = tiled_test_room(args)
     [[128, 64, [241], 32], [96, 64, [245, 265], 32], [64, 96, [246], 64]].each do |x, y, ids, base_y|

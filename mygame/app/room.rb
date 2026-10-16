@@ -21,6 +21,10 @@ module Descent
       end
 
       prepare_draw_groups
+      @floor_sprites = @ground + @floor_details.map { |entry| entry[:sprite] }
+      @scenery_groups = @objects.reject { |entry| entry[:mounted_on] }.map do |entry|
+        { depth: entry[:depth], sprites: scenery_sprites(entry) }
+      end
       prepare_fade_units
       @interactables = @objects.select { |entry| INTERACTABLE_TYPES.include?(entry[:type]) }
       @doors.each { |door| apply_door_state(door) }
@@ -32,13 +36,10 @@ module Descent
     end
 
     # World-space render data, independent of a camera or DragonRuby outputs.
-    # Fresh collections let a consumer append actors without changing the room.
+    # Fresh outer collections let consumers append without changing membership.
+    # Groups and their sprite lists are room-owned; sprite contents stay live.
     def render_data
-      { floor: @ground + @floor_details.map { |entry| entry[:sprite] },
-        groups: @objects.reject { |entry| entry[:mounted_on] }.map do |entry|
-          { depth: entry[:depth],
-            sprites: scenery_sprites(entry) }
-        end,
+      { floor: @floor_sprites.dup, groups: @scenery_groups.dup,
         ceiling: @ceiling.dup, fade_units: fade_units.dup }
     end
 

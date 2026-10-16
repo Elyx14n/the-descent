@@ -46,3 +46,29 @@ RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=11.408 min_
 RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=721.8099999999999 min_us=700.329 max_us=797.563 samples_us=700.329,720.783,760.965,797.563,731.269,721.8099999999999,714.761
 RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=2686.271 min_us=2492.429 max_us=5665.317 samples_us=2492.429,2680.572,2686.271,2493.868,2770.368,3252.748,5665.317
 ```
+
+## 1 — Cache room render collections (accepted)
+
+`Room#render_data` median: 53.500 → 0.578 µs (98.9% lower) in Ritual Gate;
+169.096 → 0.580 µs (99.7% lower) in the larger fixture. Sample ranges are
+completely separated. Full preparation: 1,078.534 → 986.838 µs and
+2,686.271 → 2,171.980 µs; neither workload regressed. These aggregate changes
+also include GC effects and baseline noise; they are not displayed-FPS claims.
+All 141 native tests and RuboCop passed. New coverage checks outer collection
+isolation, mounted membership, live variant references, and fresh room rebuilds.
+Visual playtesting remains outstanding.
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+RENDER_BENCH copies=1 operation=room_data iterations=1200 median_us=0.578 min_us=0.535 max_us=0.633 samples_us=0.578,0.576,0.599,0.535,0.5629999999999999,0.626,0.633
+RENDER_BENCH copies=1 operation=camera iterations=1200 median_us=333.028 min_us=312.424 max_us=376.877 samples_us=333.028,338.628,335.94,376.877,326.088,312.424,323.374
+RENDER_BENCH copies=1 operation=animations iterations=1200 median_us=4.063 min_us=3.86 max_us=4.514 samples_us=4.514,4.235,3.86,4.035,3.898,4.063,4.158
+RENDER_BENCH copies=1 operation=fade iterations=1200 median_us=226.851 min_us=223.401 max_us=251.073 samples_us=251.073,239.714,238.045,225.832,224.508,223.401,226.851
+RENDER_BENCH copies=1 operation=frame iterations=1200 median_us=986.838 min_us=961.0 max_us=994.997 samples_us=986.838,994.997,978.303,988.8150000000001,967.7329999999999,961.0,994.835
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+RENDER_BENCH copies=3 operation=room_data iterations=1200 median_us=0.58 min_us=0.549 max_us=0.677 samples_us=0.578,0.596,0.553,0.549,0.58,0.677,0.598
+RENDER_BENCH copies=3 operation=camera iterations=1200 median_us=299.333 min_us=292.873 max_us=315.707 samples_us=299.333,292.873,306.798,295.128,299.329,302.371,315.707
+RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=10.882 min_us=10.235 max_us=12.799 samples_us=10.235,10.603,10.528,10.882,12.799,12.495,11.395
+RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=641.85 min_us=625.3819999999999 max_us=653.811 samples_us=641.85,646.551,648.228,641.111,653.811,634.297,625.3819999999999
+RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=2171.98 min_us=2116.035 max_us=2280.03 samples_us=2116.035,2214.676,2177.761,2170.136,2147.179,2171.98,2280.03
+```
