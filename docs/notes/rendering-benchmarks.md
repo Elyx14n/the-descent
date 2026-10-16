@@ -218,3 +218,27 @@ FADE_PAIR copies=3 operation=fade version=candidate median_us=475.922 samples_us
 FADE_PAIR copies=3 operation=frame version=baseline median_us=2078.728 samples_us=1996.17,2079.832,2117.742,4373.737,2009.3,1984.108,2078.728
 FADE_PAIR copies=3 operation=frame version=candidate median_us=1787.599 samples_us=1722.448,1726.83,1787.599,1795.02,1791.734,1817.918,1711.449
 ```
+
+## Early culling with full drawing-order metadata
+
+Baseline: `91661be`. Seven paired batches of 1,200 iterations, with 120 warmup
+iterations per implementation/workload and the same 1×/3× fixtures. Baseline
+Render/Fade sources are loaded under separate module names. Renderer selection
+alternates each pair, outside timers, as do fresh-state setup and explicit GC.
+`draw` repeatedly renders a preassembled stationary south-wall frame with output
+clearing; `frame` uses the committed harness's complete scripted preparation.
+Draw timings include culling, sorting, order metadata, fading and submission,
+not engine execution or GPU work. All samples, including outliers, are retained.
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+CULL_PAIR copies=1 operation=draw version=baseline median_us=679.047 samples_us=696.261,689.1079999999999,679.047,679.716,655.33,669.625,666.047
+CULL_PAIR copies=1 operation=draw version=candidate median_us=611.683 samples_us=596.554,615.917,590.088,611.683,597.749,611.818,612.048
+CULL_PAIR copies=1 operation=frame version=baseline median_us=704.174 samples_us=704.174,719.221,743.274,695.073,680.846,703.74,707.035
+CULL_PAIR copies=1 operation=frame version=candidate median_us=681.913 samples_us=641.3920000000001,695.95,680.974,653.5309999999999,725.3630000000001,681.913,703.8819999999999
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+CULL_PAIR copies=3 operation=draw version=baseline median_us=1786.151 samples_us=3908.921,1800.068,1773.508,1786.151,1848.387,1747.918,1710.392
+CULL_PAIR copies=3 operation=draw version=candidate median_us=1181.529 samples_us=1154.434,1181.529,1167.213,1266.039,1204.909,1184.553,1110.498
+CULL_PAIR copies=3 operation=frame version=baseline median_us=1738.878 samples_us=1738.878,4099.308,1909.652,1734.09,1742.384,1710.197,1719.405
+CULL_PAIR copies=3 operation=frame version=candidate median_us=1204.597 samples_us=1184.398,1213.641,1236.815,1207.354,1165.408,1204.597,1202.307
+```

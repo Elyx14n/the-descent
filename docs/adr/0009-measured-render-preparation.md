@@ -117,9 +117,26 @@ A future attempt could precompute geometry for each immutable placed appearance 
 
 Targeted ranges are separated in both workloads. Full preparation improved in six of seven real-room pairs (one retained candidate outlier) and all seven larger-workload pairs. All 146 native tests and RuboCop passed. New regressions cover initially opaque repeated draws, eligibility changes within a tick, rewound ticks, restoration exactly at the radius with tall artwork, and same-tick removal of a unit. The user's earlier playtest covers changes through `1820b3b`; this optimization still needs visual confirmation.
 
+## 7. Cull artwork before sorting and applying opacity
+
+**Original problem.** Render sorted every group and applied fade alpha to the full world list before viewport filtering. Offscreen groups therefore paid sorting and preparation costs, especially in a larger room. Moving culling earlier naively would remove supporting bases and alter fade eligibility/history, including for partially visible actors.
+
+**Decision and mechanism.** Preserve full logical drawing order in an object-ID table with comparable keys for floor, descending-depth groups with authored ties, member order, and ceiling. Keep a sprite's final occurrence if its reference appears more than once. Test each group's artwork for viewport intersection before sorting; a visible mounted member retains its group even if the base is offscreen. Cull the assembled artwork before alpha-copy creation and translation. Supply the full order table through the optional `ForegroundFade.apply(draw_order:)` keyword while continuing to evaluate all fade units and histories. Callers omitting that keyword retain the original flat-list integer indices.
+
+**Trade-off.** The full scene still gets a linear order-table pass and fade-unit evaluation; comparable keys allocate each draw. This preserves offscreen supporting relationships and history without adding persistent geometry caches or coupling lighting to render visibility. Avoid sorting offscreen groups and copying their alpha, while retaining the existing frame contract and exact artwork-based culling. A group is tested by its members rather than collider/foot bounds or a potentially stale cached rectangle.
+
+**Evidence.** Seven paired batches against commit `91661be`, alternating baseline/candidate renderer and fade implementations in one process:
+
+| Ruby operation, median µs | Ritual Gate before → after | Three-copy workload before → after |
+| --- | --- | --- |
+| Render preparation/submission | 679.047 → 611.683 (9.9% lower) | 1,786.151 → 1,181.529 (33.9% lower) |
+| Complete preparation | 704.174 → 681.913 (3.2% lower) | 1,738.878 → 1,204.597 (30.7% lower) |
+
+Targeted ranges are separated in both workloads. Complete preparation improved in six of seven real-room pairs and all seven larger-workload pairs. `draw` uses a preassembled stationary frame, output clearing, fade state, and actual renderer submission; `frame` additionally includes the existing actor/animation/pan/variant sequence. All 150 native tests and RuboCop passed. New regressions cover offscreen supporting bases, mounted-only visibility, offscreen fade history for a partially visible actor, and repeated sprite references in differently ordered depth groups. Visual confirmation is still needed for changes after `1820b3b`.
+
 ## Deferred candidates and lighting constraints
 
-After review of the rejected cache and retention of the stateless helper, the user authorized resuming the sequence. Fade bookkeeping and early rejection passed the gate. Earlier culling is next, followed by cached stationary scenery order. Reassess each against the latest accepted baseline and retain the measurement gate for performance changes.
+After review of the rejected cache and retention of the stateless helper, the user authorized resuming the sequence. Fade bookkeeping and early rejection passed the gate. Earlier culling also passed the gate. Measure the remaining sorting cost before deciding whether cached stationary scenery order warrants another change. Reassess each against the latest accepted baseline and retain the measurement gate for performance changes.
 
 Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
 

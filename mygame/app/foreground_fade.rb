@@ -12,14 +12,14 @@ module Descent
     FADE_IN_TICKS = 32
 
     class << self
-      def apply(world, units:, actors:, viewport:, state: nil, tick: 0)
+      def apply(world, units:, actors:, viewport:, state: nil, tick: 0, draw_order: nil)
         if units.empty?
           state&.clear
           return world
         end
 
-        indices = {}
-        world.each_with_index { |sprite, index| indices[sprite.object_id] = index } unless actors.empty?
+        indices = draw_order || {}
+        world.each_with_index { |sprite, index| indices[sprite.object_id] = index } unless draw_order || actors.empty?
         visible = actors.select do |actor|
           indices.key?(actor[:sprite].object_id) && Geometry.intersect_rect?(actor[:sprite], viewport)
         end
@@ -96,7 +96,7 @@ module Descent
         actor_index = indices.fetch(actor[:sprite].object_id)
         base = unit.fetch(:base)
         base_index = indices[base.object_id]
-        return false unless base_index && base_index > actor_index
+        return false unless base_index && (base_index <=> actor_index).positive?
 
         # The actor's center must cross the supporting base, not just graze it.
         base_bounds = SpriteGeometry.bounds(base)
@@ -105,7 +105,7 @@ module Descent
         # A member must cross the center line and be wider than the actor's body.
         unit[:sprites].any? do |sprite|
           index = indices[sprite.object_id]
-          next false unless index && index > actor_index
+          next false unless index && (index <=> actor_index).positive?
 
           if sprite.key?(:occlusion_regions)
             sprite[:occlusion_regions].any? do |local|

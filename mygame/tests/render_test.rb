@@ -5,6 +5,73 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
+  def test_visible_cap_still_fades_when_its_supporting_base_is_offscreen(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    actor = Descent::Player.new(x: 48, y: 16).render_data
+    base = { x: 32, y: -32, w: 32, h: 16, path: :solid }
+    cap = base.merge(y: 0, h: 48)
+    unit = { type: :wall, base: base, footprint: base.merge(h: 32), sprites: [base, cap] }
+    frame = { groups: [{ depth: -32, sprites: [base] }, actor], ceiling: [cap],
+              fade_units: [unit], fade_actors: [actor[:fade_actor]] }
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: frame, camera: camera)
+    drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.false! drawn.include?(camera.to_draw_space(base))
+    assert.true! drawn.include?(camera.to_draw_space(cap.merge(a: 159)))
+  end
+
+  def test_repeated_sprite_reference_uses_its_final_draw_occurrence_across_depth_groups(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    actor = Descent::Player.new(x: 48, y: 64).render_data
+    base = { x: 32, y: 32, w: 32, h: 64, path: :solid }
+    unit = { type: :wall, base: base, footprint: base.merge(h: 32), sprites: [base] }
+    # The later authored group draws first. Its reference must not overwrite
+    # the same sprite's final front occurrence when preparing fade order.
+    frame = { groups: [{ depth: 32, sprites: [base] }, actor, { depth: 96, sprites: [base] }],
+              fade_units: [unit], fade_actors: [actor[:fade_actor]] }
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: frame, camera: camera)
+    drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.equal! drawn.count(camera.to_draw_space(base.merge(a: 64))), 2
+  end
+
+  def test_visible_mounted_artwork_keeps_its_group_when_the_base_is_offscreen(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    base = { x: 32, y: -64, w: 32, h: 16, path: :solid }
+    mounted = base.merge(y: 16)
+    actor = Descent::Player.new(x: 48, y: 32).render_data
+    frame = { groups: [actor, { depth: -64, sprites: [base, mounted] }] }
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: frame, camera: camera)
+    drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.equal! drawn, [camera.to_draw_space(actor[:sprites].first), camera.to_draw_space(mounted)]
+  end
+
+  def test_offscreen_unit_history_advances_for_a_partially_visible_actor_before_camera_entry(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 180 })
+    camera.follow(x: 160, y: 90)
+    actor = Descent::Player.new(x: 330, y: 64).render_data
+    base = { x: 324, y: 32, w: 32, h: 32, path: :solid }
+    cap = base.merge(y: 64)
+    unit = { type: :wall, base: base, footprint: base, sprites: [base, cap] }
+    frame = { groups: [{ depth: 32, sprites: [base] }, actor], ceiling: [cap],
+              fade_units: [unit], fade_actors: [actor[:fade_actor]] }
+    history = {}
+    [0, Descent::ForegroundFade::FADE_OUT_TICKS].each do |tick|
+      clear_room_test_outputs(args)
+      Descent::Render.draw(args, frame: frame, camera: camera, fade_state: history, tick: tick)
+    end
+    assert.equal! history[unit.object_id][:opacity], 0.25
+    camera.follow(x: 320, y: 90)
+    clear_room_test_outputs(args)
+    Descent::Render.draw(
+      args,
+      frame: frame, camera: camera, fade_state: history, tick: Descent::ForegroundFade::FADE_OUT_TICKS
+    )
+    drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.true! drawn.include?(camera.to_draw_space(cap.merge(a: 64)))
+  end
+
   def test_narrow_side_walls_and_closed_doors_stay_opaque_even_when_crossing_the_actor_center(args, assert)
     room = tiled_test_room(args)
     camera = Descent::Camera.new(bounds: room.bounds)
