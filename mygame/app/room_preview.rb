@@ -69,8 +69,8 @@ module Descent
         end
         frame[:world_borders] = []
         frame[:world_markers] = []
-        add_diagnostics(frame, state) if state[:room] && state[:show_bounds]
         frame[:hud] = [UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 8 }, text: Keybinds.help_text)]
+        add_diagnostics(frame, state, args) if state[:room] && state[:show_bounds]
         if state[:reload_error]
           message = "Reload: #{state[:reload_error].lines.first.to_s.strip}"
           message = "#{message[0, 72]}..." if message.length > 75
@@ -82,7 +82,8 @@ module Descent
 
       private
 
-      def add_diagnostics(frame, state)
+      def add_diagnostics(frame, state, args)
+        frame[:hud] << UI.label({ x: Grid.w - 16, y: Grid.h - 8 }, text: "FPS: #{args.gtk.current_framerate.to_sf}")
         frame[:world_borders] = state[:room].collision_rects.map { |rect| rect.merge(r: 235, g: 185, b: 94) }
         frame[:world_borders] << state[:player].collision_rect.merge(r: 90, g: 255, b: 160)
         occlusion_box = state[:player].render_data[:fade_actor]
