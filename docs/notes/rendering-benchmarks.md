@@ -79,3 +79,20 @@ RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=10.368 min_
 RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=671.3150000000001 min_us=634.698 max_us=3395.989 samples_us=3395.989,652.764,689.15,634.698,689.77,671.3150000000001,639.576
 RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=1999.803 min_us=1976.07 max_us=2163.349 samples_us=2073.559,2163.349,1998.209,2020.071,1999.803,1976.07,1981.618
 ```
+
+## After skipping unchanged light artwork
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+RENDER_BENCH copies=1 operation=room_data iterations=1200 median_us=0.527 min_us=0.523 max_us=0.618 samples_us=0.618,0.524,0.5679999999999999,0.523,0.527,0.524,0.578
+RENDER_BENCH copies=1 operation=camera iterations=1200 median_us=153.477 min_us=148.004 max_us=169.227 samples_us=148.004,154.796,153.477,152.815,154.305,169.227,149.296
+RENDER_BENCH copies=1 operation=animations iterations=1200 median_us=2.721 min_us=2.632 max_us=2.889 samples_us=2.638,2.721,2.769,2.889,2.853,2.632,2.653
+RENDER_BENCH copies=1 operation=fade iterations=1200 median_us=230.302 min_us=224.836 max_us=252.809 samples_us=226.551,230.302,226.609,224.836,239.339,252.809,232.444
+RENDER_BENCH copies=1 operation=frame iterations=1200 median_us=796.138 min_us=763.318 max_us=890.529 samples_us=788.053,890.529,807.376,796.138,763.318,778.658,804.033
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+RENDER_BENCH copies=3 operation=room_data iterations=1200 median_us=0.528 min_us=0.518 max_us=0.984 samples_us=0.518,0.523,0.531,0.528,0.546,0.519,0.984
+RENDER_BENCH copies=3 operation=camera iterations=1200 median_us=153.202 min_us=147.911 max_us=159.909 samples_us=153.202,153.614,154.203,147.911,159.909,149.92,150.271
+RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=6.968 min_us=6.583 max_us=12.903 samples_us=7.27,6.858,12.903,6.879,6.583,7.181,6.968
+RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=643.908 min_us=636.913 max_us=660.298 samples_us=647.308,643.908,653.0309999999999,638.779,638.575,636.913,660.298
+RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=1981.993 min_us=1923.372 max_us=4943.5 samples_us=1981.993,1923.372,1968.468,4943.5,1982.023,1944.883,2037.767
+```

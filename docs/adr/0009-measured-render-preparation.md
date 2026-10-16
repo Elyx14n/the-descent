@@ -51,9 +51,26 @@ Targeted sample ranges are separated. All 141 native tests and RuboCop passed. A
 
 Targeted sample ranges are separated; neither full-preparation workload regressed. All 142 native tests and RuboCop passed. Added coverage checks scale changes without following, independent snapshots, and nested batches; existing tests cover fractional raster placement, negative coordinates, culling, stable ordering, and renderer output.
 
+## 3. Copy light artwork only when its appearance changes
+
+**Original problem.** Each light selected its animation frame and copied the selected sprite hash on every tick, although current frames last nine ticks. Disabled lights also repeatedly copied the same unlit artwork. Neither operation changed the visible result on most ticks.
+
+**Decision and mechanism.** Skip the artwork update when the selected lit-frame reference is unchanged. Remember the last applied variant on the Light entry and skip `replace` when it is already active. Keep selecting the global lit frame while disabled, so enabling immediately joins the last supplied tick, including after skips or rewinds. No internal animation clock is added; enabled changes still use the explicit setter and preserve sprite identity.
+
+**Trade-off.** A retained variant reference and identity checks replace redundant copying. The variant templates are room-owned data; appearance changes go through the room setters. This avoids introducing a last-tick cache or a separate disabled-light timing path merely to eliminate a small frame-selection calculation.
+
+**Evidence.** Relative to the accepted camera-snapshot implementation:
+
+| Ruby operation, median µs | Ritual Gate before → after | Three-copy workload before → after |
+| --- | --- | --- |
+| Light animation update | 4.147 → 2.721 (34.4% lower) | 10.368 → 6.968 (32.8% lower) |
+| Complete preparation | 808.303 → 796.138 | 1,999.803 → 1,981.993 |
+
+All seven targeted real-room samples and six of seven larger-fixture samples are below their respective previous minimum; one larger-fixture outlier is retained in the raw data. Full-preparation differences are within noise, with no repeatable regression. All 142 native tests and RuboCop passed, including disabled-to-enabled transitions, initial disabled state, unequal frame durations, tick boundaries, rewinds, mounted artwork, and reloads. No additional rendering-output test was added to duplicate this existing coverage.
+
 ## Remaining candidates and lighting constraints
 
-The remaining agreed sequence is unchanged light-artwork updates, shared/prepared alpha geometry, fade bookkeeping and early rejection, earlier culling, then cached stationary scenery order. These are candidates, not implemented decisions or measured benefits. Reassess each against the latest accepted baseline and record its problem, mechanism, trade-offs, and evidence here when evaluated.
+The remaining agreed sequence is shared/prepared alpha geometry, fade bookkeeping and early rejection, earlier culling, then cached stationary scenery order. These are candidates, not implemented decisions or measured benefits. Reassess each against the latest accepted baseline and record its problem, mechanism, trade-offs, and evidence here when evaluated.
 
 Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
 

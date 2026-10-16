@@ -53,6 +53,8 @@ module Descent
                   elapsed_ms = (tick * 1000) % (light[:animation_duration] * 60)
                   frames.find { |candidate| elapsed_ms < candidate[:end_ms] * 60 }
                 end
+        next if light[:lit_sprite].equal?(frame[:sprite])
+
         light[:lit_sprite] = frame[:sprite]
         apply_light_state(light)
       end
@@ -116,7 +118,11 @@ module Descent
     end
 
     def apply_light_state(light)
-      light[:sprite].replace(light.fetch(light[:enabled] ? :lit_sprite : :unlit_sprite))
+      variant = light.fetch(light[:enabled] ? :lit_sprite : :unlit_sprite)
+      return if light[:active_variant].equal?(variant)
+
+      light[:sprite].replace(variant)
+      light[:active_variant] = variant
     end
 
     def scenery_sprites(entry)
