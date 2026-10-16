@@ -100,9 +100,26 @@ A future attempt could precompute geometry for each immutable placed appearance 
 
 **Verification.** All 144 native tests and RuboCop pass. Dedicated geometry tests cover crop-local offsets, anchors, unequal scaling, all flip combinations, movement between queries, input preservation, frame fallback, and explicitly empty measurements. Existing import/fade/render/preview tests retain coverage of holes, L-shaped artwork, door/light variants, sorting, and diagnostics. Exploratory timing runs are retained in the evidence note for transparency; they are not the rationale or acceptance criterion for this architectural decision.
 
+## 6. Reduce fade bookkeeping and reject fully opaque targets early
+
+**Original problem.** Each unit allocated an actor-contribution array, replaced its history hash, and ran transition math even when already at its target. Fully opaque frames still copied the world list, and tall artwork could run detailed geometry tests when its vertical gap already guaranteed full opacity.
+
+**Decision and mechanism.** Compute the strongest contribution in a loop and stop at the type minimum. Reuse each unit's history record and perform transition math only when the target differs and elapsed time is positive. Reject geometry eligibility at or beyond the fade radius, while continuing history restoration. Avoid sprite-minimum arrays, skip the order-index scan when there are no actors, and return the original world list when no alpha copies are needed. Frame artwork remains unchanged.
+
+**Trade-off.** Retain opaque unit histories and the active-unit pruning pass. Their timestamps preserve zero additional progression when eligibility changes during a repeated draw in the same tick, and the active set removes units immediately even in that tick. A sparse history scheme would need extra bookkeeping to preserve those semantics; eliminating its records is not necessary for the measured improvement. No prepared geometry or lighting policy is introduced.
+
+**Evidence.** Seven paired batches against commit `1820b3b`, alternating implementation order within one process:
+
+| Ruby operation, median µs | Ritual Gate before → after | Three-copy workload before → after |
+| --- | --- | --- |
+| Foreground fade | 231.357 → 173.395 (25.1% lower) | 644.485 → 475.922 (26.2% lower) |
+| Complete preparation | 794.825 → 704.231 (11.4% lower) | 2,078.728 → 1,787.599 (14.0% lower) |
+
+Targeted ranges are separated in both workloads. Full preparation improved in six of seven real-room pairs (one retained candidate outlier) and all seven larger-workload pairs. All 146 native tests and RuboCop passed. New regressions cover initially opaque repeated draws, eligibility changes within a tick, rewound ticks, restoration exactly at the radius with tall artwork, and same-tick removal of a unit. The user's earlier playtest covers changes through `1820b3b`; this optimization still needs visual confirmation.
+
 ## Deferred candidates and lighting constraints
 
-The sequence is paused at the geometry-cache gate. Fade bookkeeping and early rejection, earlier culling, and cached stationary scenery order remain unevaluated. Resume only after review of the failed gate; reassess candidates against the latest accepted baseline and record their problem, mechanism, trade-offs, and evidence here when evaluated.
+After review of the rejected cache and retention of the stateless helper, the user authorized resuming the sequence. Fade bookkeeping and early rejection passed the gate. Earlier culling is next, followed by cached stationary scenery order. Reassess each against the latest accepted baseline and retain the measurement gate for performance changes.
 
 Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
 
@@ -110,4 +127,4 @@ Variant `replace` keeps sprite references current, but does not automatically re
 
 ## Human verification
 
-Visual playtesting remains outstanding. At the usual enlarged window size, walk and sneak diagonally across camera clamps and room edges, inspect seams and actor/scenery ordering, approach/retreat/reenter faded columns, toggle doors and mounted lights, and reload. Unit tests establish data and coordinate behavior; they do not establish motion quality, appearance, or readability.
+The user reported playtesting was fine through commit `1820b3b`, covering the three accepted optimizations and the stateless helper. Subsequent changes still need visual confirmation. At the usual enlarged window size, walk and sneak diagonally across camera clamps and room edges, inspect seams and actor/scenery ordering, approach/retreat/reenter faded columns, toggle doors and mounted lights, and reload. Unit tests establish data and coordinate behavior; they do not establish motion quality, appearance, or readability.

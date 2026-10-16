@@ -192,6 +192,42 @@ class ForegroundFadeTests
     end
   end
 
+  def test_repeated_and_rewound_ticks_preserve_progress_even_after_an_opaque_draw(_args, assert)
+    cap = fade_artwork
+    unit = { type: :wall, base: cap, footprint: FOOTPRINT, sprites: [cap] }
+    state = {}
+    assert.equal! timed_fade(unit, state, 100, nil).last[:a], 255
+    assert.equal! timed_fade(unit, state, 100).last[:a], 255
+    assert.true! timed_fade(unit, state, 101).last[:a] < 255
+    assert.equal! timed_fade(unit, state, 120).last[:a], 64
+    assert.equal! timed_fade(unit, state, 120, nil).last[:a], 64
+    restored = timed_fade(unit, state, 121, nil).last[:a]
+    assert.true! restored > 64
+    assert.equal! timed_fade(unit, state, 90).last[:a], restored
+  end
+
+  def test_radius_rejection_restores_tall_artwork_and_prunes_removed_units_in_the_same_tick(_args, assert)
+    cap = fade_artwork.merge(h: 128)
+    unit = { type: :wall, base: cap, footprint: FOOTPRINT, sprites: [cap] }
+    removed = unit.dup
+    state = {}
+    actor = fade_actor
+    Descent::ForegroundFade.apply(
+      [actor[:sprite], cap],
+      units: [unit, removed], actors: [actor],
+      viewport: VIEWPORT, state: state, tick: 0
+    )
+    assert.true! state.key?(removed.object_id)
+    timed_fade(unit, state, 0)
+    assert.false! state.key?(removed.object_id)
+    assert.equal! timed_fade(unit, state, 16).last[:a], 64
+    far = fade_actor(y: 96) # Exactly RADIUS above the footprint's top edge.
+    restoring = timed_fade(unit, state, 17, far).last[:a]
+    assert.true! restoring > 64 && restoring < 255
+    assert.equal! timed_fade(unit, state, 49, far).last[:a], 255
+    assert.equal! cap[:a], 255
+  end
+
   def test_distance_curve_reaches_minimum_halfway_and_full_opacity(_args, assert)
     [[48, 0.25], [64, 0.25], [80, 0.625], [96, 1.0], [120, 1.0]].each do |y, expected|
       actual = Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: y }, type: :wall)

@@ -196,3 +196,25 @@ These exploratory comparisons varied in direction across runs/workloads. The
 stateless helper was subsequently accepted explicitly as an architectural
 decision, independently of performance. See ADR-0009 for its rationale and
 correctness verification. No further timing gate applies to this extraction.
+
+## Fade bookkeeping and radius rejection
+
+Baseline: `1820b3b`. Seven paired batches, 1,200 iterations per batch, same
+fixtures and `fade`/`frame` workloads as the committed harness. A temporary runner
+loads the baseline as a separate module and alternates baseline/candidate order
+within one process; setup, implementation selection, and explicit GC are outside
+timers. Warmup is 120 iterations per version/workload. All raw samples, including
+outliers, are retained. Only the fade implementation changes between each pair.
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+FADE_PAIR copies=1 operation=fade version=baseline median_us=231.357 samples_us=233.298,243.644,231.357,229.908,225.762,238.178,227.281
+FADE_PAIR copies=1 operation=fade version=candidate median_us=173.395 samples_us=180.051,173.395,172.726,186.892,192.668,171.731,172.193
+FADE_PAIR copies=1 operation=frame version=baseline median_us=794.825 samples_us=792.601,783.175,794.825,830.431,866.972,802.407,792.689
+FADE_PAIR copies=1 operation=frame version=candidate median_us=704.231 samples_us=704.231,678.61,687.216,734.0839999999999,743.175,3002.048,690.573
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+FADE_PAIR copies=3 operation=fade version=baseline median_us=644.485 samples_us=644.485,714.698,633.74,659.788,627.107,664.198,641.6799999999999
+FADE_PAIR copies=3 operation=fade version=candidate median_us=475.922 samples_us=464.311,504.231,478.491,467.558,471.423,486.463,475.922
+FADE_PAIR copies=3 operation=frame version=baseline median_us=2078.728 samples_us=1996.17,2079.832,2117.742,4373.737,2009.3,1984.108,2078.728
+FADE_PAIR copies=3 operation=frame version=candidate median_us=1787.599 samples_us=1722.448,1726.83,1787.599,1795.02,1791.734,1817.918,1711.449
+```

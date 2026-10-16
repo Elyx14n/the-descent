@@ -19,7 +19,7 @@ module Descent
         end
 
         indices = {}
-        world.each_with_index { |sprite, index| indices[sprite.object_id] = index }
+        world.each_with_index { |sprite, index| indices[sprite.object_id] = index } unless actors.empty?
         visible = actors.select do |actor|
           indices.key?(actor[:sprite].object_id) && Geometry.intersect_rect?(actor[:sprite], viewport)
         end
@@ -27,11 +27,14 @@ module Descent
         active = {}
         units.each do |unit|
           min_opacity = MIN_OPACITIES.fetch(unit.fetch(:type))
-          opacity = visible.map do |actor|
-            next 1.0 unless occludes?(unit, actor, indices)
+          opacity = 1.0
+          visible.each do |actor|
+            next unless occludes?(unit, actor, indices)
 
-            multiplier(unit[:footprint], actor, type: unit[:type])
-          end.min || 1.0
+            contribution = multiplier(unit[:footprint], actor, type: unit[:type])
+            opacity = contribution if contribution < opacity
+            break if opacity <= min_opacity
+          end
           if state
             id = unit.object_id
             active[id] = true
@@ -41,10 +44,12 @@ module Descent
 
           unit[:sprites].each do |sprite|
             id = sprite.object_id
-            multipliers[id] = [multipliers.fetch(id, 1.0), opacity].min
+            multipliers[id] = opacity if opacity < multipliers.fetch(id, 1.0)
           end
         end
         state&.delete_if { |id, _value| !active[id] }
+        return world if multipliers.empty?
+
         world.map do |sprite|
           opacity = multipliers[sprite.object_id]
           opacity ? sprite.merge(a: (sprite.fetch(:a, 255) * opacity).round) : sprite
@@ -66,14 +71,16 @@ module Descent
       private
 
       def approach_opacity(target, state:, id:, tick:, min_opacity:)
-        previous = state[id] || { opacity: 1.0, tick: tick - 1 }
-        elapsed = [tick - previous[:tick], 0].max
+        previous = state[id] ||= { opacity: 1.0, tick: tick - 1 }
         opacity = previous[:opacity]
-        duration = target < opacity ? FADE_OUT_TICKS : FADE_IN_TICKS
-        step = (1 - min_opacity) * elapsed.fdiv(duration)
-        # Move opacity toward the target by at most step, stopping exactly at the target
-        opacity = opacity.towards(target, step)
-        state[id] = { opacity: opacity, tick: tick }
+        elapsed = tick - previous[:tick]
+        if target != opacity && elapsed.positive?
+          duration = target < opacity ? FADE_OUT_TICKS : FADE_IN_TICKS
+          step = (1 - min_opacity) * elapsed.fdiv(duration)
+          opacity = opacity.towards(target, step)
+          previous[:opacity] = opacity
+        end
+        previous[:tick] = tick
         opacity
       end
 
@@ -82,6 +89,9 @@ module Descent
         # Use continuous ground Y: a same-cell base can still genuinely hide an
         # actor. Overhead rendering alone does not establish this direction.
         return false if unit[:footprint][:y] >= actor[:y]
+        # At this gap the spatial target is already fully opaque, even if tall
+        # artwork still crosses the actor. History restoration continues above.
+        return false if actor[:y] >= unit[:footprint][:y] + unit[:footprint][:h] + RADIUS
 
         actor_index = indices.fetch(actor[:sprite].object_id)
         base = unit.fetch(:base)
