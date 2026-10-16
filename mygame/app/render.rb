@@ -22,7 +22,7 @@ module Descent
           groups = frame.fetch(:groups, []).each_with_index.select do |group, _index|
             group[:sprites].any? { |sprite| Geometry.intersect_rect?(sprite, viewport) }
           end
-          groups = groups.sort_by { |group, index| [-group[:depth], index] }
+          groups = sort_groups(groups, frame[:ordered_group_count])
           # World Y increases upward: lower feet appear in front. Preserve authored
           # order on ties and keep mounted artwork together inside each group.
           world = frame.fetch(:floor, []) + groups.flat_map { |group, _index| group[:sprites] } +
@@ -41,6 +41,39 @@ module Descent
       end
 
       private
+
+      # Room supplies an ordered scenery prefix; appended actors form the tail.
+      # Source indices survive culling and keep ties stable in either path.
+      def sort_groups(groups, ordered_count)
+        return groups.sort_by { |group, index| [-group[:depth], index] } unless ordered_count
+
+        scenery, dynamic = groups.partition { |_group, index| index < ordered_count }
+        previous_depth = nil
+        scenery.each do |entry|
+          depth = entry[0][:depth]
+          return groups.sort_by { |group, index| [-group[:depth], index] } if previous_depth && depth > previous_depth
+
+          previous_depth = depth
+        end
+        return scenery if dynamic.empty?
+
+        dynamic = dynamic.sort_by { |group, index| [-group[:depth], index] }
+        return dynamic if scenery.empty?
+
+        result = []
+        fixed = 0
+        moving = 0
+        while fixed < scenery.length && moving < dynamic.length
+          if scenery[fixed][0][:depth] >= dynamic[moving][0][:depth]
+            result << scenery[fixed]
+            fixed += 1
+          else
+            result << dynamic[moving]
+            moving += 1
+          end
+        end
+        result.concat(scenery.drop(fixed)).concat(dynamic.drop(moving))
+      end
 
       # Keys compare in the same order as floor, stable depth groups, ceiling.
       # A repeated sprite reference uses its final occurrence, as the old flat

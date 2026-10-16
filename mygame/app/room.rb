@@ -25,6 +25,7 @@ module Descent
       @scenery_groups = @objects.reject { |entry| entry[:mounted_on] }.map do |entry|
         { depth: entry[:depth], sprites: scenery_sprites(entry) }
       end
+      @scenery_groups = @scenery_groups.each_with_index.sort_by { |group, index| [-group[:depth], index] }.map(&:first)
       prepare_fade_units
       @interactables = @objects.select { |entry| INTERACTABLE_TYPES.include?(entry[:type]) }
       @doors.each { |door| apply_door_state(door) }
@@ -40,7 +41,7 @@ module Descent
     # Groups and their sprite lists are room-owned; sprite contents stay live.
     def render_data
       { floor: @floor_sprites.dup, groups: @scenery_groups.dup,
-        ceiling: @ceiling.dup, fade_units: fade_units.dup }
+        ceiling: @ceiling.dup, fade_units: fade_units.dup, ordered_group_count: @scenery_groups.length }
     end
 
     # The preview or map supplies time; Room owns no animation clock.

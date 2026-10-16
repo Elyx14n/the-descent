@@ -51,7 +51,7 @@ The camera performs translation only. Display magnification belongs to the refer
 ## Consequences
 
 - Target dimensions are bounded by the logical viewport rather than the world. The SDK controls HD target enlargement. This removes the full-world texture growth problem; it does not establish a measured GPU speedup.
-- Visible primitives require coordinate conversion and new hashes. The current renderer still builds all primitives and sorts all entities before filtering, so CPU preparation continues to grow with the object count. See the [rendering optimization notes](../notes/rendering-optimizations.md) for possible later changes.
+- Visible primitives require coordinate conversion and new hashes. The renderer now culls groups before final ordering, reuses prepared scenery order, and preserves full-scene fade-order metadata; its linear scans still grow with scene size. See [ADR-0009](0009-measured-render-preparation.md) for the measured changes and trade-offs, and the [rendering research](../notes/rendering-optimizations.md) for other options.
 - Camera following, edge clamping, small-world centering, source crops, partial visibility, fractional gameplay coordinates, display-pixel placement at multiple scales, and equivalent direct-render placement remain covered by native tests. Game feel and rasterized motion still require playtesting.
 
 ## Implementation and sources

@@ -58,6 +58,7 @@ These are current capabilities and limits, not an implemented map contract. The 
 | --- | --- |
 | `floor` | World-space sprites drawn first, including Ground and FloorDetails |
 | `groups` | Hashes with `depth` and `sprites`; world-space groups sorted by descending ground Y, preserving insertion order on ties |
+| `ordered_group_count` | Optional count of the initial groups already sorted by descending depth; Render merges appended groups, retaining source order on ties; omitted hints use the general stable sort |
 | `ceiling` | World-space sprites drawn after the sorted groups |
 | `fade_units` | Hashes with the base's canonical `type`, original supporting `base`, world-space `footprint`, and original `sprites` references; associated base/cap artwork shares opacity |
 | `fade_actors` | Hashes with actor ground-anchor `x`, `y`, scaled `occlusion_width` and `occlusion_height`, and an original actor `sprite` reference identifying its final drawing order |
@@ -67,7 +68,7 @@ These are current capabilities and limits, not an implemented map contract. The 
 
 Omitted collections behave as empty arrays. Room returns fresh floor/group/ceiling/fade-unit collections containing its current artwork; Actor returns one depth group plus `fade_actor`. A mounted prop remains inside its supporting wall's group. The consumer appends actor groups, their fade actor data, and diagnostic/HUD primitives. With no valid room yet, a nil camera allows HUD-only rendering.
 
-[ADR-0009](0009-measured-render-preparation.md) refines collection ownership: outer arrays are fresh, while cached scenery group hashes and their sprite lists are room-owned structural data that consumers must not mutate. Sprite references continue to reflect active variants.
+[ADR-0009](0009-measured-render-preparation.md) refines collection ownership: outer arrays are fresh, while cached scenery group hashes and their sprite lists are room-owned structural data that consumers must not mutate. Sprite references continue to reflect active variants. Room prepares stable scenery order at load time and supplies `ordered_group_count`; consumers can append actors to the fresh groups array. Render checks the visible prefix and falls back to general sorting if it is no longer ordered. See ADR-0009 for the measured trade-off.
 
 On 2026-10-14, actor-relative foreground fading extended this interface. Room prepares local units with supporting-base and member sprite references plus stable footprint snapshots; Actor supplies live ground coordinates and scaled visible body width and height. After stable sorting, Render delegates to `ForegroundFade`. Keep sprite references shared between drawing collections and fade data when assembling a frame, including any future world translation.
 

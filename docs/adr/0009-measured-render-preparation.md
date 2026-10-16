@@ -134,9 +134,26 @@ Targeted ranges are separated in both workloads. Full preparation improved in si
 
 Targeted ranges are separated in both workloads. Complete preparation improved in six of seven real-room pairs and all seven larger-workload pairs. `draw` uses a preassembled stationary frame, output clearing, fade state, and actual renderer submission; `frame` additionally includes the existing actor/animation/pan/variant sequence. All 150 native tests and RuboCop passed. New regressions cover offscreen supporting bases, mounted-only visibility, offscreen fade history for a partially visible actor, and repeated sprite references in differently ordered depth groups. Visual confirmation is still needed for changes after `1820b3b`.
 
-## Deferred candidates and lighting constraints
+## 8. Prepare stationary scenery order once and merge actors
 
-After review of the rejected cache and retention of the stateless helper, the user authorized resuming the sequence. Fade bookkeeping and early rejection passed the gate. Earlier culling also passed the gate. Measure the remaining sorting cost before deciding whether cached stationary scenery order warrants another change. Reassess each against the latest accepted baseline and retain the measurement gate for performance changes.
+**Original problem.** Even after culling, 20–31 visible groups were sorted every draw. A focused stationary/panning microbenchmark measured roughly 77–116 µs for that sort, about 7–15% of renderer preparation in these workloads. Scenery membership and depths are fixed for a loaded room; only appended actors require changing order.
+
+**Decision and mechanism.** Room stably sorts its prepared scenery groups once during initialization, preserving authored order on equal depths. `render_data` still returns a fresh outer groups array and adds an optional `ordered_group_count` indicating the prefix already sorted by depth. After culling, Render partitions the surviving entries using their original source indices, sorts the appended tail, and merges it with the scenery prefix. Equal-depth scenery precedes the appended tail, preserving the same source-index tie rule. The full-scene fade-order table remains independent of culling.
+
+**Trade-off.** One room-load sort and a small optional frame hint replace repeated general sorting. Renderer merging is linear in the visible group count, with no retained output queues or translated sprite cache. Generic frames without the hint keep the general stable sort. A monotonicity check on the visible prefix falls back to general sorting if a consumer reordered it or an existing hot-reloaded room has the old unsorted prefix. Empty/shortened groups remain valid. Future scenery membership/depth changes must rebuild Room's prepared groups or use the general frame path; current door/light variants retain their group depth and sprite references.
+
+**Evidence.** Seven paired batches against commit `4fb5a3f`, alternating both Room and Render implementations so the baseline retains authored group order and the candidate pays its actual merge path:
+
+| Ruby operation, median µs | Ritual Gate before → after | Three-copy workload before → after |
+| --- | --- | --- |
+| Visible group ordering | 82.233 → 16.122 (80.4% lower) | 83.738 → 17.433 (79.2% lower) |
+| Complete preparation | 714.609 → 656.265 (8.2% lower) | 1,204.396 → 1,108.700 (7.9% lower) |
+
+Targeted ranges are separated. Complete preparation improved in six of seven real-room pairs (one retained candidate outlier) and all seven larger-workload pairs. Setup, including the one-off room sort, is outside per-frame timing. All 152 native tests and RuboCop passed. New coverage checks multiple actor merges, authored ties, empty subsets, fallback for a reordered/shortened prefix, prepared room ordering, variant changes, and actor-append isolation. The user's playtest covers changes through `1820b3b`; the subsequent fade, culling, and ordering optimizations need visual confirmation.
+
+## Completed sequence and lighting constraints
+
+The agreed sequence has been evaluated. Room collection caching, camera snapshots, unchanged-light skipping, fade bookkeeping, early culling, and prepared scenery ordering passed their measurement gates. The transformed-geometry cache remains rejected, while the shared stateless helper is retained as an architectural decision. No further optimization candidate is pending in this sequence.
 
 Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
 

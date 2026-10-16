@@ -5,6 +5,34 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
+  def test_ordered_scenery_merges_multiple_actors_with_authored_ties_and_empty_subsets(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    sprite = { x: 40, y: 40, w: 32, h: 32, path: :solid }
+    scenery = [80, 40, 40, 0].each_with_index.map do |depth, index|
+      { depth: depth, sprites: [sprite.merge(r: index)] }
+    end
+    actors = [40, 90, -10, 20].each_with_index.map do |depth, index|
+      { depth: depth, sprites: [sprite.merge(r: index + 10)] }
+    end
+    [scenery + actors, scenery, actors, []].each do |groups|
+      [nil, scenery.length].each do |hint|
+        frame = { groups: groups, ordered_group_count: hint }
+        clear_room_test_outputs(args)
+        Descent::Render.draw(args, frame: frame, camera: camera)
+        drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+        expected = groups.each_with_index.sort_by { |group, index| [-group[:depth], index] }
+        expected_colors = expected.flat_map { |group, _index| group[:sprites].map { |entry| entry[:r] } }
+        assert.equal! drawn.map { |entry| entry[:r] }, expected_colors
+      end
+    end
+    # Removing/reordering prefix members cannot make a stale hint change output.
+    frame = { groups: scenery.reverse + actors, ordered_group_count: scenery.length }
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: frame, camera: camera)
+    drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.equal! drawn.map { |entry| entry[:r] }, [11, 0, 2, 1, 10, 13, 3, 12]
+  end
+
   def test_visible_cap_still_fades_when_its_supporting_base_is_offscreen(args, assert)
     camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
     actor = Descent::Player.new(x: 48, y: 16).render_data

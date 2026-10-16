@@ -242,3 +242,33 @@ CULL_PAIR copies=3 operation=draw version=candidate median_us=1181.529 samples_u
 CULL_PAIR copies=3 operation=frame version=baseline median_us=1738.878 samples_us=1738.878,4099.308,1909.652,1734.09,1742.384,1710.197,1719.405
 CULL_PAIR copies=3 operation=frame version=candidate median_us=1204.597 samples_us=1184.398,1213.641,1236.815,1207.354,1165.408,1204.597,1202.307
 ```
+
+## Remaining sort cost after early culling
+
+Baseline `4fb5a3f`: seven 1,200-iteration batches on precomputed stationary and pan views. `sort` measures only the existing visible-group sort; `draw` renders the same views with clearing, order metadata, culling, fading, and submission. View setup is untimed. Ratios are approximate microbenchmark comparisons, not instrumented phase percentages.
+
+```text
+SORT_COST copies=1 scenario=stationary operation=sort visible_groups=20-20 median_us=81.392 samples_us=81.392,78.191,77.706,78.532,85.252,90.35899999999999,108.9
+SORT_COST copies=1 scenario=stationary operation=draw visible_groups=20-20 median_us=594.985 samples_us=624.193,594.985,630.978,579.075,575.649,595.4,568.4829999999999
+SORT_COST copies=1 scenario=pan operation=sort visible_groups=23-31 median_us=94.334 samples_us=100.008,96.44799999999999,91.098,94.334,91.27500000000001,90.633,97.253
+SORT_COST copies=1 scenario=pan operation=draw visible_groups=23-31 median_us=609.934 samples_us=609.934,634.444,605.038,608.093,623.336,622.4450000000001,606.9829999999999
+SORT_COST copies=3 scenario=stationary operation=sort visible_groups=20-20 median_us=77.36799999999999 samples_us=74.837,77.82299999999999,77.74299999999999,77.306,77.36799999999999,77.01300000000001,77.69
+SORT_COST copies=3 scenario=stationary operation=draw visible_groups=20-20 median_us=1112.987 samples_us=1126.922,1095.318,1120.064,1111.176,1112.987,1096.346,1141.157
+SORT_COST copies=3 scenario=pan operation=sort visible_groups=23-31 median_us=116.205 samples_us=115.149,116.338,116.205,117.251,115.604,114.629,124.359
+SORT_COST copies=3 scenario=pan operation=draw visible_groups=23-31 median_us=1199.721 samples_us=1164.905,1215.195,3447.613,1202.462,1199.721,1178.352,1186.4
+```
+
+## Cached scenery ordering and actor merge
+
+Baseline `4fb5a3f`: seven paired 1,200-iteration batches, 120 warmup iterations per implementation/workload. Baseline Room and Render are loaded under separate names; selection alternates each pair outside timers. Baseline contexts keep original authored order, while candidate contexts contain the prepared prefix and actual hint. Room import and one-time ordering are outside per-frame timing. `sort` compares the old general sort with the new merge on visible stationary groups (including one actor); `frame` runs the unchanged full pan/fade/door/light sequence. All raw samples are retained.
+
+```text
+ORDER_PAIR copies=1 operation=sort version=baseline median_us=82.233 samples_us=82.233,93.961,84.551,93.322,79.718,77.041,81.05800000000001
+ORDER_PAIR copies=1 operation=sort version=candidate median_us=16.122 samples_us=15.265,18.401,16.087,15.203,16.967,17.274,16.122
+ORDER_PAIR copies=1 operation=frame version=baseline median_us=714.609 samples_us=673.329,734.01,784.889,714.609,702.679,729.659,699.919
+ORDER_PAIR copies=1 operation=frame version=candidate median_us=656.265 samples_us=666.068,656.265,638.324,689.018,2768.948,639.848,615.939
+ORDER_PAIR copies=3 operation=sort version=baseline median_us=83.738 samples_us=84.363,77.7,83.86,83.774,80.33499999999999,83.738,81.581
+ORDER_PAIR copies=3 operation=sort version=candidate median_us=17.433 samples_us=20.594,17.592,15.755,19.399,15.669,16.052,17.433
+ORDER_PAIR copies=3 operation=frame version=baseline median_us=1204.396 samples_us=1258.011,1184.108,1189.613,1219.601,1218.033,1179.919,1204.396
+ORDER_PAIR copies=3 operation=frame version=candidate median_us=1108.7 samples_us=1145.66,1090.302,1126.581,1107.366,1157.593,1091.266,1108.7
+```
