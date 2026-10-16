@@ -14,6 +14,7 @@ module Descent
       def draw(args, frame:, camera:, fade_state: nil, tick: 0)
         args.outputs.background_color = UI::COLORS.fetch(:bg)
         if camera
+          camera = camera.for_drawing
           target = scene(args, camera)
           groups = frame.fetch(:groups, []).each_with_index.sort_by { |group, index| [-group[:depth], index] }
           # World Y increases upward: lower feet appear in front. Preserve authored

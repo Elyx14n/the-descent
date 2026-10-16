@@ -67,6 +67,8 @@ These are current capabilities and limits, not an implemented map contract. The 
 
 Omitted collections behave as empty arrays. Room returns fresh floor/group/ceiling/fade-unit collections containing its current artwork; Actor returns one depth group plus `fade_actor`. A mounted prop remains inside its supporting wall's group. The consumer appends actor groups, their fade actor data, and diagnostic/HUD primitives. With no valid room yet, a nil camera allows HUD-only rendering.
 
+[ADR-0009](0009-measured-render-preparation.md) refines collection ownership: outer arrays are fresh, while cached scenery group hashes and their sprite lists are room-owned structural data that consumers must not mutate. Sprite references continue to reflect active variants.
+
 On 2026-10-14, actor-relative foreground fading extended this interface. Room prepares local units with supporting-base and member sprite references plus stable footprint snapshots; Actor supplies live ground coordinates and scaled visible body width and height. After stable sorting, Render delegates to `ForegroundFade`. Keep sprite references shared between drawing collections and fade data when assembling a frame, including any future world translation.
 
 [ADR-0006](0006-simplified-foreground-fading.md) owns the geometry association, spatial curve, and temporal approach rules. It supersedes this ADR's original Euclidean-distance calculation with the equivalent vertical gap for eligible Room-created units. [ADR-0007](0007-alpha-derived-scenery-bounds.md) refines eligibility to reject scenery padding with measured alpha bounds. The preview supplies history in `room_preview[:fade_state]`; omitting history renders the instantaneous target. All on-screen actors independently contribute when supplied, although the current preview contains only Player. Collision, gameplay sight, lighting, and camera behavior remain independent.
@@ -86,6 +88,8 @@ A failed rebuild retains the last valid room and exposes an error in the HUD and
 ## Consequences and verification
 
 This adds explicit render data and action translation in exchange for keeping Tiled details, gameplay behavior, and DragonRuby output submission local to their owning modules. It introduces no scene framework, event bus, DTO class, map assembly, or rendering optimization.
+
+Subsequent measured rendering optimizations and their trade-offs are recorded in [ADR-0009](0009-measured-render-preparation.md).
 
 Native tests cover independent deserialization, active door variants, light defaults and overrides, animation boundaries and looping, candelabra collision in both enabled states, nearest door/light targeting, state-transition overlap protection, mounted groups, stable ordering, camera placement, pressed/held inputs, reload resets, unchanged contents, malformed/missing exports, recovery, and production polling. Movement feel and enlarged-window appearance still require manual playtesting after structural changes.
 

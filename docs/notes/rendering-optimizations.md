@@ -1,7 +1,7 @@
 # DragonRuby rendering optimization findings
 
 Research date: **2026-10-05**. Sources inspected: the local DragonRuby **7.21
-Standard** SDK and the then-current collision playground. Pipeline references were updated on **2026-10-12** for the Tiled integration. The options below remain speculative, except imported artwork already reuses world sprite hashes. No rendering bottleneck or measured optimization benefit has been established for the current room.
+Standard** SDK and the then-current collision playground. Pipeline references were updated on **2026-10-12** for the Tiled integration. This note records the original options; accepted changes and measured Ruby preparation benefits from 2026-10-16 are recorded in [ADR-0009](../adr/0009-measured-render-preparation.md), with [raw samples](rendering-benchmarks.md). Those results do not establish a displayed-FPS or GPU bottleneck.
 
 ## Reading the sources
 
@@ -172,8 +172,7 @@ them. Sources: [UI](../../mygame/app/ui.rb),
    animation, and hot reload before comparing results. Keep only worthwhile
    improvements; do not add a spatial framework for the present room.
 
-No baseline timings or comparative optimization results were collected for this
-note. The viewport-sized target is established behavior; its smaller logical
+No baseline timings or comparative optimization results were collected during the original research; later results are linked above. The viewport-sized target is established behavior; its smaller logical
 area alone does not prove a frame-time reduction. HD rendering and display
 scaling also mean logical dimensions are not a direct promise of physical GPU
 work. Preserve the accepted rendering configuration and measure on the target

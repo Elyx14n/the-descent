@@ -1,4 +1,8 @@
-# Rendering preparation benchmarks
+# Rendering preparation benchmark samples
+
+The accepted problems, solutions, trade-offs, and measurement gate live in
+[ADR-0009](../adr/0009-measured-render-preparation.md). This note retains
+reproduction details and raw observations.
 
 Measured on 2026-10-16 with DragonRuby 7.21 Standard, Linux, offscreen SDL,
 software rendering, 1024 × 576 display, HD enabled, 320 × 180 logical viewport.
@@ -22,11 +26,6 @@ stationary actor behind the southern wall. `animations` advances lit frames.
 Setup/import and explicit GC are outside timers; allocations/GC during measured
 work remain part of the cost.
 
-Gate: at least 5% lower targeted median, exceeding observed timing variation,
-with no repeatable overall-preparation regression. Report raw samples and ranges;
-repeat noisy comparisons. Do not claim frame-rate improvements from these data.
-Run correctness tests and lint before committing each accepted optimization.
-
 ## Baseline — affb8d8
 
 All 140 native tests passed before optimization. Timings vary substantially,
@@ -47,16 +46,7 @@ RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=721.8099999999999
 RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=2686.271 min_us=2492.429 max_us=5665.317 samples_us=2492.429,2680.572,2686.271,2493.868,2770.368,3252.748,5665.317
 ```
 
-## 1 — Cache room render collections (accepted)
-
-`Room#render_data` median: 53.500 → 0.578 µs (98.9% lower) in Ritual Gate;
-169.096 → 0.580 µs (99.7% lower) in the larger fixture. Sample ranges are
-completely separated. Full preparation: 1,078.534 → 986.838 µs and
-2,686.271 → 2,171.980 µs; neither workload regressed. These aggregate changes
-also include GC effects and baseline noise; they are not displayed-FPS claims.
-All 141 native tests and RuboCop passed. New coverage checks outer collection
-isolation, mounted membership, live variant references, and fresh room rebuilds.
-Visual playtesting remains outstanding.
+## After room collection caching
 
 ```text
 RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
@@ -71,4 +61,21 @@ RENDER_BENCH copies=3 operation=camera iterations=1200 median_us=299.333 min_us=
 RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=10.882 min_us=10.235 max_us=12.799 samples_us=10.235,10.603,10.528,10.882,12.799,12.495,11.395
 RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=641.85 min_us=625.3819999999999 max_us=653.811 samples_us=641.85,646.551,648.228,641.111,653.811,634.297,625.3819999999999
 RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=2171.98 min_us=2116.035 max_us=2280.03 samples_us=2116.035,2214.676,2177.761,2170.136,2147.179,2171.98,2280.03
+```
+
+## After camera drawing snapshots
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+RENDER_BENCH copies=1 operation=room_data iterations=1200 median_us=0.531 min_us=0.5 max_us=1.252 samples_us=0.588,1.252,0.531,0.524,0.5,0.528,0.5679999999999999
+RENDER_BENCH copies=1 operation=camera iterations=1200 median_us=160.95 min_us=144.778 max_us=207.724 samples_us=144.778,149.938,152.972,160.95,207.724,197.36,164.659
+RENDER_BENCH copies=1 operation=animations iterations=1200 median_us=4.147 min_us=3.854 max_us=8.343999999999999 samples_us=4.957,3.899,8.343999999999999,3.854,4.142,4.147,4.368
+RENDER_BENCH copies=1 operation=fade iterations=1200 median_us=241.89 min_us=226.046 max_us=270.678 samples_us=264.272,270.678,241.89,237.828,246.445,241.199,226.046
+RENDER_BENCH copies=1 operation=frame iterations=1200 median_us=808.303 min_us=774.654 max_us=900.6559999999999 samples_us=833.348,809.958,774.654,806.919,808.303,900.6559999999999,783.377
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+RENDER_BENCH copies=3 operation=room_data iterations=1200 median_us=0.538 min_us=0.507 max_us=0.672 samples_us=0.672,0.522,0.538,0.544,0.528,0.543,0.507
+RENDER_BENCH copies=3 operation=camera iterations=1200 median_us=154.916 min_us=151.022 max_us=162.735 samples_us=154.916,157.705,159.936,151.022,154.257,152.527,162.735
+RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=10.368 min_us=10.3 max_us=11.732 samples_us=10.917,10.902,10.3,10.368,11.732,10.338,10.331
+RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=671.3150000000001 min_us=634.698 max_us=3395.989 samples_us=3395.989,652.764,689.15,634.698,689.77,671.3150000000001,639.576
+RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=1999.803 min_us=1976.07 max_us=2163.349 samples_us=2073.559,2163.349,1998.209,2020.071,1999.803,1976.07,1981.618
 ```
