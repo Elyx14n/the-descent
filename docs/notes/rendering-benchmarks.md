@@ -96,3 +96,103 @@ RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=6.968 min_u
 RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=643.908 min_us=636.913 max_us=660.298 samples_us=647.308,643.908,653.0309999999999,638.779,638.575,636.913,660.298
 RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=1981.993 min_us=1923.372 max_us=4943.5 samples_us=1981.993,1923.372,1968.468,4943.5,1982.023,1944.883,2037.767
 ```
+
+## Rejected transformed-geometry cache candidate
+
+Candidate removed; see ADR-0009 for the failed gate and trade-offs.
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+RENDER_BENCH copies=1 operation=room_data iterations=1200 median_us=0.624 min_us=0.513 max_us=1.04 samples_us=0.758,0.538,0.92,1.04,0.624,0.542,0.513
+RENDER_BENCH copies=1 operation=camera iterations=1200 median_us=155.533 min_us=149.859 max_us=175.792 samples_us=154.908,149.859,155.533,175.792,151.647,167.81,160.509
+RENDER_BENCH copies=1 operation=animations iterations=1200 median_us=8.484 min_us=8.141 max_us=10.213 samples_us=10.213,8.141,8.324,8.433,8.56,8.484,9.259
+RENDER_BENCH copies=1 operation=fade iterations=1200 median_us=227.572 min_us=225.852 max_us=261.107 samples_us=261.107,242.923,259.474,225.852,227.572,227.091,225.958
+RENDER_BENCH copies=1 operation=frame iterations=1200 median_us=773.26 min_us=752.343 max_us=799.035 samples_us=783.274,799.035,752.343,773.26,779.948,759.248,758.412
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+RENDER_BENCH copies=3 operation=room_data iterations=1200 median_us=0.518 min_us=0.499 max_us=0.6 samples_us=0.54,0.536,0.513,0.516,0.499,0.6,0.518
+RENDER_BENCH copies=3 operation=camera iterations=1200 median_us=149.28 min_us=146.279 max_us=155.318 samples_us=150.159,146.279,153.758,148.271,155.318,149.28,147.953
+RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=25.81 min_us=24.516 max_us=30.193 samples_us=25.81,24.708,26.657,24.71,30.193,26.403,24.516
+RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=626.965 min_us=611.4059999999999 max_us=3607.629 samples_us=611.4059999999999,3607.629,625.691,619.228,628.533,626.965,723.472
+RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=2025.028 min_us=1902.625 max_us=2164.319 samples_us=2025.028,2164.319,2128.351,2040.071,1985.941,1921.833,1902.625
+```
+
+## Stateless helper refactor comparison
+
+A fresh separate-process baseline and helper run are retained below. The first
+helper attempt was rejected because `Time.now` went backwards during one camera
+batch (`-1350.383` µs/operation); the harness failed its positive-duration check.
+The retry completed but unchanged camera/animation operations also became slower,
+so these separate-process timings cannot isolate the refactor's effect.
+
+A subsequent temporary paired runner loaded the original `ForegroundFade` source
+from commit `0ac278c` as `BenchmarkBaselineFade`, then alternated that implementation
+and the helper consumer in the same process. It used the committed harness's
+unchanged fixtures and `benchmark_step`, `fade`/`frame` workloads, 120 warmup
+iterations per implementation, and seven fresh-state batches of 1,200 iterations.
+The first implementation alternated each pair. Source module selection, fixture
+setup and explicit GC were outside the timer. Only the fade implementation changed;
+Render, Room, Camera, state sequences, and output queues were identical. Temporary
+baseline/comparison source is removed after the experiment rather than shipping a
+second fade implementation. These were exploratory checks; the helper was subsequently accepted as an
+architectural decision independently of timing results.
+
+### Fresh baseline
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+RENDER_BENCH copies=1 operation=room_data iterations=1200 median_us=0.546 min_us=0.499 max_us=0.626 samples_us=0.5590000000000001,0.626,0.499,0.533,0.546,0.581,0.545
+RENDER_BENCH copies=1 operation=camera iterations=1200 median_us=167.698 min_us=152.007 max_us=202.793 samples_us=167.814,186.093,202.793,159.833,167.698,152.007,163.889
+RENDER_BENCH copies=1 operation=animations iterations=1200 median_us=2.607 min_us=2.565 max_us=2.78 samples_us=2.584,2.565,2.607,2.761,2.597,2.773,2.78
+RENDER_BENCH copies=1 operation=fade iterations=1200 median_us=225.721 min_us=223.803 max_us=245.035 samples_us=226.221,224.508,225.721,245.035,232.01,223.803,224.298
+RENDER_BENCH copies=1 operation=frame iterations=1200 median_us=766.102 min_us=755.6079999999999 max_us=803.473 samples_us=782.158,803.473,759.646,766.102,755.6079999999999,780.36,758.495
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+RENDER_BENCH copies=3 operation=room_data iterations=1200 median_us=0.509 min_us=0.496 max_us=0.596 samples_us=0.509,0.502,0.509,0.523,0.511,0.596,0.496
+RENDER_BENCH copies=3 operation=camera iterations=1200 median_us=151.402 min_us=147.424 max_us=152.456 samples_us=152.456,151.402,152.405,152.428,147.469,147.424,148.096
+RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=6.762 min_us=6.587 max_us=7.357 samples_us=6.662,6.771,6.762,6.587,7.357,6.594,6.795
+RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=638.833 min_us=626.386 max_us=670.044 samples_us=633.814,670.044,638.833,626.386,628.365,650.5940000000001,651.343
+RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=1970.233 min_us=1931.628 max_us=2225.447 samples_us=1940.921,1970.342,1931.628,1960.383,1970.233,2118.393,2225.447
+```
+
+### Separate helper retry (host variation)
+
+```text
+RENDER_BENCH_COUNTS copies=1 sprites=151 visible=69 units=38 lights=6 regions=500
+RENDER_BENCH copies=1 operation=room_data iterations=1200 median_us=0.655 min_us=0.582 max_us=3.665 samples_us=0.8100000000000001,3.665,0.733,0.582,0.618,0.655,0.609
+RENDER_BENCH copies=1 operation=camera iterations=1200 median_us=189.535 min_us=167.093 max_us=208.262 samples_us=197.356,189.535,206.837,208.262,167.093,170.681,177.081
+RENDER_BENCH copies=1 operation=animations iterations=1200 median_us=2.859 min_us=2.798 max_us=2.961 samples_us=2.859,2.843,2.961,2.798,2.946,2.905,2.812
+RENDER_BENCH copies=1 operation=fade iterations=1200 median_us=251.278 min_us=244.823 max_us=255.972 samples_us=244.823,252.532,251.278,255.972,248.06,248.411,253.11
+RENDER_BENCH copies=1 operation=frame iterations=1200 median_us=916.807 min_us=852.831 max_us=1080.165 samples_us=860.426,852.831,898.833,1048.455,1070.945,916.807,1080.165
+RENDER_BENCH_COUNTS copies=3 sprites=451 visible=69 units=114 lights=18 regions=1500
+RENDER_BENCH copies=3 operation=room_data iterations=1200 median_us=0.613 min_us=0.589 max_us=0.785 samples_us=0.613,0.6919999999999999,0.608,0.681,0.785,0.611,0.589
+RENDER_BENCH copies=3 operation=camera iterations=1200 median_us=229.417 min_us=198.722 max_us=302.538 samples_us=302.538,215.241,246.906,216.381,297.888,198.722,229.417
+RENDER_BENCH copies=3 operation=animations iterations=1200 median_us=8.503 min_us=7.233 max_us=15.213 samples_us=11.757,15.213,8.503,8.688000000000001,7.687,7.79,7.233
+RENDER_BENCH copies=3 operation=fade iterations=1200 median_us=883.177 min_us=718.186 max_us=960.278 samples_us=830.943,883.177,738.114,951.819,718.186,910.018,960.278
+RENDER_BENCH copies=3 operation=frame iterations=1200 median_us=2837.523 min_us=2519.698 max_us=3062.068 samples_us=2519.698,2837.523,3062.068,2838.225,2720.791,3016.991,2796.098
+```
+
+### Paired comparison
+
+```text
+GEOMETRY_PAIR copies=1 operation=fade version=baseline median_us=299.357 samples_us=344.768,324.326,315.187,274.233,260.116,252.962,299.357
+GEOMETRY_PAIR copies=1 operation=fade version=helper median_us=311.573 samples_us=312.974,311.573,331.077,342.793,279.363,258.461,253.806
+GEOMETRY_PAIR copies=1 operation=frame version=baseline median_us=925.269 samples_us=1029.095,889.447,925.269,991.912,1023.163,919.867,890.758
+GEOMETRY_PAIR copies=1 operation=frame version=helper median_us=979.352 samples_us=1087.263,981.38,895.284,937.388,1026.26,979.352,921.508
+GEOMETRY_PAIR copies=3 operation=fade version=baseline median_us=937.8390000000001 samples_us=998.913,937.8390000000001,930.8440000000001,942.253,965.088,868.102,857.9400000000001
+GEOMETRY_PAIR copies=3 operation=fade version=helper median_us=968.091 samples_us=3445.885,946.473,968.091,962.25,1114.863,930.665,995.937
+GEOMETRY_PAIR copies=3 operation=frame version=baseline median_us=2417.889 samples_us=2728.733,2914.679,4824.287,2417.889,2399.884,2368.532,2102.133
+GEOMETRY_PAIR copies=3 operation=frame version=helper median_us=2416.119 samples_us=2416.119,2786.408,2791.188,2723.591,2331.346,2409.124,2011.498
+```
+
+### Repeated full-preparation pairs
+
+```text
+GEOMETRY_PAIR copies=1 operation=frame version=baseline median_us=1058.898 samples_us=993.713,1173.438,1099.758,881.523,938.7430000000001,1296.21,1058.898
+GEOMETRY_PAIR copies=1 operation=frame version=helper median_us=960.071 samples_us=833.867,961.86,901.2380000000001,942.213,960.071,2354.827,1087.862
+GEOMETRY_PAIR copies=3 operation=frame version=baseline median_us=2008.038 samples_us=2283.936,2008.038,1975.719,1990.741,1987.08,2153.942,2079.674
+GEOMETRY_PAIR copies=3 operation=frame version=helper median_us=2043.124 samples_us=2089.473,2066.876,1951.253,1992.849,1991.984,4486.447,2043.124
+```
+
+These exploratory comparisons varied in direction across runs/workloads. The
+stateless helper was subsequently accepted explicitly as an architectural
+decision, independently of performance. See ADR-0009 for its rationale and
+correctness verification. No further timing gate applies to this extraction.

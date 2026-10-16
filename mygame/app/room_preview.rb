@@ -6,6 +6,7 @@ require 'app/camera'
 require 'app/player'
 require 'app/keybinds'
 require 'app/render'
+require 'app/sprite_geometry'
 
 module Descent
   # One-room authoring consumer. Owns preview lifetime, not game rules or drawing.
@@ -100,7 +101,7 @@ module Descent
           unit[:footprint].merge(r: 100, g: 160, b: 255)
         end)
         state[:room].fade_units.flat_map { |unit| unit[:sprites] }.uniq.each do |sprite|
-          ForegroundFade.alpha_regions(sprite).each do |rect|
+          SpriteGeometry.alpha_regions(sprite).each do |rect|
             frame[:world_borders] << rect.merge(r: 220, g: 100, b: 220)
           end
         end

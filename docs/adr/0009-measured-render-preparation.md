@@ -68,9 +68,41 @@ Targeted sample ranges are separated; neither full-preparation workload regresse
 
 All seven targeted real-room samples and six of seven larger-fixture samples are below their respective previous minimum; one larger-fixture outlier is retained in the raw data. Full-preparation differences are within noise, with no repeatable regression. All 142 native tests and RuboCop passed, including disabled-to-enabled transitions, initial disabled state, unequal frame durations, tick boundaries, rewinds, mounted artwork, and reloads. No additional rendering-output test was added to duplicate this existing coverage.
 
-## Remaining candidates and lighting constraints
+## 4. Cache transformed fade geometry — rejected at the measurement gate
 
-The remaining agreed sequence is shared/prepared alpha geometry, fade bookkeeping and early rejection, earlier culling, then cached stationary scenery order. These are candidates, not implemented decisions or measured benefits. Reassess each against the latest accepted baseline and record its problem, mechanism, trade-offs, and evidence here when evaluated.
+**Original problem.** Fade checks transform crop-local occupied regions and supporting-base bounds into world coordinates during rendering. Static placed artwork repeats the same transforms, suggesting a shared geometry helper and prepared world-space records that future lighting could also consume.
+
+**Evaluated solution.** Extract the existing exact transforms into `SpriteGeometry`, prepare records shared by fade units at room load, and refresh affected records when a door or mounted light changes appearance. Retain fallback transforms for hand-built frame data, and keep prepared records outside sprite primitives. No silhouette simplification, boundary extraction, or raycasting was added.
+
+**Result.** Relative to accepted changes 1–3:
+
+| Ruby operation, median µs | Ritual Gate before → candidate | Three-copy workload before → candidate |
+| --- | --- | --- |
+| Foreground fade | 230.302 → 227.572 (1.2% lower) | 643.908 → 626.965 (2.6% lower) |
+| Light animation update | 2.721 → 8.484 | 6.968 → 25.810 |
+| Complete preparation | 796.138 → 773.260 | 1,981.993 → 2,025.028 |
+
+Both targeted improvements are below 5% and their sample ranges overlap. Complete-preparation differences remain within observed variation; the larger-fixture median is slower. Recomputing geometry on animated appearance changes increased animation-update cost, offsetting some avoided render work. Cheap eligibility gates already reject most units before occupied-region transforms, so the repeated transform cost was smaller than the initial hypothesis suggested for these workloads.
+
+**Decision.** Remove the prepared-geometry cache and its cache-specific regression test; keep the three accepted optimizations. Retain a stateless geometry extraction separately as described below. The corrected candidate passed 143 native tests and lint but failed the performance gate. Record the evidence and pause the sequence before fade bookkeeping, early culling, or cached scenery sorting. These later candidates have not been attempted.
+
+The longer benchmark also caught invalid prepared records after repeated appearance changes using temporary-hash replacement; explicit field assignment passed the repeated sequence and GC checks. This was corrected before the complete candidate measurements above. It is an observation about the discarded implementation, not a change to SDK resources or a proven general SDK diagnosis.
+
+A future attempt could precompute geometry for each immutable placed appearance variant rather than transform it on every appearance change, or first instrument how many transforms the actual fade queries execute. That is a new experiment, not an accepted optimization. The stateless extraction has an existing responsibility shared by fading and preview diagnostics; its value is assessed separately from the failed cache.
+
+## 5. Share stateless sprite geometry — retained as a refactor
+
+**Original problem.** `ForegroundFade` owned source-local to world-space geometry transforms as well as fade policy. Preview diagnostics called through the fade module to draw occupied regions. Bounds, anchors, scaling, and flips describe sprite placement independently of whether an actor should reveal scenery, so the existing callers depended on the wrong owner. The geometry-cache experiment bundled this ownership improvement with a performance hypothesis; rejecting that cache did not invalidate the extraction.
+
+**Decision and mechanism.** Move the existing frame-bounds, alpha-bounds, occupied-region, and individual alpha-rectangle transforms into [`Descent::SpriteGeometry`](../../mygame/app/sprite_geometry.rb). Fading and preview diagnostics call that stateless module directly. Keep the fade loop's lazy region checks, original measurements, strict width rule, and exact transforms. Pixel scanning and per-crop measurement caching stay in the deserializer. No world-space cache, prepared records, variant lifecycle, boundary extraction, or lighting policy is introduced.
+
+**Trade-off.** One small module and explicit geometry calls replace the accidental dependency on fading. This is an architectural decision with two current consumers, not a performance optimization. Acceptance depends on clear ownership and equivalent geometry; benchmark results and the 5% improvement gate do not govern this extraction. Future lighting can reuse these transforms while choosing its own boundary representation. Sprite changes are observed on the next call because nothing is retained.
+
+**Verification.** All 144 native tests and RuboCop pass. Dedicated geometry tests cover crop-local offsets, anchors, unequal scaling, all flip combinations, movement between queries, input preservation, frame fallback, and explicitly empty measurements. Existing import/fade/render/preview tests retain coverage of holes, L-shaped artwork, door/light variants, sorting, and diagnostics. Exploratory timing runs are retained in the evidence note for transparency; they are not the rationale or acceptance criterion for this architectural decision.
+
+## Deferred candidates and lighting constraints
+
+The sequence is paused at the geometry-cache gate. Fade bookkeeping and early rejection, earlier culling, and cached stationary scenery order remain unevaluated. Resume only after review of the failed gate; reassess candidates against the latest accepted baseline and record their problem, mechanism, trade-offs, and evidence here when evaluated.
 
 Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
 

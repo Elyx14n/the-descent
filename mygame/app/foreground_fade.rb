@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'app/sprite_geometry'
+
 module Descent
   # Actor-relative opacity, independent of camera placement and gameplay state.
   # Units reference the original sprites so identical artwork keeps its own order.
@@ -49,30 +51,6 @@ module Descent
         end
       end
 
-      def bounds(sprite)
-        { x: sprite[:x] - (sprite[:w] * sprite.fetch(:anchor_x, 0)),
-          y: sprite[:y] - (sprite[:h] * sprite.fetch(:anchor_y, 0)),
-          w: sprite[:w], h: sprite[:h] }
-      end
-
-      def alpha_bounds(sprite)
-        return bounds(sprite) unless sprite.key?(:occlusion_bounds)
-
-        local = sprite[:occlusion_bounds]
-        return unless local
-
-        transform_alpha_rect(sprite, local)
-      end
-
-      def alpha_regions(sprite)
-        unless sprite.key?(:occlusion_regions)
-          rect = alpha_bounds(sprite)
-          return rect ? [rect] : []
-        end
-
-        sprite[:occlusion_regions].map { |local| transform_alpha_rect(sprite, local) }
-      end
-
       def multiplier(footprint, actor, type:)
         # Measure vertical gap between the player's y above the footprint's top edge; inside it, the gap is zero.
         d = [actor[:y] - (footprint[:y] + footprint[:h]), 0].max
@@ -86,16 +64,6 @@ module Descent
       end
 
       private
-
-      def transform_alpha_rect(sprite, local)
-        frame = bounds(sprite)
-        x = sprite[:flip_horizontally] ? sprite[:source_w] - local[:x] - local[:w] : local[:x]
-        y = sprite[:flip_vertically] ? sprite[:source_h] - local[:y] - local[:h] : local[:y]
-        scale_x = sprite[:w].fdiv(sprite[:source_w])
-        scale_y = sprite[:h].fdiv(sprite[:source_h])
-        { x: frame[:x] + (x * scale_x), y: frame[:y] + (y * scale_y),
-          w: local[:w] * scale_x, h: local[:h] * scale_y }
-      end
 
       def approach_opacity(target, state:, id:, tick:, min_opacity:)
         previous = state[id] || { opacity: 1.0, tick: tick - 1 }
@@ -121,7 +89,7 @@ module Descent
         return false unless base_index && base_index > actor_index
 
         # The actor's center must cross the supporting base, not just graze it.
-        base_bounds = bounds(base)
+        base_bounds = SpriteGeometry.bounds(base)
         return false unless base_bounds[:x] <= actor[:x] && actor[:x] < base_bounds[:x] + base_bounds[:w]
 
         # A member must cross the center line and be wider than the actor's body.
@@ -131,11 +99,11 @@ module Descent
 
           if sprite.key?(:occlusion_regions)
             sprite[:occlusion_regions].any? do |local|
-              rect = transform_alpha_rect(sprite, local)
+              rect = SpriteGeometry.transform_alpha_rect(sprite, local)
               rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
             end
           else
-            rect = alpha_bounds(sprite)
+            rect = SpriteGeometry.alpha_bounds(sprite)
             rect && rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
           end
         end
