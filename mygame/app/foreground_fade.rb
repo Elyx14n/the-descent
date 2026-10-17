@@ -107,21 +107,10 @@ module Descent
           index = indices[sprite.object_id]
           next false unless index && (index <=> actor_index).positive?
 
-          if sprite.key?(:occlusion_regions)
-            sprite[:occlusion_regions].any? do |local|
-              rect = SpriteGeometry.transform_rect(sprite, local)
-              rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
-            end
-          else
-            rect = SpriteGeometry.occupied_bounds(sprite)
-            rect && rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
-          end
+          SpriteGeometry.crosses_span?(sprite, x: actor[:x], y: actor[:y],
+                                               height: actor.fetch(:occlusion_height),
+                                               width: actor.fetch(:occlusion_width))
         end
-      end
-
-      def crosses_center?(rect, actor)
-        rect[:x] <= actor[:x] && actor[:x] < rect[:x] + rect[:w] &&
-          rect[:y] < actor[:y] + actor[:occlusion_height] && rect[:y] + rect[:h] > actor[:y]
       end
     end
   end

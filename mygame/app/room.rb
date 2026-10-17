@@ -129,6 +129,8 @@ module Descent
       [entry[:sprite]] + entry.fetch(:mounted_objects, []).map { |mounted| mounted[:sprite] }
     end
 
+    # Fade units only group opacity; each sprite owns its shared occluder polygons.
+    # Lighting must select its blockers independently of this fade-only subset.
     # Associate caps locally, without joining a connected wall into one large
     # fade. Same-cell walls handle corners where face and ceiling art overlap.
     def prepare_fade_units

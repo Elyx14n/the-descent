@@ -18,7 +18,7 @@ module Descent
         raise ArgumentError, "Missing #{PATH}; run bin/rake assets:occluders" unless contents
 
         data = gtk.parse_json(contents)
-        unless data.is_a?(Hash) && data['format_version'] == 3 && data['coordinate_origin'] == 'bottom_left'
+        unless data.is_a?(Hash) && data['format_version'] == 4 && data['coordinate_origin'] == 'bottom_left'
           raise ArgumentError, 'Unsupported occluder data; run bin/rake assets:occluders'
         end
 

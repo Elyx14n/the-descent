@@ -22,7 +22,6 @@ class OccluderAssetsTest < Minitest::Test
   def test_fills_holes_and_preserves_detached_pieces
     result = OccluderAssets.new(tolerance: 0).outline(image('###..', '#.#.#', '###..'))
     assert_equal [[[0, 0], [3, 0], [3, 3], [0, 3]], [[4, 1], [5, 1], [5, 2], [4, 2]]], result[:polygons]
-    assert_equal [[0, 0, 3, 3], [4, 1, 1, 1]], result[:regions]
     assert_equal [0, 0, 5, 3], result[:bounds]
   end
 
@@ -41,8 +40,6 @@ class OccluderAssetsTest < Minitest::Test
       assert shapes.any? { |shape| shape.intersects?(factory.point(2, 4)) }, 'The wall must remain'
       assert shapes.any? { |shape| shape.intersects?(factory.point(7, 1)) }, 'The smaller cap must remain'
       refute shapes.any? { |shape| shape.intersects?(factory.point(5, 2.5)) }, 'The gap must stay empty'
-      refute result[:regions].any? { |x, y, w, h| x <= 5 && x + w > 5 && y <= 2.5 && y + h > 2.5 },
-             'Derived fade regions must not bridge separate pieces'
     end
   end
 
@@ -50,7 +47,6 @@ class OccluderAssetsTest < Minitest::Test
     sprite = image('#######..', '#.....#..', '#.....#.#', '#..#..#..', '#.....#..', '#.....#..', '#######..')
     result = OccluderAssets.new(tolerance: 0).outline(sprite)
     assert_equal 2, result[:polygons].length, 'The filled shell and the external piece each need one boundary'
-    assert_equal [[0, 0, 7, 7], [8, 4, 1, 1]], result[:regions]
   end
 
   def test_preserves_large_l_shaped_notch_and_thin_wall
@@ -99,7 +95,11 @@ class OccluderAssetsTest < Minitest::Test
       assert_equal 4, data[:tilesets].length
       assert(data[:tilesets].all? { |tileset| tileset[:tiles].length.positive? })
       assert_equal ['occluders.json'], Dir.children(output)
-      assert(data[:tilesets].all? { |tileset| tileset[:tiles].all? { |tile| tile.key?(:regions) } })
+      assert(data[:tilesets].all? do |tileset|
+        tileset[:tiles].all? do |tile|
+          tile.key?(:polygons) && !tile.key?(:regions)
+        end
+      end)
     end
   end
 end

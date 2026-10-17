@@ -12,11 +12,9 @@ class TiledOpacityTests
     record = occluders['tilesets'].find { |entry| entry['image'] == 'sprites/environment_tilesheet.png' }['tiles'][20]
     record['polygons'] = [[[0, 26], [26, 26], [26, 0], [32, 0], [32, 32], [0, 32]]]
     record['bounds'] = [0, 0, 32, 32]
-    record['regions'] = [[0, 26, 32, 6], [26, 0, 6, 26]]
     decoded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json', occluders: occluders)
     cap = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite].merge(x: 32, y: 64)
     assert.equal! cap[:occlusion_bounds], { x: 0, y: 0, w: 32, h: 32 }
-    assert.equal! cap[:occlusion_regions], [{ x: 0, y: 26, w: 32, h: 6 }, { x: 26, y: 0, w: 6, h: 26 }]
     base = { x: 32, y: 32, w: 32, h: 32, path: :solid }
     unit = { type: :wall, base: base, footprint: base, sprites: [base, cap] }
     positions = [40, 60]
@@ -39,12 +37,11 @@ class TiledOpacityTests
     end
   end
 
-  def test_generated_disconnected_regions_do_not_bridge_the_gap(args, assert)
+  def test_generated_disconnected_polygons_do_not_bridge_the_gap(args, assert)
     occluders = occluder_fixture(args)
     record = occluders['tilesets'].find { |entry| entry['image'] == 'sprites/environment_tilesheet.png' }['tiles'][20]
     record['polygons'] = [[[0, 0], [6, 0], [6, 32], [0, 32]], [[26, 0], [32, 0], [32, 32], [26, 32]]]
     record['bounds'] = [0, 0, 32, 32]
-    record['regions'] = [[0, 0, 6, 32], [26, 0, 6, 32]]
     decoded = Descent::TiledDeserializer.deserialize(tiled_test_map(args), path: 'tiled/ritual_gate.json',
                                                                            occluders: occluders)
     sprite = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite].merge(x: 32, y: 64)
@@ -62,8 +59,8 @@ class TiledOpacityTests
     occluders = occluder_fixture(args)
     records = occluders['tilesets'].find { |entry| entry['image'] == 'sprites/environment_tilesheet.png' }['tiles']
     records[20] = { 'polygons' => [[[2, 24], [5, 24], [5, 27], [2, 27]]],
-                    'bounds' => [2, 24, 3, 3], 'regions' => [[2, 24, 3, 3]] }
-    records[24] = { 'polygons' => [], 'bounds' => nil, 'regions' => [] }
+                    'bounds' => [2, 24, 3, 3] }
+    records[24] = { 'polygons' => [], 'bounds' => nil }
     object = data['layers'].find { |layer| layer['name'] == 'Walls' }['objects'].find { |entry| entry['id'] == 193 }
     object['width'] = 64
     object['height'] = 48
@@ -72,10 +69,8 @@ class TiledOpacityTests
     wall = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite]
     assert.equal! wall[:occlusion_bounds], { x: 2, y: 24, w: 3, h: 3 }
     assert.equal! Descent::SpriteGeometry.occupied_bounds(wall), { x: 54, y: 103.5, w: 6, h: 4.5 }
-    assert.equal! Descent::SpriteGeometry.occupied_regions(wall), [{ x: 54, y: 103.5, w: 6, h: 4.5 }]
     empty = decoded[:collections][:objects].find { |entry| entry[:id] == 166 }[:sprite]
     assert.equal! Descent::SpriteGeometry.occupied_bounds(empty), nil
-    assert.equal! Descent::SpriteGeometry.occupied_regions(empty), []
     assert.equal! Descent::SpriteGeometry.polygons(empty), []
   end
 
@@ -87,19 +82,16 @@ class TiledOpacityTests
       unit = room.fade_units.find { |candidate| candidate[:base].equal?(sprite) }
       footprint = unit[:footprint].dup
       closed = sprite[:occlusion_bounds].dup
-      closed_regions = sprite[:occlusion_regions].map(&:dup)
       closed_polygons = sprite[:occlusion_polygons]
       open_bounds = door[:parts].first[:open_sprite][:occlusion_bounds]
       assert.equal! closed[:w], 6
       room.set_door_open(id, open: true)
       assert.true! sprite.equal?(unit[:base])
       assert.equal! sprite[:occlusion_bounds], open_bounds
-      assert.true! sprite[:occlusion_regions] != closed_regions
       assert.true! sprite[:occlusion_polygons] != closed_polygons
       assert.equal! unit[:footprint], footprint
       room.set_door_open(id, open: false)
       assert.equal! sprite[:occlusion_bounds], closed
-      assert.equal! sprite[:occlusion_regions], closed_regions
       assert.equal! sprite[:occlusion_polygons], closed_polygons
     end
   end

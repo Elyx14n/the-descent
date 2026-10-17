@@ -214,10 +214,7 @@ module Descent
         record = tile[:tileset].fetch('occluders').fetch(tile[:id])
         rect = record['bounds']
         { occlusion_polygons: record.fetch('polygons'),
-          occlusion_bounds: rect && { x: rect[0], y: rect[1], w: rect[2], h: rect[3] },
-          occlusion_regions: record.fetch('regions').map do |region|
-            { x: region[0], y: region[1], w: region[2], h: region[3] }
-          end }
+          occlusion_bounds: rect && { x: rect[0], y: rect[1], w: rect[2], h: rect[3] } }
       end
 
       def load_tile_layer(context, layer)

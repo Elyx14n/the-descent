@@ -96,7 +96,7 @@ Place lights using their animated lit tile. Set `unlit_id` to the static unlit t
 
 Light `offset_x` and `offset_y` locate the emitter in source pixels from the tile's top-left, accounting for object scaling and flips. Radius, intensity, and color are retained for future illumination. Use `mounted_on` object references for wall-mounted Props; they draw and fade with their supporting wall. Pedestal offsets locate the future item anchor.
 
-E toggles the nearest door or light within 24 world pixels, measuring doors from their closed colliders and lights from their placed sprite rectangles. Equal-distance targets follow authored object order. Locked doors and transitions overlapping the player's feet consume the press. B shows collision, fade geometry, and emitter markers. Illumination and pedestal interaction remain unimplemented.
+E toggles the nearest door or light within 24 world pixels, measuring doors from their closed colliders and lights from their placed sprite rectangles. Equal-distance targets follow authored object order. Locked doors and transitions overlapping the player's feet consume the press. B shows collision, fade-unit footprints in blue, occluder polygon edges in magenta, and emitter markers. Illumination and pedestal interaction remain unimplemented.
 
 ### Generate tile occluders
 
@@ -113,7 +113,7 @@ Then press R in the game to rebuild the room. Missing or outdated data reports t
 
 Generation uses ordinary Ruby, RGeo/GEOS, and ChunkyPNG. Install GEOS development files (`sudo apt-get install libgeos-dev` on Ubuntu, or `brew install geos` on macOS) before `bundle install`. If RGeo was previously built without GEOS, run `bundle pristine rgeo` after installing GEOS. These dependencies are not loaded inside DragonRuby.
 
-The task uses `mygame/tiled/ritual_gate.json` by default; `MAP` selects another JSON export with embedded tilesets, `TOLERANCE` overrides 2, and `OUT` overrides `mygame/data`. All cells in the referenced atlases are included, covering door/animation variants. No separate tileset export or HTML preview is needed. See [ADR-0011](docs/adr/0011-generated-tile-occluders.md) for geometry and fading semantics, and the [investigation notes](docs/notes/alpha-contour-generation.md) for earlier trials.
+The task uses `mygame/tiled/ritual_gate.json` by default; `MAP` selects another JSON export with embedded tilesets, `TOLERANCE` overrides 2, and `OUT` overrides `mygame/data`. All cells in the referenced atlases are included, covering door/animation variants. No separate tileset export or HTML preview is needed. See [ADR-0012](docs/adr/0012-continuous-occluder-queries.md) for geometry and fading semantics, and the [investigation notes](docs/notes/alpha-contour-generation.md) for earlier trials.
 
 ## Repository guide
 

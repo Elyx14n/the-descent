@@ -27,6 +27,7 @@ module RoomTestHelpers
   def clear_room_test_outputs(args)
     args.outputs.primitives.clear
     args.outputs.borders.clear
+    args.outputs[Descent::Render::TARGET].lines.clear
     args.outputs[Descent::Render::TARGET].primitives.clear
     args.outputs[Descent::Render::TARGET].borders.clear
   end

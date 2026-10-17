@@ -8,7 +8,7 @@ require 'rgeo'
 require_relative '../mygame/app/occluder_data'
 
 # Run by Rake, never by DragonRuby. Polygon contours are the source of truth;
-# horizontal samples derived from them keep runtime fade queries inexpensive.
+# runtime consumers query the same continuous boundaries.
 class OccluderAssets
   def initialize(tolerance: 2)
     raise ArgumentError, 'Tolerance must be finite and nonnegative' unless tolerance.finite? && tolerance >= 0
@@ -28,7 +28,7 @@ class OccluderAssets
         cells << pixel_square(x, y) if ChunkyPNG::Color.a(image[x, y]).positive?
       end
     end
-    return { polygons: [], regions: [], bounds: nil } if cells.empty?
+    return { polygons: [], bounds: nil } if cells.empty?
 
     merged = @factory.collection(cells).unary_union
     parts = RGeo::Feature::Polygon.check_type(merged) ? [merged] : merged.to_a
@@ -46,7 +46,7 @@ class OccluderAssets
     end.sort
     xs = polygons.flatten(1).map(&:first)
     ys = polygons.flatten(1).map(&:last)
-    { polygons: polygons, regions: fade_regions(polygons, image.width, image.height),
+    { polygons: polygons,
       bounds: [xs.min, ys.min, xs.max - xs.min, ys.max - ys.min] }
   end
 
@@ -70,7 +70,7 @@ class OccluderAssets
         columns: tileset.fetch('columns'), margin: tileset.fetch('margin', 0),
         spacing: tileset.fetch('spacing', 0), tiles: tiles }
     end
-    data = { format_version: 3, coordinate_origin: 'bottom_left', alpha_threshold: 1,
+    data = { format_version: 4, coordinate_origin: 'bottom_left', alpha_threshold: 1,
              tolerance: @tolerance, policy: 'all_components_filled_exteriors', tilesets: tilesets }
     FileUtils.mkdir_p(output)
     File.write(File.join(output, 'occluders.json'), "#{JSON.generate(data)}\n")
@@ -78,37 +78,6 @@ class OccluderAssets
   end
 
   private
-
-  def fade_regions(polygons, width, height)
-    shapes = polygons.map { |ring| polygon(ring) }
-    area = @factory.collection(shapes).unary_union
-    regions = []
-    previous = {}
-    height.times do |y|
-      line = @factory.line(@factory.point(0, y + 0.5), @factory.point(width, y + 0.5))
-      intersection = area.intersection(line)
-      spans = RGeo::Feature::LineString.check_type(intersection) ? [intersection] : intersection.to_a
-      current = {}
-      spans.each do |span|
-        next unless RGeo::Feature::LineString.check_type(span) && !span.empty?
-
-        xs = span.points.map(&:x)
-        key = [xs.min, xs.max - xs.min]
-        next unless key.last.positive?
-
-        if previous[key]
-          region = previous[key]
-          region[3] += 1
-        else
-          region = [key.first, y, key.last, 1]
-          regions << region
-        end
-        current[key] = region
-      end
-      previous = current
-    end
-    regions.sort
-  end
 
   def pixel_square(x, y)
     polygon([[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]])

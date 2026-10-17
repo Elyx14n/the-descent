@@ -100,10 +100,11 @@ module Descent
         frame[:world_borders].concat(state[:room].fade_units.map do |unit|
           unit[:footprint].merge(r: 100, g: 160, b: 255)
         end)
-        state[:room].fade_units.flat_map { |unit| unit[:sprites] }.uniq.each do |sprite|
-          SpriteGeometry.occupied_regions(sprite).each do |rect|
-            frame[:world_borders] << rect.merge(r: 220, g: 100, b: 220)
-          end
+        # All scenery shares occluder geometry, independently of fade grouping.
+        sprites = state[:room].objects.map { |entry| entry[:sprite] } + state[:room].ceiling
+        visible = state[:camera].for_drawing.find_all_intersect_viewport(sprites.uniq)
+        frame[:world_lines] = visible.flat_map do |sprite|
+          SpriteGeometry.edges(sprite).map { |edge| edge.merge(r: 220, g: 100, b: 220) }
         end
         frame[:world_markers] = state[:room].lights.map do |light|
           { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 0, g: 255, b: 0 }

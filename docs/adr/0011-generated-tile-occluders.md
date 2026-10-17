@@ -1,9 +1,12 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0012-continuous-occluder-queries.md
 date: 2026-10-17
 ---
 
 # Generate simplified tile occluders outside the game
+
+[ADR-0012](0012-continuous-occluder-queries.md) replaces the sampled rectangle representation and debug overlay described below. It retains the generation pipeline, approved simplification policy, and loading/freshness checks.
 
 Room loading scanned sprite alpha and decomposed exact occupied pixels into rectangles for foreground fading. Those rectangles solve overlap queries but would introduce unnecessary internal edges if used directly for future raycasting. Generate simplified polygon boundaries with RGeo/GEOS in a Rake task, retain disconnected pieces, and use those polygons as the shared source for runtime geometry.
 
