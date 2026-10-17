@@ -13,9 +13,7 @@ The accepted framing and text choices are recorded in
 [the camera ADR](../adr/0001-viewport-sized-camera.md) and
 [the resolution and fonts ADR](../adr/0002-reference-resolution-and-ui-fonts.md).
 
-## Pipeline before the measured optimizations
-
-This section describes the Tiled integration pipeline before the 2026-10-16 changes. See [ADR-0009](../adr/0009-measured-render-preparation.md) for current caching, culling, ordering, and geometry ownership.
+## What the game currently does
 
 [Room.render_data](../../mygame/app/room.rb) supplies imported world-space artwork and mounted draw groups. The preview appends the player's current sprite group. [Render.draw](../../mygame/app/render.rb) then:
 

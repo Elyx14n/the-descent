@@ -5,26 +5,11 @@ require 'tests/support/room_helpers'
 class RoomTests
   include RoomTestHelpers
 
-  def test_prepared_scenery_order_is_stable_and_stays_current_across_variant_changes(args, assert)
-    room = tiled_test_room(args)
-    frame = room.render_data
-    original_groups = room.objects.reject { |entry| entry[:mounted_on] }
-    expected = original_groups.each_with_index.sort_by { |entry, index| [-entry[:depth], index] }
-    assert.equal! frame[:ordered_group_count], frame[:groups].length
-    expected_sprites = expected.map { |entry, _index| entry[:sprite] }
-    assert.equal! frame[:groups].map { |group| group[:sprites].first }, expected_sprites
-    room.set_door_open(267, open: true)
-    room.set_light_enabled(121, enabled: false)
-    assert.equal! room.render_data, frame
-    frame[:groups] << Descent::Player.new.render_data
-    assert.equal! room.render_data[:groups].length, frame[:ordered_group_count]
-  end
-
   def test_render_collections_isolate_appends_and_keep_door_and_mounted_light_artwork_live(args, assert)
     room = tiled_test_room(args)
     frame = room.render_data
     original = room.render_data
-    %i[floor groups ceiling fade_units].each { |key| frame[key].clear }
+    frame.each_value(&:clear)
     assert.equal! room.render_data, original
 
     door = room.doors.find { |entry| entry[:id] == 267 }

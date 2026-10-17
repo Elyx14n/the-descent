@@ -70,7 +70,7 @@ The strongest unit multiplier is applied once per sprite, multiplying authored a
 - DragonRuby 7.21's `Easing.smooth_step` mixes smooth-start and smooth-stop curves and does not reproduce the selected cubic polynomial. Retain the explicit formula.
 - Additional Tiled fade flags, opacity overrides, or ownership references remain options for actual authoring exceptions. Global tuning stays in Ruby while automatic local association works.
 
-This original decision removed unnecessary horizontal-distance math and viewport bounds normalization without measuring a performance benefit. Subsequent measured fade bookkeeping and renderer changes are recorded in [ADR-0009](0009-measured-render-preparation.md). Collision, gameplay sight, lighting, and camera placement retain their existing responsibilities. Center-line intersection approximates visible occlusion, and overlapping translucent artwork can still compound visual opacity.
+This removes unnecessary horizontal-distance math and viewport bounds normalization; no performance improvement has been measured. Collision, gameplay sight, lighting, and camera placement retain their existing responsibilities. Center-line intersection approximates visible occlusion, and overlapping translucent artwork can still compound visual opacity.
 
 ## Verification and references
 
