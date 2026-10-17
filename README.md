@@ -40,6 +40,16 @@ If you use Zsh on Linux, use `~/.zshrc` instead of `~/.bashrc`.
 
 Install GEOS for RGeo before `bundle install`: `brew install geos` on macOS, or `sudo apt-get install libgeos-dev` on Ubuntu. If RGeo was already installed without GEOS, rebuild it afterward with `bundle pristine rgeo`.
 
+On Linux (including WSL Ubuntu), Homebrew's GEOS may compile successfully but fail to load because its library directory is outside the system loader's search path. If you installed GEOS with Homebrew and the asset task still reports it unavailable, configure RGeo's build and runtime library paths locally, then rebuild:
+
+```sh
+geos_prefix="$(brew --prefix geos)"
+bundle config set --local build.rgeo "--with-geos-config=$geos_prefix/bin/geos-config --with-ldflags=-Wl,-rpath,$geos_prefix/lib"
+bundle pristine rgeo
+```
+
+This setting is stored in the Git-ignored `.bundle/config` for your machine.
+
 From the repository root, install the locked gem versions and launch:
 
 ```sh
