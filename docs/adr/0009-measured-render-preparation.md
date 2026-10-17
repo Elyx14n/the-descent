@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-10-16
+updated: 2026-10-17
 ---
 
 # Reuse rendering work at the lifetime of its inputs
@@ -14,6 +15,8 @@ This refines implementation under [ADR-0005](0005-render-data-and-room-preview.m
 Use the opt-in [native benchmark](../../mygame/tests/render_benchmark.rb), run with `bin/rake test tests/render_benchmark.rb HEADLESS=1`. It measures the real Ritual Gate room and a deterministic three-copy workload with the same viewport. Measure targeted operations and complete Ruby preparation/submission separately, including stationary views, camera pans, fade reversal, and door/light changes. Warm up, then collect seven batches from equivalent initial state with diagnostics off.
 
 Keep an optimization when its targeted median improves by at least 5%, exceeding observed variation, and whole preparation has no repeatable regression. Run targeted regressions, the full native suite, and `bin/rubocop` before committing. Stop the sequence for review if a candidate fails or remains inconclusive; remove only that candidate's changes. Each accepted optimization is a separate commit with its evidence.
+
+[ADR-0010](0010-prefer-simple-visible-group-sorting.md) refines acceptance: passing this numerical gate establishes a speedup, but retention also depends on absolute savings, demonstrated gameplay need, and implementation/interface complexity. It supersedes the cached scenery-ordering acceptance; the other decisions below remain accepted.
 
 [Benchmark samples and methodology](../notes/rendering-benchmarks.md) retain exact timings, ranges, workload counts, and environment. These measurements exclude engine draw execution and GPU work. They do not establish FPS improvements or visual correctness. Full-preparation differences include allocation/GC effects and host noise; avoid attributing every change to one method's execution time.
 
@@ -134,9 +137,13 @@ Targeted ranges are separated in both workloads. Full preparation improved in si
 
 Targeted ranges are separated in both workloads. Complete preparation improved in six of seven real-room pairs and all seven larger-workload pairs. `draw` uses a preassembled stationary frame, output clearing, fade state, and actual renderer submission; `frame` additionally includes the existing actor/animation/pan/variant sequence. All 150 native tests and RuboCop passed. New regressions cover offscreen supporting bases, mounted-only visibility, offscreen fade history for a partially visible actor, and repeated sprite references in differently ordered depth groups. Visual confirmation is still needed for changes after `1820b3b`.
 
-## Deferred candidates and lighting constraints
+## 8. Cached scenery ordering — superseded and reverted
 
-After review of the rejected cache and retention of the stateless helper, the user authorized resuming the sequence. Fade bookkeeping and early rejection passed the gate. Earlier culling also passed the gate. Measure the remaining sorting cost before deciding whether cached stationary scenery order warrants another change. Reassess each against the latest accepted baseline and retain the measurement gate for performance changes.
+The cached-ordering optimization accepted in this record at `691b6cb` passed its performance gate, but was reverted in `5c8309f` after reassessing maintenance cost. [ADR-0010](0010-prefer-simple-visible-group-sorting.md) records the replacement decision, the original problem and implementation, and the measured savings. The general stable sort of visible groups is current behavior. Historical measurements are preserved rather than treating the optimization as a failed speed experiment.
+
+## Sequence outcome and lighting constraints
+
+The sequence has been evaluated. Collection caching, camera snapshots, unchanged-light skipping, fade bookkeeping, and early culling remain. The transformed-geometry cache was rejected at the measurement gate; the stateless geometry helper is retained as an architectural decision. Cached scenery ordering was measured and then reverted for disproportionate complexity. It is not a pending implementation task.
 
 Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
 
