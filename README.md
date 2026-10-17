@@ -100,18 +100,6 @@ After the first launch, run **Ruby LSP: Restart** from the command palette to in
 
 Completion covers the Ruby definitions shipped in the SDK; Ruby LSP may still be unable to infer dynamic fields such as `args.state.some_custom_field`.
 
-## Author and preview rooms in Tiled
-
-Edit the source map under `mygame/tiled/` and export finite orthogonal JSON with embedded tilesets. Use game-relative image paths, bottom-left tile-object alignment, rectangle collision shapes, and these layers: Ground and Ceiling as tile layers; FloorDetails, Walls, and Props as object layers. Include exactly one point object of class Spawn. The preview polls changed exports every 30 ticks in development; R forces a rebuild. Successful reloads restore authored defaults, while invalid exports retain the last valid room and show the error.
-
-Place Door, Light, and Pedestal tile objects on Props. Door tiles specify matching local `close_tile` and `open_tile` IDs on both variants; their active artwork and collision switch together. A Door ceiling tile directly above the base switches with it. The Ritual Gate uses `locked: true` until puzzle logic releases it.
-
-Place lights using their animated lit tile. Set `unlit_id` to the static unlit tile's local ID in the same tileset. `enabled` defaults to true; false starts with the unlit artwork. Object properties override tile defaults. Animation frame IDs and positive millisecond durations come from Tiled; the current flames use four frames at 150 ms each (nine game ticks). The preview supplies the game tick, so toggling a light on joins the current animation frame. Keep the base collider on the placed lit tile: light collision stays fixed across animation and enabled changes.
-
-Light `offset_x` and `offset_y` locate the emitter in source pixels from the tile's top-left, accounting for object scaling and flips. Radius, intensity, and color are retained for future illumination. Use `mounted_on` object references for wall-mounted Props; they draw and fade with their supporting wall. Pedestal offsets locate the future item anchor.
-
-E toggles the nearest door or light within 24 world pixels, measuring doors from their closed colliders and lights from their placed sprite rectangles. Equal-distance targets follow authored object order. Locked doors and transitions overlapping the player's feet consume the press. B shows collision, fade-unit footprints in blue, occluder polygon edges in magenta, and emitter markers. Illumination and pedestal interaction remain unimplemented.
-
 ## Repository guide
 
 Project-owned files:
