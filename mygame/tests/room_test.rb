@@ -26,10 +26,88 @@ class RoomTests
     assert.false! candle[:sprite] == lit
     assert.true!(original[:groups].any? { |entry| entry[:sprites].any? { |sprite| sprite.equal?(door[:sprite]) } })
     assert.true! group[:sprites].last.equal?(candle[:sprite])
-    assert.equal! original, room.render_data
+    # Lighting snapshots change with enabled state and active geometry; drawing
+    # collections retain the same live sprite references across those changes.
+    current = room.render_data
+    %i[floor groups ceiling fade_units].each { |key| assert.equal! original[key], current[key] }
 
     replacement = tiled_test_room(args)
     assert.false! replacement.render_data[:groups].first.equal?(original[:groups].first)
+  end
+
+  def test_light_blockers_include_props_lights_and_ceiling_once_but_exclude_floors(args, assert)
+    room = tiled_test_room(args)
+    blockers = room.render_data[:light_blockers]
+    sprites = blockers.map { |blocker| blocker[:sprite] }
+    assert.equal! sprites.map(&:object_id).uniq.length, sprites.length
+    (room.objects.map { |entry| entry[:sprite] } + room.ceiling).each do |sprite|
+      assert.true!(sprites.any? { |candidate| candidate.equal?(sprite) })
+    end
+    (room.ground + room.floor_details.map { |entry| entry[:sprite] }).each do |sprite|
+      assert.false!(sprites.any? { |candidate| candidate.equal?(sprite) })
+    end
+    assert.true!(blockers.any? { |blocker| blocker[:edges].any? })
+  end
+
+  def test_light_sources_snapshot_enabled_state_and_preserve_other_emitters_blockers(args, assert)
+    room = tiled_test_room(args)
+    frame = room.render_data
+    candle = room.lights.find { |entry| entry[:id] == 121 }
+    source = frame[:light_sources].find { |entry| entry[:id] == 121 }
+    wall = room.objects.find { |entry| entry[:id] == candle[:mounted_on] }
+    assert.equal! source[:ignore_owner_ids], [wall[:id]]
+    own = frame[:light_blockers].find { |entry| entry[:sprite].equal?(candle[:sprite]) }
+    host = frame[:light_blockers].find { |entry| entry[:sprite].equal?(wall[:sprite]) }
+    assert.equal! own[:owner_ids], source[:ignore_owner_ids]
+    assert.equal! host[:owner_ids], source[:ignore_owner_ids]
+    cap = room.ceiling.find do |sprite|
+      sprite[:x] == wall[:sprite][:x] && sprite[:y] == wall[:sprite][:y] + wall[:sprite][:h]
+    end
+    assert.true! cap
+    assert.true!(frame[:light_blockers].find { |entry| entry[:sprite].equal?(cap) }[:owner_ids].include?(wall[:id]))
+
+    standalone = frame[:light_sources].find { |entry| entry[:id] == 6 }
+    assert.equal! standalone[:ignore_owner_ids], [6]
+    other = frame[:light_blockers].find { |entry| entry[:owner_ids] == [6] }
+    assert.true! other
+    assert.false! source[:ignore_owner_ids].include?(other[:owner_ids].first)
+
+    room.set_light_enabled(121, enabled: false)
+    next_frame = room.render_data
+    assert.false!(next_frame[:light_sources].any? { |entry| entry[:id] == 121 })
+    assert.equal! frame[:light_sources].find { |entry| entry[:id] == 121 }, source
+    assert.true!(next_frame[:light_blockers].any? { |entry| entry[:sprite].equal?(candle[:sprite]) })
+    source[:x] = -1000
+    source[:ignore_owner_ids].clear
+    room.set_light_enabled(121, enabled: true)
+    assert.equal! room.render_data[:light_sources].find { |entry| entry[:id] == 121 }[:x], candle[:x]
+    assert.equal! room.render_data[:light_sources].find { |entry| entry[:id] == 121 }[:ignore_owner_ids], [wall[:id]]
+  end
+
+  def test_light_blocker_edges_refresh_for_door_and_animated_light_variants(args, assert)
+    room = tiled_test_room(args)
+    door = room.doors.find { |entry| entry[:id] == 267 }
+    candle = room.lights.find { |entry| entry[:id] == 122 }
+    sprites = door[:parts].map { |part| part[:sprite] } + [candle[:sprite]]
+    before = room.render_data[:light_blockers]
+    previous = sprites.map { |sprite| before.find { |entry| entry[:sprite].equal?(sprite) }[:edges] }
+    room.set_door_open(267, open: true)
+    room.set_light_enabled(122, enabled: false)
+    after = room.render_data[:light_blockers]
+    sprites.each_with_index do |sprite, index|
+      blocker = after.find { |entry| entry[:sprite].equal?(sprite) }
+      assert.equal! blocker[:edges], Descent::SpriteGeometry.edges(sprite)
+      assert.false! blocker[:edges] == previous[index]
+    end
+    room.set_light_enabled(122, enabled: true)
+    room.update_animations(tick: 9)
+    animated = room.render_data[:light_blockers].find { |entry| entry[:sprite].equal?(candle[:sprite]) }
+    assert.equal! animated[:edges], Descent::SpriteGeometry.edges(candle[:sprite])
+    assert.false! animated[:edges] == previous.last
+    after.first[:owner_ids].clear
+    after.first[:edges].clear
+    assert.true! room.render_data[:light_blockers].first[:owner_ids].any?
+    assert.equal! before.find { |entry| entry[:sprite].equal?(sprites.first) }[:edges], previous.first
   end
 
   def test_south_fade_units_pair_caps_faces_and_corners_without_joining_neighbor_columns(args, assert)

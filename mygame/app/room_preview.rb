@@ -87,27 +87,10 @@ module Descent
         frame[:hud] << UI.label({ x: Grid.w - 16, y: Grid.h - 8 }, text: "FPS: #{args.gtk.current_framerate.to_sf}")
         frame[:world_borders] = state[:room].collision_rects.map { |rect| rect.merge(r: 235, g: 185, b: 94) }
         frame[:world_borders] << state[:player].collision_rect.merge(r: 90, g: 255, b: 160)
-        occlusion_box = state[:player].render_data[:fade_actor]
-        frame[:world_borders] << {
-          x: occlusion_box[:x] - 8,
-          y: occlusion_box[:y] - 8,
-          h: occlusion_box[:occlusion_height],
-          w: occlusion_box[:occlusion_width],
-          r: 255,
-          g: 105,
-          b: 180
-        }
-        frame[:world_borders].concat(state[:room].fade_units.map do |unit|
-          unit[:footprint].merge(r: 100, g: 160, b: 255)
-        end)
-        # All scenery shares occluder geometry, independently of fade grouping.
-        sprites = state[:room].objects.map { |entry| entry[:sprite] } + state[:room].ceiling
-        visible = state[:camera].for_drawing.find_all_intersect_viewport(sprites.uniq)
-        frame[:world_lines] = visible.flat_map do |sprite|
-          SpriteGeometry.edges(sprite).map { |edge| edge.merge(r: 220, g: 100, b: 220) }
-        end
-        frame[:world_markers] = state[:room].lights.map do |light|
-          { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 0, g: 255, b: 0 }
+        viewport = state[:camera].for_drawing.viewport_world
+        visible = frame[:light_blockers].select { |blocker| Geometry.intersect_rect?(blocker[:sprite], viewport) }
+        frame[:world_lines] = visible.flat_map do |blocker|
+          blocker[:edges].map { |edge| edge.merge(r: 220, g: 100, b: 220) }
         end
         frame[:world_borders] << {
           x: state[:room].spawn[:x] - 8,
@@ -118,6 +101,9 @@ module Descent
           g: 255,
           b: 255
         }
+        frame[:world_markers] = frame[:light_sources].map do |light|
+          { x: light[:x] - 2, y: light[:y] - 2, w: 4, h: 4, path: :solid, r: 0, g: 255, b: 0 }
+        end
       end
     end
   end

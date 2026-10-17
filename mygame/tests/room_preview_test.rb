@@ -33,10 +33,39 @@ class RoomPreviewTests
         end
       end
       assert.equal! lines.map { |line| line.values_at(:x, :y, :x2, :y2) }, expected
+      assert.true! lines.any?
+      assert.true!(lines.all? { |line| line.values_at(:r, :g, :b) == [220, 100, 220] })
       assert.false!(preview[:outputs][Descent::Render::TARGET].borders.flatten.any? do |border|
         border.values_at(:r, :g, :b) == [220, 100, 220]
       end)
     end
+  end
+
+  def test_debug_emitter_markers_follow_enabled_sources_and_hide_with_overlay(args, assert)
+    preview = preview_test_args(args)
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
+    state = preview_test_tick(preview, 0)
+    light = state[:room].lights.find { |entry| entry[:id] == 6 }
+    state[:camera].follow(x: light[:x], y: light[:y])
+    marker = state[:camera].to_draw_space(
+      { x: light[:x] - 2, y: light[:y] - 2, w: 4, h: 4, path: :solid, r: 0, g: 255, b: 0 }
+    )
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    target = preview[:outputs][Descent::Render::TARGET]
+    assert.true! target.primitives.flatten.include?(marker)
+
+    state[:room].set_light_enabled(6, enabled: false)
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    assert.false! target.primitives.flatten.include?(marker)
+    assert.true! target.lines.flatten.any?
+
+    state[:show_bounds] = false
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    assert.true! target.lines.flatten.empty?
+    assert.false!(target.primitives.flatten.any? { |sprite| sprite.values_at(:r, :g, :b) == [0, 255, 0] })
   end
 
   def test_preview_reveals_south_door_and_cap_then_reload_restores_authored_artwork(args, assert)

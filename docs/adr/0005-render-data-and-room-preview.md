@@ -61,6 +61,8 @@ These are current capabilities and limits, not an implemented map contract. The 
 | `ceiling` | World-space sprites drawn after the sorted groups |
 | `fade_units` | Hashes with the base's canonical `type`, original supporting `base`, world-space `footprint`, and original `sprites` references; associated base/cap artwork shares opacity |
 | `fade_actors` | Hashes with actor ground-anchor `x`, `y`, scaled `occlusion_width` and `occlusion_height`, and an original actor `sprite` reference identifying its final drawing order |
+| `light_sources` | Enabled room emitters with `id`, world-space `x`/`y`, authored `radius`/`intensity`/`color`, and `ignore_owner_ids` identifying their own scenery group |
+| `light_blockers` | One record per non-floor sprite: the live `sprite` reference, `owner_ids` for its scenery group, and current world-space `edges` with `x`, `y`, `x2`, `y2` |
 | `world_borders` | World-space diagnostic border primitives |
 | `world_markers` | World-space diagnostic sprites, such as light-emitter markers |
 | `hud` | Screen-space primitives submitted above the scene |
@@ -68,6 +70,8 @@ These are current capabilities and limits, not an implemented map contract. The 
 Omitted collections behave as empty arrays. Room returns fresh floor/group/ceiling/fade-unit collections containing its current artwork; Actor returns one depth group plus `fade_actor`. A mounted prop remains inside its supporting wall's group. The consumer appends actor groups, their fade actor data, and diagnostic/HUD primitives. With no valid room yet, a nil camera allows HUD-only rendering.
 
 [ADR-0009](0009-measured-render-preparation.md) refines collection ownership: outer arrays are fresh, while cached scenery group hashes and their sprite lists are room-owned structural data that consumers must not mutate. Sprite references continue to reflect active variants.
+
+On 2026-10-18, Room began supplying lighting inputs for the raycasting learning prototype. It retains non-floor sprite membership independently of fade units and recalculates edges from active sprites for each frame. An object's owner ID is its `mounted_on` host or its own ID; ceiling artwork records matching wall/door owners using the existing base/cap association, with no owners for standalone pieces. Multiple owners can share a cap. Source exclusions are metadata for future per-emitter filtering: all lights remain in the common blocker list. Lighting records, ID arrays, and edge hashes are fresh snapshots; sprite references remain room-owned. Source radius/color retain authored values without applying future illumination defaults. Render currently ignores these fields; the player emitter, raycasting, and light compositing are not implemented.
 
 On 2026-10-14, actor-relative foreground fading extended this interface. Room prepares local units with supporting-base and member sprite references plus stable footprint snapshots; Actor supplies live ground coordinates and scaled visible body width and height. After stable sorting, Render delegates to `ForegroundFade`. Keep sprite references shared between drawing collections and fade data when assembling a frame, including any future world translation.
 

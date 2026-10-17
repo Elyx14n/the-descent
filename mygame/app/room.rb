@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'app/room_data'
+require 'app/sprite_geometry'
 
 module Descent
   # Loaded world data. Static artwork uses ordinary DragonRuby primitives.
@@ -26,6 +27,7 @@ module Descent
         { depth: entry[:depth], sprites: scenery_sprites(entry) }
       end
       prepare_fade_units
+      prepare_light_blockers
       @interactables = @objects.select { |entry| INTERACTABLE_TYPES.include?(entry[:type]) }
       @doors.each { |door| apply_door_state(door) }
       update_animations(tick: 0)
@@ -39,8 +41,12 @@ module Descent
     # Fresh outer collections let consumers append without changing membership.
     # Groups and their sprite lists are room-owned; sprite contents stay live.
     def render_data
-      { floor: @floor_sprites.dup, groups: @scenery_groups.dup,
-        ceiling: @ceiling.dup, fade_units: fade_units.dup }
+      { floor: @floor_sprites.dup,
+        groups: @scenery_groups.dup,
+        ceiling: @ceiling.dup,
+        fade_units: fade_units.dup,
+        light_sources: light_sources,
+        light_blockers: light_blockers }
     end
 
     # The preview or map supplies time; Room owns no animation clock.
@@ -97,6 +103,36 @@ module Descent
     end
 
     private
+
+    def light_sources
+      @lights.select { |light| light[:enabled] }.map do |light|
+        light.slice(:id, :x, :y, :radius, :intensity, :color).merge(
+          ignore_owner_ids: [light[:mounted_on] || light[:id]]
+        )
+      end
+    end
+
+    def light_blockers
+      @light_blocker_sprites.map do |blocker|
+        { owner_ids: blocker[:owner_ids].dup, sprite: blocker[:sprite],
+          edges: SpriteGeometry.edges(blocker[:sprite]) }
+      end
+    end
+
+    # Cache membership, not geometry: the referenced sprites change in place
+    # when a door opens or a flame advances. Every non-floor sprite participates.
+    def prepare_light_blockers
+      @light_blocker_sprites = @objects.map do |entry|
+        { owner_ids: [entry[:mounted_on] || entry[:id]], sprite: entry[:sprite] }
+      end
+      base_types = %i[wall door]
+      bases = @objects.select { |entry| base_types.include?(entry[:type]) && !entry[:mounted_on] }
+      @ceiling.each do |cap|
+        owners = bases.select { |entry| cap_above_base?(cap, entry) }
+        @light_blocker_sprites << { owner_ids: owners.map { |entry| entry[:id] }, sprite: cap }
+      end
+      @light_blocker_sprites = @light_blocker_sprites.uniq { |blocker| blocker[:sprite].object_id }
+    end
 
     def nearest_interactable(point)
       nearest = nil
