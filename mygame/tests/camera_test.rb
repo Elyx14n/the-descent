@@ -6,6 +6,8 @@ require 'app/player'
 class CameraTests
   # Control display scale without resizing the native window during a unit test.
   class CameraAtTestScale < Descent::Camera
+    attr_writer :test_pixel_scale
+
     def initialize(bounds:, pixel_scale: 1)
       @test_pixel_scale = pixel_scale
       super(bounds: bounds)
@@ -21,6 +23,26 @@ class CameraTests
   CAMERA_TEST_BOUNDS = { x: 21, y: 27, w: 700, h: 400 }.freeze
   DIAGONAL_AXIS = [-1, 1].freeze
   COORDS = %i[x y].freeze
+
+  def test_draw_snapshot_refreshes_scale_and_position_without_changing_previous_values(_args, assert)
+    camera = CameraAtTestScale.new(bounds: CAMERA_TEST_BOUNDS)
+    camera.follow(x: 351.25, y: 227.25)
+    sprite = { x: 351.25, y: 227.25, w: 32, h: 32 }
+    first = camera.for_drawing
+    original = first.to_draw_space(sprite)
+    assert.equal! original, camera.to_draw_space(sprite)
+    assert.equal! first.to_screen_space(first.viewport_world), first.viewport
+
+    camera.test_pixel_scale = 4
+    second = camera.for_drawing
+    assert.equal! second.to_draw_space(sprite), camera.to_draw_space(sprite)
+    assert.false! second.viewport_world == first.viewport_world
+    camera.follow(x: 400, y: 250)
+    assert.equal! first.to_draw_space(sprite), original
+    assert.equal! camera.for_drawing.to_draw_space(sprite), camera.to_draw_space(sprite)
+    assert.equal! camera.to_draw_space([sprite, [sprite], nil]),
+                  [camera.to_draw_space(sprite), [camera.to_draw_space(sprite)], nil]
+  end
 
   def test_world_smaller_than_the_viewport_is_centered_whole(_args, assert)
     camera = CameraAtTestScale.new(bounds: { x: 21, y: 27, w: 100, h: 100 })

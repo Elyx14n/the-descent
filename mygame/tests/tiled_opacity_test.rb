@@ -79,12 +79,12 @@ class TiledOpacityTests
     decoded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json', image_loader: image_loader)
     wall = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite]
     assert.equal! wall[:occlusion_bounds], { x: 2, y: 24, w: 3, h: 3 }
-    assert.equal! Descent::ForegroundFade.alpha_bounds(wall), { x: 54, y: 103.5, w: 6, h: 4.5 }
-    assert.equal! Descent::ForegroundFade.alpha_regions(wall), [{ x: 54, y: 103.5, w: 6, h: 4.5 }]
+    assert.equal! Descent::SpriteGeometry.alpha_bounds(wall), { x: 54, y: 103.5, w: 6, h: 4.5 }
+    assert.equal! Descent::SpriteGeometry.alpha_regions(wall), [{ x: 54, y: 103.5, w: 6, h: 4.5 }]
     empty = decoded[:collections][:objects].find { |entry| entry[:id] == 166 }[:sprite]
     assert.true! empty.key?(:occlusion_bounds)
-    assert.equal! Descent::ForegroundFade.alpha_bounds(empty), nil
-    assert.equal! Descent::ForegroundFade.alpha_regions(empty), []
+    assert.equal! Descent::SpriteGeometry.alpha_bounds(empty), nil
+    assert.equal! Descent::SpriteGeometry.alpha_regions(empty), []
     assert.equal! reads.sort, images.keys.sort # Each atlas is loaded once despite repeated tiles and door variants.
 
     image[:pixels].fill(0)

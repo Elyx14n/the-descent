@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'app/sprite_geometry'
+
 module Descent
   # Actor-relative opacity, independent of camera placement and gameplay state.
   # Units reference the original sprites so identical artwork keeps its own order.
@@ -10,14 +12,14 @@ module Descent
     FADE_IN_TICKS = 32
 
     class << self
-      def apply(world, units:, actors:, viewport:, state: nil, tick: 0)
+      def apply(world, units:, actors:, viewport:, state: nil, tick: 0, draw_order: nil)
         if units.empty?
           state&.clear
           return world
         end
 
-        indices = {}
-        world.each_with_index { |sprite, index| indices[sprite.object_id] = index }
+        indices = draw_order || {}
+        world.each_with_index { |sprite, index| indices[sprite.object_id] = index } unless draw_order || actors.empty?
         visible = actors.select do |actor|
           indices.key?(actor[:sprite].object_id) && Geometry.intersect_rect?(actor[:sprite], viewport)
         end
@@ -25,11 +27,14 @@ module Descent
         active = {}
         units.each do |unit|
           min_opacity = MIN_OPACITIES.fetch(unit.fetch(:type))
-          opacity = visible.map do |actor|
-            next 1.0 unless occludes?(unit, actor, indices)
+          opacity = 1.0
+          visible.each do |actor|
+            next unless occludes?(unit, actor, indices)
 
-            multiplier(unit[:footprint], actor, type: unit[:type])
-          end.min || 1.0
+            contribution = multiplier(unit[:footprint], actor, type: unit[:type])
+            opacity = contribution if contribution < opacity
+            break if opacity <= min_opacity
+          end
           if state
             id = unit.object_id
             active[id] = true
@@ -39,38 +44,16 @@ module Descent
 
           unit[:sprites].each do |sprite|
             id = sprite.object_id
-            multipliers[id] = [multipliers.fetch(id, 1.0), opacity].min
+            multipliers[id] = opacity if opacity < multipliers.fetch(id, 1.0)
           end
         end
         state&.delete_if { |id, _value| !active[id] }
+        return world if multipliers.empty?
+
         world.map do |sprite|
           opacity = multipliers[sprite.object_id]
           opacity ? sprite.merge(a: (sprite.fetch(:a, 255) * opacity).round) : sprite
         end
-      end
-
-      def bounds(sprite)
-        { x: sprite[:x] - (sprite[:w] * sprite.fetch(:anchor_x, 0)),
-          y: sprite[:y] - (sprite[:h] * sprite.fetch(:anchor_y, 0)),
-          w: sprite[:w], h: sprite[:h] }
-      end
-
-      def alpha_bounds(sprite)
-        return bounds(sprite) unless sprite.key?(:occlusion_bounds)
-
-        local = sprite[:occlusion_bounds]
-        return unless local
-
-        transform_alpha_rect(sprite, local)
-      end
-
-      def alpha_regions(sprite)
-        unless sprite.key?(:occlusion_regions)
-          rect = alpha_bounds(sprite)
-          return rect ? [rect] : []
-        end
-
-        sprite[:occlusion_regions].map { |local| transform_alpha_rect(sprite, local) }
       end
 
       def multiplier(footprint, actor, type:)
@@ -87,25 +70,17 @@ module Descent
 
       private
 
-      def transform_alpha_rect(sprite, local)
-        frame = bounds(sprite)
-        x = sprite[:flip_horizontally] ? sprite[:source_w] - local[:x] - local[:w] : local[:x]
-        y = sprite[:flip_vertically] ? sprite[:source_h] - local[:y] - local[:h] : local[:y]
-        scale_x = sprite[:w].fdiv(sprite[:source_w])
-        scale_y = sprite[:h].fdiv(sprite[:source_h])
-        { x: frame[:x] + (x * scale_x), y: frame[:y] + (y * scale_y),
-          w: local[:w] * scale_x, h: local[:h] * scale_y }
-      end
-
       def approach_opacity(target, state:, id:, tick:, min_opacity:)
-        previous = state[id] || { opacity: 1.0, tick: tick - 1 }
-        elapsed = [tick - previous[:tick], 0].max
+        previous = state[id] ||= { opacity: 1.0, tick: tick - 1 }
         opacity = previous[:opacity]
-        duration = target < opacity ? FADE_OUT_TICKS : FADE_IN_TICKS
-        step = (1 - min_opacity) * elapsed.fdiv(duration)
-        # Move opacity toward the target by at most step, stopping exactly at the target
-        opacity = opacity.towards(target, step)
-        state[id] = { opacity: opacity, tick: tick }
+        elapsed = tick - previous[:tick]
+        if target != opacity && elapsed.positive?
+          duration = target < opacity ? FADE_OUT_TICKS : FADE_IN_TICKS
+          step = (1 - min_opacity) * elapsed.fdiv(duration)
+          opacity = opacity.towards(target, step)
+          previous[:opacity] = opacity
+        end
+        previous[:tick] = tick
         opacity
       end
 
@@ -114,28 +89,31 @@ module Descent
         # Use continuous ground Y: a same-cell base can still genuinely hide an
         # actor. Overhead rendering alone does not establish this direction.
         return false if unit[:footprint][:y] >= actor[:y]
+        # At this gap the spatial target is already fully opaque, even if tall
+        # artwork still crosses the actor. History restoration continues above.
+        return false if actor[:y] >= unit[:footprint][:y] + unit[:footprint][:h] + RADIUS
 
         actor_index = indices.fetch(actor[:sprite].object_id)
         base = unit.fetch(:base)
         base_index = indices[base.object_id]
-        return false unless base_index && base_index > actor_index
+        return false unless base_index && (base_index <=> actor_index).positive?
 
         # The actor's center must cross the supporting base, not just graze it.
-        base_bounds = bounds(base)
+        base_bounds = SpriteGeometry.bounds(base)
         return false unless base_bounds[:x] <= actor[:x] && actor[:x] < base_bounds[:x] + base_bounds[:w]
 
         # A member must cross the center line and be wider than the actor's body.
         unit[:sprites].any? do |sprite|
           index = indices[sprite.object_id]
-          next false unless index && index > actor_index
+          next false unless index && (index <=> actor_index).positive?
 
           if sprite.key?(:occlusion_regions)
             sprite[:occlusion_regions].any? do |local|
-              rect = transform_alpha_rect(sprite, local)
+              rect = SpriteGeometry.transform_alpha_rect(sprite, local)
               rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
             end
           else
-            rect = alpha_bounds(sprite)
+            rect = SpriteGeometry.alpha_bounds(sprite)
             rect && rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
           end
         end

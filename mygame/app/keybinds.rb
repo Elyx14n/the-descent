@@ -12,7 +12,7 @@ module Descent
         interact: { keys: [:e].freeze, state: :key_down?, hint: 'interact' }.freeze
       }.freeze,
       preview: {
-        toggle_bounds: { keys: [:b].freeze, state: :key_down?, hint: 'boxes' }.freeze,
+        toggle_bounds: { keys: [:b].freeze, state: :key_down?, hint: 'debug' }.freeze,
         reload: { keys: [:r].freeze, state: :key_down?, hint: 'load' }.freeze
       }.freeze
     }.freeze

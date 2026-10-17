@@ -77,17 +77,6 @@ class ForegroundFadeTests
     assert.equal! fade([actor[:sprite], base, cap], sprites: [base, cap], actors: [actor], base: base).last[:a], 64
   end
 
-  def test_alpha_bounds_resolve_source_offsets_scaling_and_sprite_anchors(_args, assert)
-    sprite = { x: 64, y: 128, w: 64, h: 64, anchor_x: 0.5, anchor_y: 1,
-               source_w: 32, source_h: 32, occlusion_bounds: { x: 2, y: 24, w: 3, h: 3 } }
-    assert.equal! Descent::ForegroundFade.alpha_bounds(sprite), { x: 36, y: 112, w: 6, h: 6 }
-    sprite[:flip_horizontally] = true
-    sprite[:flip_vertically] = true
-    assert.equal! Descent::ForegroundFade.alpha_bounds(sprite), { x: 86, y: 74, w: 6, h: 6 }
-    sprite[:occlusion_regions] = [sprite[:occlusion_bounds]]
-    assert.equal! Descent::ForegroundFade.alpha_regions(sprite), [{ x: 86, y: 74, w: 6, h: 6 }]
-  end
-
   def test_type_specific_minimum_opacity_preserves_the_same_distance_curve(_args, assert)
     %i[wall ceiling].each do |type|
       assert.equal! Descent::ForegroundFade.multiplier(FOOTPRINT, { x: 48, y: 64 }, type: type), 0.25
@@ -119,7 +108,7 @@ class ForegroundFadeTests
   def test_hugging_a_side_wall_does_not_fade_without_crossing_the_center_line(_args, assert)
     actor_data = fade_actor(x: 65)
     cap = fade_artwork
-    assert.true! Geometry.intersect_rect?(Descent::ForegroundFade.bounds(actor_data[:sprite]), cap)
+    assert.true! Geometry.intersect_rect?(Descent::SpriteGeometry.bounds(actor_data[:sprite]), cap)
     assert.equal! fade([actor_data[:sprite], cap], sprites: [cap], actors: [actor_data]).last[:a], 255
     [32, 63.999].each do |x|
       actor_data = fade_actor(x: x)
@@ -142,7 +131,7 @@ class ForegroundFadeTests
     actor_data = fade_actor
     base = fade_artwork(FOOTPRINT)
     cap = fade_artwork(FOOTPRINT.merge(y: 96))
-    assert.true! Geometry.intersect_rect?(Descent::ForegroundFade.bounds(actor_data[:sprite]), cap)
+    assert.true! Geometry.intersect_rect?(Descent::SpriteGeometry.bounds(actor_data[:sprite]), cap)
     drawn = fade([actor_data[:sprite], base, cap], sprites: [base, cap], actors: [actor_data], base: base)
     assert.equal! drawn.last[:a], 255
     scaled = Descent::Player.new(x: 48, y: 64, scale: 2).render_data[:fade_actor]
@@ -201,6 +190,42 @@ class ForegroundFadeTests
       assert.true! (alpha - previous).abs <= 26
       previous = alpha
     end
+  end
+
+  def test_repeated_and_rewound_ticks_preserve_progress_even_after_an_opaque_draw(_args, assert)
+    cap = fade_artwork
+    unit = { type: :wall, base: cap, footprint: FOOTPRINT, sprites: [cap] }
+    state = {}
+    assert.equal! timed_fade(unit, state, 100, nil).last[:a], 255
+    assert.equal! timed_fade(unit, state, 100).last[:a], 255
+    assert.true! timed_fade(unit, state, 101).last[:a] < 255
+    assert.equal! timed_fade(unit, state, 120).last[:a], 64
+    assert.equal! timed_fade(unit, state, 120, nil).last[:a], 64
+    restored = timed_fade(unit, state, 121, nil).last[:a]
+    assert.true! restored > 64
+    assert.equal! timed_fade(unit, state, 90).last[:a], restored
+  end
+
+  def test_radius_rejection_restores_tall_artwork_and_prunes_removed_units_in_the_same_tick(_args, assert)
+    cap = fade_artwork.merge(h: 128)
+    unit = { type: :wall, base: cap, footprint: FOOTPRINT, sprites: [cap] }
+    removed = unit.dup
+    state = {}
+    actor = fade_actor
+    Descent::ForegroundFade.apply(
+      [actor[:sprite], cap],
+      units: [unit, removed], actors: [actor],
+      viewport: VIEWPORT, state: state, tick: 0
+    )
+    assert.true! state.key?(removed.object_id)
+    timed_fade(unit, state, 0)
+    assert.false! state.key?(removed.object_id)
+    assert.equal! timed_fade(unit, state, 16).last[:a], 64
+    far = fade_actor(y: 96) # Exactly RADIUS above the footprint's top edge.
+    restoring = timed_fade(unit, state, 17, far).last[:a]
+    assert.true! restoring > 64 && restoring < 255
+    assert.equal! timed_fade(unit, state, 49, far).last[:a], 255
+    assert.equal! cap[:a], 255
   end
 
   def test_distance_curve_reaches_minimum_halfway_and_full_opacity(_args, assert)
@@ -280,8 +305,6 @@ class ForegroundFadeTests
     wall = fade_artwork(FOOTPRINT.merge(x: 312, y: 64))
     assert.equal! fade([actor_data[:sprite], wall], sprites: [wall], actors: [actor_data],
                                                     footprint: FOOTPRINT.merge(x: 312)).last[:a], 64
-    anchored = { x: 20, y: 30, w: 10, h: 20, anchor_x: 0.5, anchor_y: 1 }
-    assert.equal! Descent::ForegroundFade.bounds(anchored), { x: 15, y: 10, w: 10, h: 20 }
   end
 
   def test_player_and_enemy_supply_the_same_actor_contract(_args, assert)
@@ -318,7 +341,7 @@ class ForegroundFadeTests
     [[80, 96], [96, 96]].each do |base_y, cap_y|
       cap = fade_artwork(FOOTPRINT.merge(y: cap_y))
       # Both frames overlap these caps; neither base is below the actor's feet.
-      assert.true! Geometry.intersect_rect?(Descent::ForegroundFade.bounds(actor_data[:sprite]), cap)
+      assert.true! Geometry.intersect_rect?(Descent::SpriteGeometry.bounds(actor_data[:sprite]), cap)
       result = fade([actor_data[:sprite], cap], sprites: [cap], actors: [actor_data],
                                                 footprint: FOOTPRINT.merge(y: base_y))
       assert.equal! result.last[:a], 255
@@ -336,13 +359,13 @@ class ForegroundFadeTests
   def test_side_columns_and_bottom_frame_padding_do_not_count_as_occlusion(_args, assert)
     actor_data = fade_actor
     side = fade_artwork(FOOTPRINT.merge(x: 64, y: 64))
-    assert.true! Geometry.intersect_rect?(Descent::ForegroundFade.bounds(actor_data[:sprite]), side)
+    assert.true! Geometry.intersect_rect?(Descent::SpriteGeometry.bounds(actor_data[:sprite]), side)
     assert.equal! fade([actor_data[:sprite], side], sprites: [side], actors: [actor_data],
                                                     footprint: FOOTPRINT.merge(x: 64)).last[:a], 255
 
     actor_data = fade_actor(y: 80)
     below = fade_artwork(FOOTPRINT)
-    assert.true! Geometry.intersect_rect?(Descent::ForegroundFade.bounds(actor_data[:sprite]), below)
+    assert.true! Geometry.intersect_rect?(Descent::SpriteGeometry.bounds(actor_data[:sprite]), below)
     assert.equal! fade([actor_data[:sprite], below], sprites: [below], actors: [actor_data]).last[:a], 255
   end
 end

@@ -77,6 +77,10 @@ class RoomPreviewTests
       @gtk.get_pixels(path)
     end
 
+    def current_framerate
+      @gtk.current_framerate
+    end
+
     def production?
       @production
     end
