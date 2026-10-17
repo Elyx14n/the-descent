@@ -5,7 +5,7 @@ date: 2026-10-14
 
 # Reject scenery padding and narrow occluders with measured bounds
 
-The single-rectangle fade eligibility rule below is superseded by [ADR-0008](0008-occupied-spans-for-foreground-fading.md) after L-shaped sprites demonstrated false positives. The loading, overall bounds, supporting footprints, and actor dimensions remain in force.
+The single-rectangle fade eligibility rule below was superseded by [ADR-0008](0008-occupied-spans-for-foreground-fading.md) after L-shaped sprites demonstrated false positives. [ADR-0011](0011-generated-tile-occluders.md) subsequently replaces runtime pixel loading and exact-alpha geometry with generated simplified occluders. Supporting footprints, actor dimensions, and the strict width rule remain in force; the measurement workflow below is historical.
 
 An outside-room playtest found that the vertical side walls and closed side doors faded when the actor's center line crossed transparent frame padding. Their artwork occupies a six-pixel strip inside a 32-pixel-wide tile. Measure a tight rectangle around each used tile's nonzero-alpha pixels during deserialization, and require that rectangle to be wider than the actor as well as intersecting its center line before it triggers [foreground fading](0006-simplified-foreground-fading.md).
 

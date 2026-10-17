@@ -50,6 +50,8 @@ _Avoid_: Arrangement (when referring only to these content choices)
 
 **Foreground fading**: Reducing the opacity of nearby scenery that draws over an actor, so the actor remains readable behind it. This affects the camera's view without changing movement blocking or gameplay sight rules.
 
+**Occluder**: A simplified shape describing which parts of scenery visually obstruct something behind it. Generated tile occluders support foreground fading and provide boundaries for future lighting; they do not define movement collision. See [ADR-0011](docs/adr/0011-generated-tile-occluders.md).
+
 These definitions describe our 320 × 180 DragonRuby setup. The accepted configuration and investigation are recorded in [ADR-0001](docs/adr/0001-viewport-sized-camera.md) and [ADR-0002](docs/adr/0002-reference-resolution-and-ui-fonts.md).
 
 **Source pixel / artwork pixel**: One pixel stored in a sprite image. HD changes how that artwork is presented; it does not add newly drawn detail to the source image.

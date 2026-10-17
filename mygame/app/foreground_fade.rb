@@ -109,11 +109,11 @@ module Descent
 
           if sprite.key?(:occlusion_regions)
             sprite[:occlusion_regions].any? do |local|
-              rect = SpriteGeometry.transform_alpha_rect(sprite, local)
+              rect = SpriteGeometry.transform_rect(sprite, local)
               rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
             end
           else
-            rect = SpriteGeometry.alpha_bounds(sprite)
+            rect = SpriteGeometry.occupied_bounds(sprite)
             rect && rect[:w] > actor.fetch(:occlusion_width) && crosses_center?(rect, actor)
           end
         end

@@ -103,6 +103,8 @@ A future attempt could precompute geometry for each immutable placed appearance 
 
 **Verification.** All 144 native tests and RuboCop pass. Dedicated geometry tests cover crop-local offsets, anchors, unequal scaling, all flip combinations, movement between queries, input preservation, frame fallback, and explicitly empty measurements. Existing import/fade/render/preview tests retain coverage of holes, L-shaped artwork, door/light variants, sorting, and diagnostics. Exploratory timing runs are retained in the evidence note for transparency; they are not the rationale or acceptance criterion for this architectural decision.
 
+[ADR-0011](0011-generated-tile-occluders.md) later replaces the runtime pixel source with generated occluders and renames the transforms to `occupied_bounds`, `occupied_regions`, and `transform_rect`. The stateless-module decision remains.
+
 ## 6. Reduce fade bookkeeping and reject fully opaque targets early
 
 **Original problem.** Each unit allocated an actor-contribution array, replaced its history hash, and ran transition math even when already at its target. Fully opaque frames still copied the world list, and tall artwork could run detailed geometry tests when its vertical gap already guaranteed full opacity.
@@ -145,7 +147,7 @@ The cached-ordering optimization accepted in this record at `691b6cb` passed its
 
 The sequence has been evaluated. Collection caching, camera snapshots, unchanged-light skipping, fade bookkeeping, and early culling remain. The transformed-geometry cache was rejected at the measurement gate; the stateless geometry helper is retained as an architectural decision. Cached scenery ordering was measured and then reverted for disproportionate complexity. It is not a pending implementation task.
 
-Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
+[ADR-0011](0011-generated-tile-occluders.md) supersedes the exact-alpha/hole-preservation constraint in this paragraph with approved simplified generated occluders. The earlier intent follows for context. Prepare shared alpha geometry with future raycasting in mind. Preserve exact occupied regions for fading; lighting can later derive boundary segments from the same alpha source by removing internal edges and merging contiguous collinear edges. Do not fill holes or replace occupied regions with one bounding rectangle. A lighting blocker policy covering all non-floor scenery is agreed for the future prototype; raycasting, boundary extraction, lighting compositing, and spatial indexing are not implemented by this decision.
 
 Variant `replace` keeps sprite references current, but does not automatically refresh separately derived bounds, regions, or segments. Any geometry cache must account for active door/light appearance, placement, scale, anchors, and flips. Avoid tying lighting blockage to temporary fade opacity.
 

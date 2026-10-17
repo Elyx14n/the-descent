@@ -63,18 +63,16 @@ class RoomPreviewTests
     end
 
     def read_file(path)
+      return @gtk.read_file(path) if path == Descent::OccluderData::PATH || path.start_with?('sprites/')
+
       @reads += 1
       @paths << path
       @contents
     end
 
     def parse_json(contents)
-      @parses += 1
+      @parses += 1 unless contents.start_with?('{"format_version":')
       @gtk.parse_json(contents)
-    end
-
-    def get_pixels(path)
-      @gtk.get_pixels(path)
     end
 
     def current_framerate
