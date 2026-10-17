@@ -14,8 +14,8 @@ module Descent
     }.freeze
 
     TEXT = {
-      # HD preserves small glyph detail; size-8 m5x7 loses stroke coverage on a
-      # true 320x180 raster. HD-off UI needs different glyphs/sizes (ADR-0002).
+      # Size-8 m5x7 loses stroke coverage on the native 320x180 raster. Font
+      # size/layout tuning remains pending; HD must stay off (ADR-0013).
       font: 'fonts/m5x7.ttf',
       body: 8,
       h1: 16,

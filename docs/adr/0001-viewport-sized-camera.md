@@ -1,10 +1,13 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0013-keep-hd-disabled.md
 date: 2026-10-05
 updated: 2026-10-11
 ---
 
 # Render the camera into a viewport-sized target
+
+The **HD-on selection** below is superseded by [ADR-0013](0013-keep-hd-disabled.md). Keep HD off. The viewport, coordinate-conversion, pixel-art sampling, and drawing-alignment decisions below remain in force; the HD-on comparisons are historical evidence.
 
 The previous camera drew the entire world into a texture sized to the world's far edges, then cropped and magnified a window from that texture. This tied texture dimensions to both map size and map origin. Use DragonRuby's camera-space/world-space sample pattern: filter artwork in world space, translate visible primitives into a viewport-sized target, then display that target.
 

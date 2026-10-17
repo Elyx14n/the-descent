@@ -42,7 +42,8 @@ module Descent
       id: :player,
       ignore_owner_ids: [],
       intensity: 1,
-      ambient_brightness: 0.12
+      ambient_brightness: 0.12,
+      radius: 96
     }.freeze
 
     attr_accessor :sanity, :lamp_on

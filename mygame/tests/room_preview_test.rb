@@ -20,7 +20,9 @@ class RoomPreviewTests
       state[:camera].follow(x: 260, y: 150)
       clear_room_test_outputs(preview)
       Descent::RoomPreview.render(preview)
-      lines = preview[:outputs][Descent::Render::TARGET].lines.flatten
+      lines = preview[:outputs][Descent::Render::TARGET].lines.flatten.select do |line|
+        line.values_at(:r, :g, :b) == [220, 100, 220]
+      end
       camera = state[:camera].for_drawing
       expected = camera.find_all_intersect_viewport(scenery).flat_map do |sprite|
         Descent::SpriteGeometry.polygons(sprite).flat_map do |ring|
@@ -39,6 +41,53 @@ class RoomPreviewTests
         border.values_at(:r, :g, :b) == [220, 100, 220]
       end)
     end
+  end
+
+  def test_debug_lamp_polygon_is_closed_moves_and_uses_blockers_independent_of_camera(args, assert)
+    preview = preview_test_args(args)
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
+    state = preview_test_tick(preview, 0)
+    target = preview[:outputs][Descent::Render::TARGET]
+    previous = nil
+    previous_offset = nil
+    [[176, 176], [260, 90]].each do |x, y|
+      state[:camera].follow(x: x, y: y)
+      clear_room_test_outputs(preview)
+      Descent::RoomPreview.render(preview)
+      lines = target.lines.flatten.select { |line| line.values_at(:r, :g, :b) == [255, 0, 0] }
+      assert.true! lines.length >= 3
+      lines.each_with_index do |line, index|
+        following = lines[(index + 1) % lines.length]
+        assert.equal! line.values_at(:x2, :y2), following.values_at(:x, :y)
+      end
+      offset = state[:camera].to_screen(x: 0, y: 0)
+      if previous
+        assert.equal! lines.length, previous.length
+        dx = offset[:x] - previous_offset[:x]
+        dy = offset[:y] - previous_offset[:y]
+        lines.zip(previous).each do |line, old|
+          assert.true! ((line[:x] - old[:x]) - dx).abs < 0.000001
+          assert.true! ((line[:x2] - old[:x2]) - dx).abs < 0.000001
+          assert.true! ((line[:y] - old[:y]) - dy).abs < 0.000001
+          assert.true! ((line[:y2] - old[:y2]) - dy).abs < 0.000001
+        end
+      end
+      previous = lines
+      previous_offset = offset
+    end
+
+    state[:player].x += 8
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    moved = target.lines.flatten.select { |line| line.values_at(:r, :g, :b) == [255, 0, 0] }
+    assert.false! moved == previous
+
+    state[:player].lamp_on = false
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    assert.false!(target.lines.flatten.any? { |line| line.values_at(:r, :g, :b) == [255, 0, 0] })
+    assert.true!(target.lines.flatten.any? { |line| line.values_at(:r, :g, :b) == [220, 100, 220] })
+    assert.true!(target.primitives.flatten.any? { |sprite| sprite.values_at(:r, :g, :b) == [0, 255, 0] })
   end
 
   def test_debug_emitter_markers_follow_enabled_sources_and_hide_with_overlay(args, assert)

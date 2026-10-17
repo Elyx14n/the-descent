@@ -4,28 +4,47 @@ Date: 2026-10-18. Status: learning plan; lighting is not implemented by this not
 
 The PR's endpoint is a complete lighting system and test suite: authored room lights and a toggleable, circular player lamp, with sharp shadows and soft radial falloff. Implement it yourself in small commits, with quick checks and playtesting between them. Ask for focused help at the current checkpoint rather than working through a full solution up front.
 
-The supplied HTML is preserved in the [reference appendix](#reference-snippet). It is the algorithm reference, not code to port literally: the game uses Ruby, world Y increases upward, and drawing goes through a camera and render targets.
+The main references are Nicky Case's [Sight & Light guide](https://ncase.me/sight-and-light/) and the supplied HTML preserved in the [reference appendix](#reference-snippet). Follow their names and vocabulary while adapting the implementation to Ruby, upward-increasing world Y, and the game's camera/render targets. The supplied HTML is a user-provided variant; the guide also explores fuzzy shadows, which remain outside this PR.
 
 ## Building blocks and ownership
 
 | Primitive | Meaning / analogy | Producer → consumer |
 | --- | --- | --- |
-| Blocker segment | An edge that stops a beam; a fence | Room's selected scenery through `SpriteGeometry.edges` → raycaster |
-| Emitter | A bulb's position, radius, color, intensity | Room lights or Player → lighting calculation |
+| Line segment | A finite edge that stops a ray; a fence | Room's selected scenery through `SpriteGeometry.edges` → raycaster |
+| Light source | A bulb's position, radius, color, intensity; also called an emitter in this note | Room lights or Player → lighting calculation |
 | Ray | A probe sent from an origin in one direction; it extends beyond the point defining its direction | Raycaster → intersection calculation |
-| Hit | The nearest obstruction in front of the origin, with a position and distance parameter | Intersection calculation → visibility polygon |
-| Visibility polygon | Ordered boundary points enclosing everywhere the bulb can reach; a stencil | Raycaster → lighting renderer |
+| Intersection | Where a ray meets a line segment; retain the closest intersection along each ray | Intersection calculation → sight polygon |
+| Sight polygon / visibility polygon | Ordered intersection points enclosing everywhere the source can reach; a stencil | Raycaster → lighting renderer |
 | Lightmap | A sheet of illumination combined with the scene | Lighting renderer → scene compositor |
 
 Suggested homes and dependency direction:
 
 - **Existing geometry:** [SpriteGeometry](../../mygame/app/sprite_geometry.rb) already transforms generated outlines into world-space edges. Reuse it; no asset-generation changes are needed. [ADR-0012](../adr/0012-continuous-occluder-queries.md) describes the source geometry and its separation from fade selection.
-- **Inputs:** Room selects blockers and exposes enabled authored emitters. Player produces its lamp data. RoomPreview combines these into plain frame fields such as `light_emitters` and `light_blockers`; Render continues to consume frame data without reaching into Room or Player.
+- **Inputs:** Room selects blockers and exposes enabled authored emitters. Player produces its lamp data. RoomPreview combines these into plain frame fields `light_sources` and `light_blockers`; Render continues to consume frame data without reaching into Room or Player.
 - **Math:** add `mygame/app/raycasting.rb` for stateless intersection and visibility-polygon calculations. It consumes ordinary geometry, without DragonRuby outputs, input, or camera state.
 - **Drawing:** add `mygame/app/lighting.rb` for polygon drawing, radial falloff, and lightmap preparation. Render calls it when composing the world scene. Keep the raycaster independent of drawing.
 - **Tests:** add deterministic math coverage under `mygame/tests/raycasting_test.rb`, then lighting integration coverage under `mygame/tests/lighting_test.rb` and relevant existing suites.
 
 Keep geometry in world coordinates until drawing. Reuse the installed SDK and existing occluder data; add no gems or runtime libraries. Consult `$DRAGONRUBY_HOME/docs/api/outputs.md` and `samples/07_advanced_rendering/14_triangles` when reaching the drawing checkpoint, and verify the needed operations in the installed Standard build.
+
+### Keep the reference vocabulary
+
+Use Ruby spelling while preserving the reference's concepts:
+
+| Reference | Ruby adaptation | Meaning |
+| --- | --- | --- |
+| `getIntersection(ray, segment)` | `get_intersection(ray:, segment:)` | One ray/segment intersection, or `nil`; keyword arguments are the chosen Ruby interface |
+| `getSightPolygon(sightX, sightY)` | `get_sight_polygon(sight_x, sight_y, segments:)` | Ordered intersections for a source; supply segments explicitly instead of reading a global |
+| `ray.a`, `ray.b` | `ray[:a]`, `ray[:b]` | Origin and a second point defining its direction; `b` does not limit the ray's length |
+| `segment.a`, `segment.b` | `segment[:a]`, `segment[:b]` | The finite segment's endpoints |
+| `r_px`, `r_py`, `r_dx`, `r_dy` | Same names | Ray position and direction components, with direction calculated as `b - a` |
+| `s_px`, `s_py`, `s_dx`, `s_dy` | Same names | Segment position and direction components |
+| `T1`, `T2` | `t1`, `t2` | Parameters along the ray and segment; uppercase names would be Ruby constants |
+| `param` | `:t` | The chosen return key for ray parameter `t1`; it is a distance only when the ray direction has unit length |
+
+Both ray and segment use `{ a: { x: ..., y: ... }, b: { x: ..., y: ... } }`. Keep the existing renderer-friendly edge shape `{ x:, y:, x2:, y2: }` at the Room/debug boundary; convert it to endpoints when preparing segments for the raycaster. An intersection is `{ x: ..., y: ..., t: ... }` in the user's chosen naming.
+
+This replaces the earlier conversational suggestion `intersection(origin:, direction:, segment:)`. Keep the reference's `ray` and its endpoints together rather than introducing a second public ray representation.
 
 ## Implementation ladder
 
@@ -41,13 +60,13 @@ Use active sprites so door states and light animation supply current geometry. I
 
 Room-side progress (2026-10-18): `Room#render_data` now supplies `light_sources` (the implementation's name for emitters) and `light_blockers`. Each blocker is `{ owner_ids: [...], sprite: ..., edges: [...] }`; each edge is `{ x: ..., y: ..., x2: ..., y2: ... }` in world coordinates. A source carries `ignore_owner_ids` for its own group. Later, when casting for that source, skip a blocker if the two owner-ID arrays overlap. Other lights remain blockers. Standalone ceiling pieces have empty owner arrays and still block light.
 
-Read `prepare_light_blockers` for membership/ownership and `light_blockers` for fresh edge production in `mygame/app/room.rb`. Both source and blocker helpers are private; consume their frame fields. B now draws the frame's visible blocker edges in magenta and enabled sources as green squares. The player lamp is still your next task within this step. Source radius and color still contain authored values; illumination defaults belong to the later lighting work.
+Read `prepare_light_blockers` for membership/ownership and `light_blockers` for fresh edge production in `mygame/app/room.rb`. Both source and blocker helpers are private; consume their frame fields. B draws the frame's visible blocker edges in magenta and enabled sources as green squares. RoomPreview appends the player's enabled `light_source` once when assembling the frame, independently of debugging. Room source radius and color still contain authored values; illumination defaults belong to the later lighting work.
 
-Room-side and diagnostic verification: all 161 native tests and `bin/rubocop --cache false` pass. Regressions cover floor exclusion, complete scenery membership, source snapshots and owner metadata, refreshed door/light edges, camera-translated magenta outlines, and enabled emitter markers hidden when debugging is off. Manual diagnostic playtesting remains pending: press B, move the camera, and toggle a light and door to inspect the updated overlay.
+Room-side, geometry, and diagnostic verification: all 168 current native tests pass. Regressions cover floor exclusion, complete scenery membership, source snapshots and owner metadata, refreshed door/light edges, camera-translated magenta outlines, enabled emitter markers, the lamp sight outline, fractional origins, angle wraparound, and HD-off configuration. The user confirmed the basic outline works. Manual confirmation of the restored bucket version remains pending: press B, move the camera, and toggle the lamp, a room light, and a door to inspect the overlay.
 
 ### 2. Intersect one ray with one segment
 
-Build the smallest deterministic geometry function and its tests. Think of finding where a laser pointer meets a fence. A valid hit is forward along the ray and lies within the finite segment; retain a parameter that lets you compare hits on the same ray.
+Start with `get_intersection(ray:, segment:)` and its tests, using the endpoint shapes above. Think of finding where a laser pointer meets a fence. Following the supplied snippet, accept `t1 >= 0` and `0 <= t2 <= 1`, including endpoints; return `t: t1` so you can compare intersections along the same ray. The guide's prose uses strict inequalities, but its endpoint-directed approach and the supplied snippet need endpoint intersections.
 
 Adapt the math rather than copying the reference's division by `r_dx`: vertical rays make that unsafe. Its normalized-direction parallel check also misses opposite-direction parallel segments. Define a small numerical tolerance; return no hit for parallel/collinear pairs and degenerate rays or segments in this first version.
 
@@ -60,6 +79,107 @@ Follow the reference's sequence: collect unique endpoints, probe toward each end
 Draw a debug outline first. Think of walking around the bulb and recording the first fence visible in each direction. Handle an empty/degenerate result without trying to draw a polygon.
 
 **Checkpoint:** tests and outlines show nearest-hit selection, corner shadow boundaries, disconnected blockers, concave shapes, duplicate endpoints, and an unobstructed bounded region. Move the origin near edges and corners to look for instability.
+
+Prototype progress (2026-10-18): `Raycasting.get_sight_polygon` feeds a red closed lamp outline through `RoomPreview#add_lamp_sight_polygon`. The helper converts blockers overlapping the lamp square into endpoint segments, adds four square border segments, and connects consecutive returned intersections back to the first. Only the magenta blocker overlay is viewport-culled. The lamp outline disappears when the lamp is off. Native preview regressions verify closure, movement, camera-independent world geometry, and preservation of the other debug overlays. Geometry regressions compare sampled polygon distances with the readable reference intersection method, including fractional origins, concave/disconnected outlines, negative-angle wraparound, source-on-segment cases, and short axis-aligned directions. Broader lighting integration coverage and manual shadow-edge playtesting are still needed before calling the lighting test suite complete.
+
+#### Performance checkpoint before filling the light
+
+The first all-room implementation tested 387 segments against 774 rays: 299,538 intersection attempts per source per frame. On the local Linux DragonRuby 7.21 Standard installation, its Ruby preview preparation took roughly 630–678 ms in three fixed positions. The user reported about 10 FPS in the smaller window and 4 FPS maximized. HD-off with optimizations restored 60 FPS in their playtest, but reverting every optimization returned sub-10 FPS. [ADR-0013](../adr/0013-keep-hd-disabled.md) makes HD-off mandatory; it does not remove the need to bound raycasting work.
+
+The earlier bucket version retained three changes: selecting sprites intersecting the lamp square, preparing segment numbers once per calculation, and using 64 temporary direction buckets to select candidate segments. Buckets do **not** quantize or reduce the endpoint-directed rays; candidates still pass the same intersection inequalities. The numeric loop allocates only the nearest intersection for each ray. No persistent cache, invalidation protocol, segment-clipping API, or extra runtime dependency remains. `get_intersection` stays readable as the reference/test oracle; the hot loop uses the equivalent determinant formulas.
+
+The opt-in `bin/rake test tests/raycasting_benchmark.rb HEADLESS=1` measures five samples of three calls after warm-up and GC per sample. Historical bucket-version HD-off medians below include all Ruby preview preparation/submission, not engine drawing:
+
+| Player position | Local segments including border | Polygon alone (ms) | Debug preview preparation (ms) |
+| --- | --- | --- | --- |
+| (176, 176) | 76 | 4.087 | 11.671 |
+| (176, 72) | 116 | 5.221 | 12.255 |
+| (280, 220) | 129 | 7.199 | 13.945 |
+| (248, 220) | 149 | 9.787 | 16.826 |
+
+The separate opt-in `bin/rake run -- --eval tests/raycasting_playback.rb` renders a moving-lamp workload, warms up for 30 frames, measures 60 frames per setting, and exits. Local offscreen OpenGL/software-rendered results with HD off:
+
+| Window | Debug | Loop FPS | Median Ruby preparation (ms) |
+| --- | --- | --- | --- |
+| 640×360 | Off | 62.66 | 2.611 |
+| 640×360 | On | 62.66 | 10.627 |
+| 1920×1080 | Off | 62.67 | 2.750 |
+| 1920×1080 | On | 60.63 | 11.974 |
+
+Range filtering and direction buckets with the original per-candidate hash method reached only about 44 FPS in that rendered probe; retaining the allocation reduction was necessary. Full clipping and the larger numeric record/angle-filter version were discarded to keep the implementation smaller. Timings vary between workloads and hosts; these short offscreen runs do not establish the user's displayed FPS or visual acceptance. The next gate is the user's resized-window/corner/door playtest. m5x7 size-8 text softness is recorded separately in ADR-0013; do not restore HD for text clarity.
+
+Bucket-only comparison (2026-10-18): removed only the direction index, preserving HD-off, lamp-range filtering, the prepared numeric records, and final-hit allocation. Ran the same moving-lamp probe immediately before and after removal, with debugging on:
+
+| Window | With buckets: FPS / median preparation | Without buckets: FPS / median preparation |
+| --- | --- | --- |
+| 640×360 | 63.58 / 11.322 ms | 31.20 / 30.454 ms |
+| 1920×1080 | 62.62 / 11.868 ms | 33.19 / 28.925 ms |
+
+The user's own no-bucket playtest dropped to about 40 FPS. Buckets were restored during research, then removed for the following explicitly requested bounds experiment. See [standard optimization options](raycasting-optimization-options.md) for sourced alternatives and their implementation tradeoffs.
+
+Historical bounds-only trial: **per-sprite bounds instead of buckets** (now removed). `RoomPreview` keeps each blocker's endpoint segments in a separate `segment_groups` entry. The raycaster derives an axis-aligned bounding box (AABB) from that group's actual world-space endpoints, relative to the source. A standard [ray/box slab test](https://www.pbr-book.org/4ed/Shapes/Basic_Shape_Interface#BoundsIntersectionTests) rejects a whole group before its exact edge tests. The four square border segments are tested first; a group beyond the nearest hit can also be skipped. Rays parallel to an axis, source-on-boundary cases and corner tangencies are handled inclusively. A tiny bounds expansion guards rounding at corners. Geometry and bounds rebuild each call; no cache, grid, sweep or runtime dependency was added.
+
+During that trial, the flat `segments:` interface remained available alongside optional `segment_groups:`, an array of segment arrays with the same `{ a:, b: }` shapes. All endpoints still contribute the original three rays; this filter changes candidate work, not the polygon sampling. Keep lamp-square filtering and prepared numeric intersections. That trial’s native benchmark included `polygon_grouped`, alongside the identical geometry flattened into `polygon_local` (the grouped interface and benchmark operation have since been removed):
+
+| Player position | Prepared flat polygon (ms) | Sprite-bounds polygon (ms) |
+| --- | --- | --- |
+| (176, 176) | 8.498 | 3.892 |
+| (176, 72) | 14.614 | 6.647 |
+| (280, 220) | 19.142 | 7.431 |
+| (248, 220) | 24.235 | 10.140 |
+
+Same native moving-lamp probe, HD off, with bounds instead of buckets:
+
+| Window | Debug | Loop FPS | Median Ruby preparation (ms) |
+| --- | --- | --- | --- |
+| 640×360 | Off | 62.69 | 2.894 |
+| 640×360 | On | 60.51 | 14.745 |
+| 1920×1080 | Off | 63.88 | 2.849 |
+| 1920×1080 | On | 56.74 | 16.494 |
+
+This is substantially faster than the flat loop, with less margin than buckets in the moving-lamp workload. The bounds-only version was left active for the user's playtest before the angular-span trial below. At that checkpoint, all 169 native tests passed, including grouped-versus-flat polygon equivalence for concave/disconnected outlines, fractional origins, border-crossing segments, zero-width/degenerate groups, source-on-edge cases, and direct slab tests for axis-parallel rays, tangencies and nearest-hit rejection. These checks do not establish visual acceptance or FPS on the user's machine.
+
+Historical follow-up: **sprite bounds plus per-edge angular spans**, with buckets still removed (also now removed). Each prepared edge now stores the center angle and half-width of its shorter angular arc. After the sprite box passes, compare the ray angle against that span before running the existing determinant math. Circular angle distance handles the -π/π boundary. Edges touching/crossing the source use a full-circle span so hits at `t=0` remain possible; tiny angular padding retains endpoint rays. Every candidate edge still receives a span check, so this borrows the buckets' angular rejection without their direct candidate lookup. There is no rotational sweep or persistent index, and the public interface is unchanged.
+
+Fresh before/after native measurements (same benchmark, HD off) show mixed fixed-position results; the added span preparation and checks do not always pay for themselves after sprite bounds have already removed most candidates:
+
+| Player position | Bounds only: polygon (ms) | Bounds + edge spans: polygon (ms) |
+| --- | --- | --- |
+| (176, 176) | 3.820 | 4.165 |
+| (176, 72) | 7.054 | 6.552 |
+| (280, 220) | 7.398 | 7.524 |
+| (248, 220) | 10.430 | 9.682 |
+
+The flat local loop without sprite bounds improved from 8.529–24.974 ms to 6.727–18.616 ms across those positions. Those are separate flat-call results, not the runtime's grouped path. Moving-lamp playback with the B overlay on showed a modest benefit:
+
+| Window | Bounds only: FPS / median preparation | Bounds + edge spans: FPS / median preparation |
+| --- | --- | --- |
+| 640×360 | 52.17 / 17.510 ms | 57.42 / 15.303 ms |
+| 1920×1080 | 55.77 / 16.909 ms | 57.95 / 15.876 ms |
+
+Overlay-off playback stayed near 62 FPS in both versions. Earlier bounds-only runs reached higher FPS than this control, so do not infer a universal gain from one short moving-lamp comparison. That version was left active for playtesting before the return to buckets below; it did not recover their full advantage. All 169 native tests and RuboCop passed at that checkpoint. New regressions compare every generated ray against the readable reference using the same source-relative unit directions, including angle wrap, thin triangles, reversed edges, fractional origins, and source contacts. Exactly tangent rays are sensitive to floating-point rounding; matching the reference's direction arithmetic avoids comparing slightly different rays.
+
+Current implementation: **restore the 64 direction buckets; keep only complementary work**. Lamp-square filtering remains before bucket construction because it reduces both input segments and endpoint rays. Prepared numeric records and allocating only final hits remain because they reduce intersection cost independently of candidate selection. HD remains disabled. Per-ray sprite AABB checks, per-edge exact angular-span checks, and the optional `segment_groups:` interface are removed. RoomPreview supplies a flat `segments:` array again.
+
+Before deciding, a temporary native comparison tested buckets alone, buckets + edge spans, buckets + sprite bounds, and all three. All variants used the same endpoint rays, range-selected geometry, numeric intersection math and 64 buckets. Span preparation reused the endpoint angles already computed for buckets. Bounds results were cached once per sprite per ray, with the nearest hit available for rejection, rather than testing the box again for each edge. Group bounds and bucket preparation were included in the measured calls. Each variant warmed up; nine samples of five calls used rotated/reversed execution order and GC before each sample. Every returned angle and distance was compared with plain buckets at each position. Median polygon times:
+
+| Player position | Buckets (ms) | + edge spans (ms) | + sprite bounds (ms) | + both (ms) |
+| --- | --- | --- | --- | --- |
+| (176, 176) | 3.431 | 3.419 | 3.919 | 3.929 |
+| (176, 72) | 3.785 | 3.943 | 4.772 | 4.675 |
+| (280, 220) | 4.908 | 4.854 | 4.922 | 5.098 |
+| (248, 220) | 5.936 | 6.065 | 6.104 | 6.567 |
+
+The edge-span differences ranged from roughly 1% faster to 4% slower, offering no clear complementary gain. Sprite bounds were slower at every position; some differences were small, with the largest about 26%. Keeping both was also slower. The temporary variant implementations were removed after recording the result; no experimental mode flags or duplicate raycasters remain. These results establish this workload's tradeoff, not that those techniques are generally obsolete.
+
+Fresh moving-lamp playback immediately before/after restoration, with the overlay on and HD off:
+
+| Window | Bounds + spans: FPS / median preparation | Restored buckets: FPS / median preparation |
+| --- | --- | --- |
+| 640×360 | 53.61 / 16.768 ms | 62.43 / 12.029 ms |
+| 1920×1080 | 53.67 / 16.791 ms | 59.47 / 12.724 ms |
+
+Overlay-off playback remained about 62 FPS. The restored runtime also passed the regular native benchmark; full-room polygon medians were 16.807–21.181 ms versus local-range medians of 3.594, 3.621, 8.619 and 6.184 ms at the four positions. One position had substantial timing variance, so use the interleaved comparison above to assess the extra filters. Native checks now pass all 168 tests and RuboCop: the private AABB-only test was retired with that helper, while crossing-edge, degenerate-edge, source-contact, reversed-edge, wraparound, fractional-origin and reference-hit regressions remain. Visual acceptance and displayed FPS still require the user's playtest.
 
 ### 4. Draw one bounded light
 
@@ -97,7 +217,7 @@ Run narrow native tests while iterating, then `bin/rake test` and `bin/rubocop` 
 
 ## Reference snippet
 
-User-supplied reference, preserved unchanged. No external attribution was supplied.
+User-supplied reference, preserved unchanged. Related explanation: Nicky Case's [Sight & Light](https://ncase.me/sight-and-light/). This is the supplied variant, not a verbatim copy of the guide's demos.
 
 ```html
 <!doctype html>

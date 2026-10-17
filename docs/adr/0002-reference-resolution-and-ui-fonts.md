@@ -1,10 +1,13 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0013-keep-hd-disabled.md
 date: 2026-10-05
 updated: 2026-10-11
 ---
 
 # Use a 320 × 180 reference resolution with m5x7 and HD rendering
+
+The **HD-on selection** below is superseded by [ADR-0013](0013-keep-hd-disabled.md). Keep HD off; the 320 × 180 canvas, sampling, and font ownership remain in force. The size-8 UI is now an acknowledged readability problem awaiting HD-off tuning. Historical HD-on playtests below do not authorize restoring HD.
 
 The pixel artwork needs a deliberate view size to remain readable. Use a 320 × 180 logical canvas, draw artwork using its configured source dimensions and entity scale, and let DragonRuby handle display scaling. The confirmed combination is **HD on, pixel-art sampling, and camera/artwork drawing alignment**. Retain m5x7 at the sizes accepted in playtesting.
 
