@@ -8,7 +8,7 @@ The Descent is a small, 2D top-down horror game built with DragonRuby. The playe
 Before setting up the repository, ensure you have the following installed:
 
 * **DragonRuby Game Toolkit SDK:** Download the Linux or macOS build matching the team's release.
-* **Ruby:** Needed for launching the game and development tasks; use your preferred version manager.
+* **Ruby 3.4.7:** Needed for launching the game and development tasks; use your preferred version manager.
 * **Bundler (`gem install bundler`):** Required to manage development gems.
 * **VS Code + Ruby LSP Extension (Optional):** Recommended editor setup for code completion and indexing against the DragonRuby SDK.
 
@@ -38,7 +38,9 @@ source ~/.bashrc
 
 If you use Zsh on Linux, use `~/.zshrc` instead of `~/.bashrc`.
 
-From the repository root, install the development gems and launch:
+Install GEOS for RGeo before `bundle install`: `brew install geos` on macOS, or `sudo apt-get install libgeos-dev` on Ubuntu. If RGeo was already installed without GEOS, rebuild it afterward with `bundle pristine rgeo`.
+
+From the repository root, install the locked gem versions and launch:
 
 ```sh
 bundle install
@@ -53,6 +55,18 @@ bin/rake run tiled/ritual_gate.json
 
 The SDK's `dragonruby` binary must have executable permission. If necessary, run `chmod +x "$DRAGONRUBY_HOME/dragonruby"` after extracting your SDK.
 
+### Generate tile occluders
+
+Prepared outlines are checked in at `mygame/data/occluders.json`, so initial setup needs no regeneration. After changing atlas artwork or its crop grid, run:
+
+```sh
+bin/rake assets:occluders
+bin/rake assets:test
+```
+
+Press R in the game to reload, review the outlines with B, and commit the generated JSON. The task defaults to `mygame/tiled/ritual_gate.json` and two-source-pixel simplification; `MAP`, `TOLERANCE`, and `OUT` override the map, tolerance, and output directory.
+
+**Versions:** `Gemfile.lock` pins Ruby gems; GEOS is installed separately and has no exact project pin. Generation worked with GEOS 3.12.1 on Linux and 3.15 on macOS, but 3.15 changed two outlines slightly. A different Homebrew version can work; matching GEOS versions matters for reproducing geometry. Check yours with `geos-config --version` and review generated changes after upgrades. See [ADR-0012](docs/adr/0012-continuous-occluder-queries.md) for details.
 
 ## Development checks
 
@@ -97,23 +111,6 @@ Place lights using their animated lit tile. Set `unlit_id` to the static unlit t
 Light `offset_x` and `offset_y` locate the emitter in source pixels from the tile's top-left, accounting for object scaling and flips. Radius, intensity, and color are retained for future illumination. Use `mounted_on` object references for wall-mounted Props; they draw and fade with their supporting wall. Pedestal offsets locate the future item anchor.
 
 E toggles the nearest door or light within 24 world pixels, measuring doors from their closed colliders and lights from their placed sprite rectangles. Equal-distance targets follow authored object order. Locked doors and transitions overlapping the player's feet consume the press. B shows collision, fade-unit footprints in blue, occluder polygon edges in magenta, and emitter markers. Illumination and pedestal interaction remain unimplemented.
-
-### Generate tile occluders
-
-The game reads prepared shapes from `mygame/data/occluders.json`; it does not calculate sprite alpha bounds while loading a room. The two-source-pixel outlines were selected after visual review. Every disconnected piece is retained, with internal holes filled. Shapes support foreground fading now and provide polygon boundaries for future lighting.
-
-After changing atlas artwork or its crop grid, run:
-
-```sh
-bin/rake assets:occluders
-bin/rake assets:test
-```
-
-Then press R in the game to rebuild the room. Missing or outdated data reports the generation command and keeps the previous valid room during reload. Map JSON is watched automatically; regenerated geometry requires R. Include the generated JSON with game changes.
-
-Generation uses ordinary Ruby, RGeo/GEOS, and ChunkyPNG. Install GEOS development files (`sudo apt-get install libgeos-dev` on Ubuntu, or `brew install geos` on macOS) before `bundle install`. If RGeo was previously built without GEOS, run `bundle pristine rgeo` after installing GEOS. These dependencies are not loaded inside DragonRuby.
-
-The task uses `mygame/tiled/ritual_gate.json` by default; `MAP` selects another JSON export with embedded tilesets, `TOLERANCE` overrides 2, and `OUT` overrides `mygame/data`. All cells in the referenced atlases are included, covering door/animation variants. No separate tileset export or HTML preview is needed. See [ADR-0012](docs/adr/0012-continuous-occluder-queries.md) for geometry and fading semantics, and the [investigation notes](docs/notes/alpha-contour-generation.md) for earlier trials.
 
 ## Repository guide
 
