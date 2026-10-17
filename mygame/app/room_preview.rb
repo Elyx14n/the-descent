@@ -101,7 +101,7 @@ module Descent
           g: 255,
           b: 255
         }
-        frame[:world_markers] = frame[:light_sources].map do |light|
+        frame[:world_markers] = (frame[:light_sources] << state[:player].light_source).map do |light|
           { x: light[:x] - 2, y: light[:y] - 2, w: 4, h: 4, path: :solid, r: 0, g: 255, b: 0 }
         end
       end
