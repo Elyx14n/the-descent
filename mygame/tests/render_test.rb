@@ -77,7 +77,7 @@ class RenderTests
     camera = Descent::Camera.new(bounds: room.bounds)
     [193, 166, 217, 216].each do |id|
       base = room.objects.find { |entry| entry[:id] == id }[:sprite]
-      visible = Descent::SpriteGeometry.alpha_bounds(base)
+      visible = Descent::SpriteGeometry.occupied_bounds(base)
       [base[:x] + 16, visible[:x] + (visible[:w] / 2)].each do |x|
         actor = Descent::Player.new(x: x, y: base[:y] + 8).render_data
         frame = room.render_data

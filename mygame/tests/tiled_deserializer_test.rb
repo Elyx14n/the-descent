@@ -69,9 +69,9 @@ class TiledDeserializerTests
     data = tiled_test_map(args)
     before = data.to_s
     first = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                         image_loader: ->(image) { args.gtk.get_pixels(image) })
+                                                         occluders: Descent::OccluderData.load(args.gtk))
     second = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                          image_loader: ->(image) { args.gtk.get_pixels(image) })
+                                                          occluders: Descent::OccluderData.load(args.gtk))
     assert.true! first.is_a?(Hash)
     assert.equal! data.to_s, before
     room = Descent::Room.new(**first)

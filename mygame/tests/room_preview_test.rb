@@ -7,6 +7,38 @@ class RoomPreviewTests
   include RoomTestHelpers
   include KeybindTestHelpers
 
+  def test_debug_lines_match_all_scenery_polygon_edges_after_camera_translation(args, assert)
+    preview = preview_test_args(args)
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
+    state = preview_test_tick(preview, 0)
+    room = state[:room]
+    fade_members = room.fade_units.flat_map { |unit| unit[:sprites] }
+    scenery = (room.objects.map { |entry| entry[:sprite] } + room.ceiling).uniq
+    assert.true!(scenery.any? { |sprite| !fade_members.include?(sprite) && sprite[:occlusion_polygons].any? })
+    [false, true].each do |open|
+      room.set_door_open(267, open: open)
+      state[:camera].follow(x: 260, y: 150)
+      clear_room_test_outputs(preview)
+      Descent::RoomPreview.render(preview)
+      lines = preview[:outputs][Descent::Render::TARGET].lines.flatten
+      camera = state[:camera].for_drawing
+      expected = camera.find_all_intersect_viewport(scenery).flat_map do |sprite|
+        Descent::SpriteGeometry.polygons(sprite).flat_map do |ring|
+          ring.each_with_index.map do |point, index|
+            following = ring[(index + 1) % ring.length]
+            start = camera.to_screen(x: point[0], y: point[1])
+            finish = camera.to_screen(x: following[0], y: following[1])
+            [start[:x], start[:y], finish[:x], finish[:y]]
+          end
+        end
+      end
+      assert.equal! lines.map { |line| line.values_at(:x, :y, :x2, :y2) }, expected
+      assert.false!(preview[:outputs][Descent::Render::TARGET].borders.flatten.any? do |border|
+        border.values_at(:r, :g, :b) == [220, 100, 220]
+      end)
+    end
+  end
+
   def test_preview_reveals_south_door_and_cap_then_reload_restores_authored_artwork(args, assert)
     preview = preview_test_args(args)
     state = preview_test_tick(preview, 0)
@@ -63,18 +95,16 @@ class RoomPreviewTests
     end
 
     def read_file(path)
+      return @gtk.read_file(path) if path == Descent::OccluderData::PATH || path.start_with?('sprites/')
+
       @reads += 1
       @paths << path
       @contents
     end
 
     def parse_json(contents)
-      @parses += 1
+      @parses += 1 unless contents.start_with?('{"format_version":')
       @gtk.parse_json(contents)
-    end
-
-    def get_pixels(path)
-      @gtk.get_pixels(path)
     end
 
     def current_framerate

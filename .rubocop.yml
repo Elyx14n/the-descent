@@ -8,6 +8,7 @@ AllCops:
     - "Gemfile"
     - "Rakefile"
     - "lib/**/*.rb"
+    - "test/**/*.rb"
     - "mygame/app/**/*.rb"
     - "mygame/tests/**/*.rb"
 

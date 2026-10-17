@@ -1,9 +1,12 @@
 ---
-status: accepted
+status: superseded
 date: 2026-10-15
+superseded_by: 0011-generated-tile-occluders.md
 ---
 
 # Test occupied spans when fading irregular scenery
+
+[ADR-0011](0011-generated-tile-occluders.md) replaces runtime exact-alpha scanning with generated simplified polygons and polygon-derived fade regions. The local-width and actor-center eligibility rules continue; the exact silhouette and internal-hole guarantees below are historical.
 
 An L-shaped tile exposes the limitation of the single alpha rectangle in [ADR-0007](0007-alpha-derived-scenery-bounds.md): its empty corner counts as artwork, and its narrow arm inherits the full tile width. Replace that rectangle as the fade eligibility shape with contiguous nonzero-alpha horizontal spans, merging identical spans on consecutive rows into rectangles. One occupied rectangle must both cross the actor's feet-to-head center line and be strictly wider than the actor's scaled body.
 

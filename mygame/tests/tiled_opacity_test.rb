@@ -7,21 +7,14 @@ class TiledOpacityTests
 
   def test_l_shaped_tiles_only_fade_where_a_broad_occupied_span_crosses_the_actor(args, assert)
     data = tiled_test_map(args)
-    images = opacity_test_images(data)
-    image = images.fetch('sprites/environment_tilesheet.png')
-    # Tile 20: broad top arm, narrow right arm, empty lower-left corner.
-    32.times do |row|
-      32.times do |column|
-        next unless row < 6 || column >= 26
-
-        image[:pixels][((32 + row) * image[:w]) + column] = 0xff000000
-      end
-    end
-    decoded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                           image_loader: ->(path) { images.fetch(path) })
+    occluders = occluder_fixture(args)
+    # Generated L: broad top arm, narrow right arm, empty lower-left corner.
+    record = occluders['tilesets'].find { |entry| entry['image'] == 'sprites/environment_tilesheet.png' }['tiles'][20]
+    record['polygons'] = [[[0, 26], [26, 26], [26, 0], [32, 0], [32, 32], [0, 32]]]
+    record['bounds'] = [0, 0, 32, 32]
+    decoded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json', occluders: occluders)
     cap = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite].merge(x: 32, y: 64)
     assert.equal! cap[:occlusion_bounds], { x: 0, y: 0, w: 32, h: 32 }
-    assert.equal! cap[:occlusion_regions], [{ x: 0, y: 26, w: 32, h: 6 }, { x: 26, y: 0, w: 6, h: 26 }]
     base = { x: 32, y: 32, w: 32, h: 32, path: :solid }
     unit = { type: :wall, base: base, footprint: base, sprites: [base, cap] }
     positions = [40, 60]
@@ -44,58 +37,44 @@ class TiledOpacityTests
     end
   end
 
-  def test_separate_narrow_spans_do_not_bridge_a_transparent_hole(args, assert)
-    data = tiled_test_map(args)
-    images = opacity_test_images(data)
-    image = images.fetch('sprites/environment_tilesheet.png')
-    32.times do |row|
-      [0, 1, 2, 3, 4, 5, 26, 27, 28, 29, 30, 31].each do |column|
-        image[:pixels][((32 + row) * image[:w]) + column] = 0xff000000
-      end
-    end
-    decoded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                           image_loader: ->(path) { images.fetch(path) })
-    sprite = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite]
-    assert.equal! sprite[:occlusion_regions], [{ x: 0, y: 0, w: 6, h: 32 }, { x: 26, y: 0, w: 6, h: 32 }]
+  def test_generated_disconnected_polygons_do_not_bridge_the_gap(args, assert)
+    occluders = occluder_fixture(args)
+    record = occluders['tilesets'].find { |entry| entry['image'] == 'sprites/environment_tilesheet.png' }['tiles'][20]
+    record['polygons'] = [[[0, 0], [6, 0], [6, 32], [0, 32]], [[26, 0], [32, 0], [32, 32], [26, 32]]]
+    record['bounds'] = [0, 0, 32, 32]
+    decoded = Descent::TiledDeserializer.deserialize(tiled_test_map(args), path: 'tiled/ritual_gate.json',
+                                                                           occluders: occluders)
+    sprite = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite].merge(x: 32, y: 64)
+    assert.equal! sprite[:occlusion_polygons].length, 2
+    actor = Descent::Player.new(x: 48, y: 64).render_data[:fade_actor]
+    base = { x: 32, y: 32, w: 32, h: 32, path: :solid }
+    unit = { type: :wall, base: base, footprint: base, sprites: [base, sprite] }
+    drawn = Descent::ForegroundFade.apply([actor[:sprite], base, sprite], units: [unit], actors: [actor],
+                                                                          viewport: { x: 0, y: 0, w: 320, h: 180 })
+    assert.equal! drawn.last[:a], 255
   end
 
-  def test_alpha_bounds_reject_padding_follow_scale_and_flips_and_keep_empty_tiles_empty(args, assert)
+  def test_generated_bounds_follow_scale_and_flips_and_explicit_empty_tiles_stay_empty(args, assert)
     data = tiled_test_map(args)
-    images = opacity_test_images(data)
-    image = images.fetch('sprites/environment_tilesheet.png')
-    # Wall tile 20 starts at atlas row 32. Even alpha=1 contributes to its bounds.
-    (5...8).each do |row|
-      (2...5).each { |column| image[:pixels][((32 + row) * image[:w]) + column] = 0x01000000 }
-    end
+    occluders = occluder_fixture(args)
+    records = occluders['tilesets'].find { |entry| entry['image'] == 'sprites/environment_tilesheet.png' }['tiles']
+    records[20] = { 'polygons' => [[[2, 24], [5, 24], [5, 27], [2, 27]]],
+                    'bounds' => [2, 24, 3, 3] }
+    records[24] = { 'polygons' => [], 'bounds' => nil }
     object = data['layers'].find { |layer| layer['name'] == 'Walls' }['objects'].find { |entry| entry['id'] == 193 }
     object['width'] = 64
     object['height'] = 48
     object['gid'] |= Descent::TiledDeserializer::HORIZONTAL | Descent::TiledDeserializer::VERTICAL
-    reads = []
-    image_loader = lambda do |path|
-      reads << path
-      images.fetch(path)
-    end
-    decoded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json', image_loader: image_loader)
+    decoded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json', occluders: occluders)
     wall = decoded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite]
     assert.equal! wall[:occlusion_bounds], { x: 2, y: 24, w: 3, h: 3 }
-    assert.equal! Descent::SpriteGeometry.alpha_bounds(wall), { x: 54, y: 103.5, w: 6, h: 4.5 }
-    assert.equal! Descent::SpriteGeometry.alpha_regions(wall), [{ x: 54, y: 103.5, w: 6, h: 4.5 }]
+    assert.equal! Descent::SpriteGeometry.occupied_bounds(wall), { x: 54, y: 103.5, w: 6, h: 4.5 }
     empty = decoded[:collections][:objects].find { |entry| entry[:id] == 166 }[:sprite]
-    assert.true! empty.key?(:occlusion_bounds)
-    assert.equal! Descent::SpriteGeometry.alpha_bounds(empty), nil
-    assert.equal! Descent::SpriteGeometry.alpha_regions(empty), []
-    assert.equal! reads.sort, images.keys.sort # Each atlas is loaded once despite repeated tiles and door variants.
-
-    image[:pixels].fill(0)
-    reloaded = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                            image_loader: ->(path) { images.fetch(path) })
-    assert.equal! reloaded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite][:occlusion_bounds], nil
-    assert.equal! reloaded[:collections][:objects].find { |entry| entry[:id] == 193 }[:sprite][:occlusion_regions], []
-    assert.equal! wall[:occlusion_bounds], { x: 2, y: 24, w: 3, h: 3 }
+    assert.equal! Descent::SpriteGeometry.occupied_bounds(empty), nil
+    assert.equal! Descent::SpriteGeometry.polygons(empty), []
   end
 
-  def test_door_variants_replace_alpha_bounds_without_changing_the_supporting_footprint(args, assert)
+  def test_door_variants_replace_generated_geometry_without_changing_the_supporting_footprint(args, assert)
     room = tiled_test_room(args)
     [216, 217].each do |id|
       door = room.doors.find { |entry| entry[:id] == id }
@@ -103,38 +82,83 @@ class TiledOpacityTests
       unit = room.fade_units.find { |candidate| candidate[:base].equal?(sprite) }
       footprint = unit[:footprint].dup
       closed = sprite[:occlusion_bounds].dup
-      closed_regions = sprite[:occlusion_regions].map(&:dup)
+      closed_polygons = sprite[:occlusion_polygons]
+      open_bounds = door[:parts].first[:open_sprite][:occlusion_bounds]
       assert.equal! closed[:w], 6
       room.set_door_open(id, open: true)
       assert.true! sprite.equal?(unit[:base])
-      assert.equal! sprite[:occlusion_bounds][:w], 32
-      assert.true! sprite[:occlusion_regions] != closed_regions
+      assert.equal! sprite[:occlusion_bounds], open_bounds
+      assert.true! sprite[:occlusion_polygons] != closed_polygons
       assert.equal! unit[:footprint], footprint
       room.set_door_open(id, open: false)
       assert.equal! sprite[:occlusion_bounds], closed
-      assert.equal! sprite[:occlusion_regions], closed_regions
+      assert.equal! sprite[:occlusion_polygons], closed_polygons
     end
   end
 
-  def test_unreadable_atlas_fails_during_deserialization(args, assert)
+  class AssetRuntime
+    def initialize(gtk, overrides)
+      @gtk = gtk
+      @overrides = overrides
+    end
+
+    def read_file(path)
+      return @overrides[path] if @overrides.key?(path)
+
+      @gtk.read_file(path)
+    end
+
+    def parse_json(contents)
+      @gtk.parse_json(contents)
+    end
+  end
+
+  def test_missing_and_outdated_assets_give_a_regeneration_command(args, assert)
+    path = Descent::OccluderData::PATH
+    runtime = AssetRuntime.new(args.gtk, path => nil)
+    assert.true! asset_error(runtime).include?('bin/rake assets:occluders')
+    runtime = AssetRuntime.new(args.gtk, path => '{"format_version":2}')
+    assert.true! asset_error(runtime).include?('Unsupported occluder data')
+    image = 'sprites/environment_tilesheet.png'
+    changed = "#{args.gtk.read_file(image)}changed"
+    runtime = AssetRuntime.new(args.gtk, image => changed)
+    message = asset_error(runtime)
+    assert.true! message.include?('Outdated occluders')
+    assert.true! message.include?(image)
+    assert.true! message.include?('bin/rake assets:occluders')
+  end
+
+  def test_missing_tilesets_and_changed_grid_metadata_are_rejected(args, assert)
+    data = tiled_test_map(args)
+    occluders = occluder_fixture(args)
+    occluders['tilesets'].shift
     error = nil
     begin
-      Descent::TiledDeserializer.deserialize(tiled_test_map(args), path: 'tiled/ritual_gate.json',
-                                                                   image_loader: ->(_path) {})
+      Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json', occluders: occluders)
     rescue ArgumentError => e
       error = e.message
     end
-    assert.true! error&.include?('Cannot read tile image:')
+    assert.true! error&.include?('Missing or outdated occluders')
+    data['tilesets'][0]['columns'] += 1
+    error = nil
+    begin
+      Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json', occluders: occluder_fixture(args))
+    rescue ArgumentError => e
+      error = e.message
+    end
+    assert.true! error&.include?('Missing or outdated occluders')
   end
 
   private
 
-  def opacity_test_images(data)
-    images = {}
-    data['tilesets'].each do |tileset|
-      w, h = tileset.values_at('imagewidth', 'imageheight')
-      images["sprites/#{tileset['image'].split('/').last}"] = { w: w, h: h, pixels: Array.new(w * h, 0) }
-    end
-    images
+  def occluder_fixture(args)
+    args.gtk.parse_json_file(Descent::OccluderData::PATH)
+  end
+
+  def asset_error(runtime)
+    Descent::OccluderData.load(runtime)
+    nil
+  rescue ArgumentError => e
+    e.message
   end
 end

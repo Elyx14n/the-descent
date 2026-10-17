@@ -33,6 +33,10 @@ module Descent
                                        viewport: viewport, state: fade_state, tick: tick, draw_order: order)
           sprites = camera.to_draw_space(world)
           target.primitives << sprites
+          target.lines << frame.fetch(:world_lines, []).map do |line|
+            endpoint = camera.to_screen(x: line[:x2], y: line[:y2])
+            camera.to_screen_space(line).merge(x2: endpoint[:x], y2: endpoint[:y])
+          end
           target.borders << camera.to_screen_space(camera.find_all_intersect_viewport(frame.fetch(:world_borders, [])))
           target.primitives << camera.to_draw_space(camera.find_all_intersect_viewport(frame.fetch(:world_markers, [])))
           args.outputs.primitives << camera.viewport.merge(path: TARGET)

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'app/room_data'
+require 'app/occluder_data'
 
 module Descent
   # Decode finite orthogonal Tiled exports into keyword data for Room.new.
@@ -18,6 +19,9 @@ module Descent
     LAYER_OFFSET_KEYS = %w[x y offsetx offsety].freeze
     SUPPORTED_OBJECT_ALIGNMENTS = [nil, 'unspecified', 'bottomleft'].freeze
     UNSUPPORTED_COLLISION_SHAPES = %w[polygon polyline ellipse point].freeze
+    OCCLUDER_GRID = { 'tilewidth' => 'tile_width', 'tileheight' => 'tile_height',
+                      'imagewidth' => 'image_width', 'imageheight' => 'image_height',
+                      'columns' => 'columns', 'margin' => 'margin', 'spacing' => 'spacing' }.freeze
 
     # Tiled packs a map-wide tile ID and transformation flags into one 32-bit
     # integer (GID). The highest four bits hold flags; the lower 28 hold the ID.
@@ -32,19 +36,17 @@ module Descent
         contents = gtk.read_file(path)
         raise ArgumentError, "#{path}: Cannot read Tiled map" unless contents
 
-        deserialize(gtk.parse_json(contents), path: path, image_loader: ->(image) { gtk.get_pixels(image) })
+        deserialize(gtk.parse_json(contents), path: path, occluders: OccluderData.load(gtk))
       end
 
-      def deserialize(data, path:, image_loader:)
+      def deserialize(data, path:, occluders:)
         context = {
           data: data,
           path: path,
           collections: RoomData.empty_collections,
           caps: {},
           spawns: [],
-          image_loader: image_loader,
-          images: {},
-          alpha_geometry: {}
+          occluders: occluders
         }
         validate_map(context)
         prepare_tilesets(context)
@@ -106,7 +108,18 @@ module Descent
             raise_map_error(context, "Use bottom-left object alignment: #{tileset['name']}")
           end
           raise_map_error(context, 'Tileset drawing offsets are not supported') if tileset['tileoffset']
-          tileset.merge('resolved_image' => image_path(context, tileset.fetch('image')),
+          image = image_path(context, tileset.fetch('image'))
+          geometry = context[:occluders].fetch('tilesets').find { |entry| entry['image'] == image }
+          matches_grid = geometry && OCCLUDER_GRID.all? do |key, exported_key|
+            geometry[exported_key] == tileset.fetch(key, 0)
+          end
+          unless matches_grid
+            raise_map_error(context, "Missing or outdated occluders for #{image}; run bin/rake assets:occluders")
+          end
+          if geometry.fetch('tiles').length != tileset.fetch('tilecount')
+            raise_map_error(context, "Outdated occluder tile count for #{image}; run bin/rake assets:occluders")
+          end
+          tileset.merge('resolved_image' => image, 'occluders' => geometry.fetch('tiles'),
                         'tile_definitions' => tileset.fetch('tiles', []).to_h { |tile| [tile.fetch('id'), tile] })
         end
         context[:tilesets] = context[:tilesets].sort_by { |tileset| tileset.fetch('firstgid') }
@@ -179,7 +192,7 @@ module Descent
         type
       end
 
-      def sprite_for(context, tile, rect, type:, gid: 0, opacity: 1)
+      def sprite_for(tile, rect, type:, gid: 0, opacity: 1)
         tileset = tile[:tileset]
         w = tileset.fetch('tilewidth')
         h = tileset.fetch('tileheight')
@@ -194,70 +207,14 @@ module Descent
                             source_y: tileset.fetch('imageheight') - margin - (row * (h + spacing)) - h,
                             source_w: w, source_h: h, a: (opacity * 255).round,
                             flip_horizontally: gid.anybits?(HORIZONTAL), flip_vertically: gid.anybits?(VERTICAL))
-        sprite.merge(alpha_geometry(context, sprite))
+        sprite.merge(occluder_geometry(tile))
       end
 
-      # Measure each crop once per load. Keep occupied row spans as well as the
-      # outer bounds so an L's narrow arm cannot borrow the other arm's width.
-      def alpha_geometry(context, sprite)
-        key = sprite.values_at(:path, :source_x, :source_y, :source_w, :source_h)
-        cache = context[:alpha_geometry]
-        return cache[key] if cache.key?(key)
-
-        image = context[:images][sprite[:path]] ||= context[:image_loader].call(sprite[:path])
-        unless image && image[:pixels] && image[:w].positive? && image[:h].positive?
-          raise_map_error(context, "Cannot read tile image: #{sprite[:path]}")
-        end
-        top = image[:h] - sprite[:source_y] - sprite[:source_h]
-        if top.negative? || sprite[:source_x].negative? ||
-           sprite[:source_x] + sprite[:source_w] > image[:w] || top + sprite[:source_h] > image[:h]
-          raise_map_error(context, "Tile crop is outside image: #{sprite[:path]}")
-        end
-
-        regions = []
-        previous = {}
-        sprite[:source_h].times do |row|
-          offset = ((top + row) * image[:w]) + sprite[:source_x]
-          current = {}
-          alpha_row_spans(image[:pixels], offset, sprite[:source_w]).each do |x, w|
-            span_key = [x, w]
-            y = sprite[:source_h] - row - 1
-            region = previous[span_key]
-            if region
-              region[:y] = y
-              region[:h] += 1
-            else
-              region = { x: x, y: y, w: w, h: 1 }
-              regions << region
-            end
-            current[span_key] = region
-          end
-          previous = current
-        end
-        outer = nil
-        unless regions.empty?
-          left = regions.map { |rect| rect[:x] }.min
-          bottom = regions.map { |rect| rect[:y] }.min
-          right = regions.map { |rect| rect[:x] + rect[:w] }.max
-          top = regions.map { |rect| rect[:y] + rect[:h] }.max
-          outer = { x: left, y: bottom, w: right - left, h: top - bottom }
-        end
-        cache[key] = { occlusion_bounds: outer, occlusion_regions: regions }
-      end
-
-      def alpha_row_spans(pixels, offset, width)
-        spans = []
-        start = nil
-        (0..width).each do |column|
-          occupied = column < width && (pixels[offset + column] >> 24).anybits?(255)
-          if occupied
-            start ||= column
-          elsif start
-            spans << [start, column - start]
-            start = nil
-          end
-        end
-        spans
+      def occluder_geometry(tile)
+        record = tile[:tileset].fetch('occluders').fetch(tile[:id])
+        rect = record['bounds']
+        { occlusion_polygons: record.fetch('polygons'),
+          occlusion_bounds: rect && { x: rect[0], y: rect[1], w: rect[2], h: rect[3] } }
       end
 
       def load_tile_layer(context, layer)
@@ -274,7 +231,7 @@ module Descent
           row = index.div(layer['width'])
           rect = { x: column * context[:tile_w], y: context[:height] - ((row + 1) * context[:tile_h]),
                    w: tile[:tileset]['tilewidth'], h: tile[:tileset]['tileheight'] }
-          sprite = sprite_for(context, tile, rect, type: type, gid: gid, opacity: layer.fetch('opacity', 1))
+          sprite = sprite_for(tile, rect, type: type, gid: gid, opacity: layer.fetch('opacity', 1))
           target = layer['name'] == 'Ground' ? collections[:ground] : collections[:ceiling]
           target << sprite if layer.fetch('visible', true)
           if type == :door
@@ -300,8 +257,8 @@ module Descent
           type = entry_type(context, layer, tile: tile, object: object)
           rect = { x: object.fetch('x'), y: context[:height] - object.fetch('y'),
                    w: object.fetch('width'), h: object.fetch('height') }
-          sprite = sprite_for(context, tile, rect, type: type, gid: object['gid'],
-                                                   opacity: layer.fetch('opacity', 1) * object.fetch('opacity', 1))
+          sprite = sprite_for(tile, rect, type: type, gid: object['gid'],
+                                          opacity: layer.fetch('opacity', 1) * object.fetch('opacity', 1))
           props = properties(tile[:definition]).merge(properties(object))
           shapes = collision_shapes(context, tile, sprite)
           entry = { id: object.fetch('id'), type: type, sprite: sprite, properties: props,
@@ -433,7 +390,7 @@ module Descent
 
       def variant_sprite(context, tileset, id, sprite)
         # Retain placement, scaling and flips while changing only the atlas crop.
-        sprite_for(context, local_tile(context, tileset, id), sprite, type: sprite.fetch(:type)).merge(
+        sprite_for(local_tile(context, tileset, id), sprite, type: sprite.fetch(:type)).merge(
           flip_horizontally: sprite[:flip_horizontally], flip_vertically: sprite[:flip_vertically], a: sprite[:a]
         )
       end
