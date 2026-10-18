@@ -7,6 +7,95 @@ class RoomPreviewTests
   include RoomTestHelpers
   include KeybindTestHelpers
 
+  def test_lamp_keeps_its_range_when_walking_into_southern_walls_and_door(args, assert)
+    room = tiled_test_room(args)
+    [[48, 110], [80, 110], [128, 80], [176, 80], [272, 110]].each do |x, y|
+      player = Descent::Player.new(x: x, y: y)
+      80.times { player.update_controls({ dx: 0, dy: -1 }, walls: room.collision_rects) }
+      source = player.light_source
+      feet = player.collision_rect
+      assert.true! source[:y] > feet[:y] && source[:y] < feet[:y] + feet[:h]
+      assert.true! Geometry.find_all_intersect_rect(feet, room.collision_rects).empty?
+      light = Descent::Lighting.prepare(light_sources: [source],
+                                        light_blockers: room.render_data[:light_blockers]).first
+      distances = light[:sight_polygon].map { |point| Math.hypot(point[:x] - source[:x], point[:y] - source[:y]) }
+      assert.true! distances.max > source[:radius] - 0.5
+      assert.true!(distances.none? { |distance| distance < 0.5 })
+    end
+  end
+
+  def test_fixed_lights_reuse_polygons_until_sources_or_colliders_change(args, assert)
+    preview = preview_test_args(args)
+    state = preview_test_tick(preview, 0)
+    initial = Descent::RoomPreview.render(preview)[:light_polygons]
+    room_ids = initial.reject { |light| light[:source][:id] == :player }.map(&:object_id)
+    player_light = initial.find { |light| light[:source][:id] == :player }
+    state[:player].x += 8
+    preview_test_tick(preview, 9) # Flame animation, camera, and player movement.
+    clear_room_test_outputs(preview)
+    moved = Descent::RoomPreview.render(preview)[:light_polygons]
+    assert.equal! moved.reject { |light| light[:source][:id] == :player }.map(&:object_id), room_ids
+    moved_player = moved.find { |light| light[:source][:id] == :player }
+    assert.false! moved_player.equal?(player_light)
+    assert.false! moved_player[:sight_polygon] == player_light[:sight_polygon]
+
+    state[:room].set_door_open(267, open: true)
+    clear_room_test_outputs(preview)
+    opened = Descent::RoomPreview.render(preview)[:light_polygons]
+    assert.false! opened.reject { |light| light[:source][:id] == :player }.map(&:object_id) == room_ids
+    state[:room].set_light_enabled(6, enabled: false)
+    clear_room_test_outputs(preview)
+    disabled = Descent::RoomPreview.render(preview)[:light_polygons]
+    assert.equal! disabled.length, opened.length - 1
+    assert.false!(disabled.any? { |light| light[:source][:id] == 6 })
+    state[:room].lights.find { |light| light[:id] == 7 }[:radius] = 24
+    clear_room_test_outputs(preview)
+    changed = Descent::RoomPreview.render(preview)[:light_polygons]
+    assert.equal! changed.find { |light| light[:source][:id] == 7 }[:source][:radius], 24
+  end
+
+  def test_fixed_light_cache_survives_invalid_export_and_resets_on_reload(args, assert)
+    preview = preview_test_args(args)
+    state = preview_test_tick(preview, 0)
+    cache = state[:room_lighting]
+    preview[:gtk].contents = '{'
+    preview_test_tick(preview, 30)
+    assert.true! state[:room_lighting].equal?(cache)
+    preview[:gtk].contents = args.gtk.read_file('tiled/ritual_gate.json')
+    preview_test_tick(preview, 60)
+    assert.false! state[:room_lighting].equal?(cache)
+    assert.false! state[:room_lighting][:polygons].first.equal?(cache[:polygons].first)
+  end
+
+  def test_player_polygon_is_prepared_without_debug_and_diagnostics_reuse_it(args, assert)
+    preview = preview_test_args(args)
+    state = preview_test_tick(preview, 0)
+    clear_room_test_outputs(preview)
+    frame = Descent::RoomPreview.render(preview)
+    assert.equal! frame[:light_polygons].length, state[:room].lights.length + 1
+    player_light = frame[:light_polygons].find { |light| light[:source][:id] == :player }
+    assert.equal! player_light[:source][:radius], 64
+    assert.equal! player_light[:source].values_at(:x, :y), state[:player].light_source.values_at(:x, :y)
+    room_lights = frame[:light_polygons].reject { |light| light[:source][:id] == :player }
+    assert.true!(room_lights.all? { |light| light[:source][:radius] == 48 })
+    assert.true! player_light[:sight_polygon].length >= 3
+    assert.true! preview[:outputs][Descent::Render::TARGET].lines.flatten.empty?
+
+    state[:show_bounds] = true
+    clear_room_test_outputs(preview)
+    debug = Descent::RoomPreview.render(preview)
+    assert.equal! debug[:light_polygons], frame[:light_polygons]
+    red_lines = debug[:world_lines].select { |line| line.values_at(:r, :g, :b) == [255, 0, 0] }
+    assert.equal! red_lines.length, player_light[:sight_polygon].length
+
+    state[:show_bounds] = false
+    state[:player].lamp_on = false
+    clear_room_test_outputs(preview)
+    remaining = Descent::RoomPreview.render(preview)[:light_polygons]
+    assert.equal! remaining.length, state[:room].lights.length
+    assert.false!(remaining.any? { |light| light[:source][:id] == :player })
+  end
+
   def test_debug_lines_match_all_scenery_polygon_edges_after_camera_translation(args, assert)
     preview = preview_test_args(args)
     preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
@@ -20,7 +109,9 @@ class RoomPreviewTests
       state[:camera].follow(x: 260, y: 150)
       clear_room_test_outputs(preview)
       Descent::RoomPreview.render(preview)
-      lines = preview[:outputs][Descent::Render::TARGET].lines.flatten
+      lines = preview[:outputs][Descent::Render::TARGET].lines.flatten.select do |line|
+        line.values_at(:r, :g, :b) == [220, 100, 220]
+      end
       camera = state[:camera].for_drawing
       expected = camera.find_all_intersect_viewport(scenery).flat_map do |sprite|
         Descent::SpriteGeometry.polygons(sprite).flat_map do |ring|
@@ -33,10 +124,87 @@ class RoomPreviewTests
         end
       end
       assert.equal! lines.map { |line| line.values_at(:x, :y, :x2, :y2) }, expected
+      assert.true! lines.any?
+      assert.true!(lines.all? { |line| line.values_at(:r, :g, :b) == [220, 100, 220] })
       assert.false!(preview[:outputs][Descent::Render::TARGET].borders.flatten.any? do |border|
         border.values_at(:r, :g, :b) == [220, 100, 220]
       end)
     end
+  end
+
+  def test_debug_lamp_polygon_is_closed_moves_and_uses_blockers_independent_of_camera(args, assert)
+    preview = preview_test_args(args)
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
+    state = preview_test_tick(preview, 0)
+    target = preview[:outputs][Descent::Render::TARGET]
+    previous = nil
+    previous_offset = nil
+    [[176, 176], [260, 90]].each do |x, y|
+      state[:camera].follow(x: x, y: y)
+      clear_room_test_outputs(preview)
+      Descent::RoomPreview.render(preview)
+      lines = target.lines.flatten.select { |line| line.values_at(:r, :g, :b) == [255, 0, 0] }
+      assert.true! lines.length >= 3
+      lines.each_with_index do |line, index|
+        following = lines[(index + 1) % lines.length]
+        assert.equal! line.values_at(:x2, :y2), following.values_at(:x, :y)
+      end
+      offset = state[:camera].to_screen(x: 0, y: 0)
+      if previous
+        assert.equal! lines.length, previous.length
+        dx = offset[:x] - previous_offset[:x]
+        dy = offset[:y] - previous_offset[:y]
+        lines.zip(previous).each do |line, old|
+          assert.true! ((line[:x] - old[:x]) - dx).abs < 0.000001
+          assert.true! ((line[:x2] - old[:x2]) - dx).abs < 0.000001
+          assert.true! ((line[:y] - old[:y]) - dy).abs < 0.000001
+          assert.true! ((line[:y2] - old[:y2]) - dy).abs < 0.000001
+        end
+      end
+      previous = lines
+      previous_offset = offset
+    end
+
+    state[:player].x += 8
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    moved = target.lines.flatten.select { |line| line.values_at(:r, :g, :b) == [255, 0, 0] }
+    assert.false! moved == previous
+
+    state[:player].lamp_on = false
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    assert.false!(target.lines.flatten.any? { |line| line.values_at(:r, :g, :b) == [255, 0, 0] })
+    assert.true!(target.lines.flatten.any? { |line| line.values_at(:r, :g, :b) == [220, 100, 220] })
+    assert.true!(target.primitives.flatten.any? { |sprite| sprite.values_at(:r, :g, :b) == [0, 255, 0] })
+  end
+
+  def test_debug_emitter_markers_follow_enabled_sources_and_hide_with_overlay(args, assert)
+    preview = preview_test_args(args)
+    preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
+    state = preview_test_tick(preview, 0)
+    light = state[:room].lights.find { |entry| entry[:id] == 6 }
+    state[:camera].follow(x: light[:x], y: light[:y])
+    source = state[:room].render_data[:light_sources].find { |entry| entry[:id] == light[:id] }
+    marker = state[:camera].to_draw_space(
+      { x: source[:x] - 2, y: source[:y] - 2, w: 4, h: 4, path: :solid, r: 0, g: 255, b: 0 }
+    )
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    target = preview[:outputs][Descent::Render::TARGET]
+    assert.true! target.primitives.flatten.include?(marker)
+
+    state[:room].set_light_enabled(6, enabled: false)
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    assert.false! target.primitives.flatten.include?(marker)
+    assert.true! target.lines.flatten.any?
+
+    state[:show_bounds] = false
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    assert.true! target.lines.flatten.empty?
+    assert.false!(target.primitives.flatten.any? { |sprite| sprite.values_at(:r, :g, :b) == [0, 255, 0] })
   end
 
   def test_preview_reveals_south_door_and_cap_then_reload_restores_authored_artwork(args, assert)
@@ -51,17 +219,13 @@ class RoomPreviewTests
     opacity = (Descent::ForegroundFade.multiplier({ x: 160, y: 32, w: 32, h: 32 },
                                                   { x: 176, y: 72 }, type: :door) * 255).round
     closed.each do |sprite|
-      assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
-        state[:camera].to_draw_space(sprite.merge(a: opacity))
-      )
+      assert.true! preview_artwork_drawn?(preview, state[:camera].to_draw_space(sprite.merge(a: opacity)))
     end
     assert.equal! door[:parts].map { |part| part[:sprite] }, closed
     room.set_door_open(267, open: true)
     preview_test_tick(preview, out_ticks + 1)
     door[:parts].each do |part|
-      assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
-        state[:camera].to_draw_space(part[:sprite].merge(a: opacity))
-      )
+      assert.true! preview_artwork_drawn?(preview, state[:camera].to_draw_space(part[:sprite].merge(a: opacity)))
     end
     preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:r])
     state = preview_test_tick(preview, out_ticks + 2)
@@ -74,9 +238,13 @@ class RoomPreviewTests
     clear_room_test_outputs(preview)
     Descent::RoomPreview.render(preview)
     closed.each do |sprite|
-      assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
-        state[:camera].to_draw_space(sprite)
-      )
+      assert.true! preview_artwork_drawn?(preview, state[:camera].to_draw_space(sprite))
+    end
+  end
+
+  def preview_artwork_drawn?(args, expected)
+    args[:outputs][Descent::Render::TARGET].primitives.flatten.any? do |drawn|
+      drawn.except(:r, :g, :b) == expected.except(:r, :g, :b)
     end
   end
 
@@ -140,7 +308,7 @@ class RoomPreviewTests
     assert.equal! [player.x, player.y], [176, 176]
     assert.equal! [target.w, target.h], [320, 180]
     sprite = target.primitives.flatten.find { |primitive| primitive[:path] == 'sprites/player_idle_lamp_on.png' }
-    assert.equal! sprite, camera.to_draw_space(player.sprite_to_primitive)
+    assert.equal! sprite.except(:r, :g, :b), camera.to_draw_space(player.sprite_to_primitive).except(:r, :g, :b)
     assert.equal! sprite.values_at(:w, :h), [64, 64]
     foot_border = camera.to_screen_space(player.collision_rect.merge(r: 90, g: 255, b: 160))
     assert.true! target.borders.flatten.include?(foot_border)
@@ -273,8 +441,6 @@ class RoomPreviewTests
     preview_test_tick(preview, 27)
     assert.true! light[:enabled]
     assert.equal! sprite[:source_x], 128
-    assert.true! preview[:outputs][Descent::Render::TARGET].primitives.flatten.include?(
-      state[:camera].to_draw_space(sprite)
-    )
+    assert.true! preview_artwork_drawn?(preview, state[:camera].to_draw_space(sprite))
   end
 end

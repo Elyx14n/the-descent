@@ -20,6 +20,7 @@ Follow [documentation guidance](docs/agents/domain.md) for document ownership, v
 - Keep work within `PRODUCT.md`'s MVP scope unless the user changes it.
 - Resolve SDK references through `DRAGONRUBY_HOME` (`$DRAGONRUBY_HOME` in Bash/Zsh). Development uses Linux or macOS. Prefer that installation's `docs/` and `samples/` before external sources. If unset or inaccessible, follow `README.md` setup and report the missing reference rather than assuming a machine-specific path.
 - Keep hot reload, restart, and debugging practical. Make important game state inspectable while tuning.
+- Keep HD disabled (`hd=false` in game metadata). This overrides older HD-on guidance in skills and historical notes; do not re-enable HD to improve text. See [ADR-0013](docs/adr/0013-keep-hd-disabled.md). Tune UI fonts and sizes for the native 320 × 180 raster instead.
 - Separate deterministic rules from DragonRuby input/output when it creates a useful test seam; do not add layers only for architectural symmetry.
 - Measure before optimizing and preserve project readability for a small amateur team.
 

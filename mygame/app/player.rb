@@ -38,6 +38,13 @@ module Descent
     OCCLUSION_HEIGHT = 26
     SNEAK_SPEED = 0.5
     WALK_SPEED = 1.0
+    LIGHT_CONFIG = {
+      id: :player,
+      ignore_owner_ids: [],
+      intensity: 1,
+      ambient_brightness: 0.12,
+      radius: 64
+    }.freeze
 
     attr_accessor :sanity, :lamp_on
 
@@ -67,6 +74,16 @@ module Descent
 
     def toggle_lamp
       @lamp_on = !@lamp_on
+    end
+
+    def light_source
+      return nil unless @lamp_on
+
+      LIGHT_CONFIG.merge(
+        x: @x,
+        # Stay inside the feet, away from a wall edge when walking south into it.
+        y: @y + (collision_rect[:h] / 2.0)
+      )
     end
 
     # Device-independent actions. Interaction happens before movement so a door

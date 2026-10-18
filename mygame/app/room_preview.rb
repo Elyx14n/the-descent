@@ -7,6 +7,7 @@ require 'app/player'
 require 'app/keybinds'
 require 'app/render'
 require 'app/sprite_geometry'
+require 'app/lighting'
 
 module Descent
   # One-room authoring consumer. Owns preview lifetime, not game rules or drawing.
@@ -54,7 +55,7 @@ module Descent
         player = Player.new
         player.reset(**room.spawn)
         camera = Camera.new(bounds: room.bounds)
-        state.merge!(room: room, player: player, camera: camera, fade_state: {}, reload_error: nil)
+        state.merge!(room: room, player: player, camera: camera, fade_state: {}, room_lighting: nil, reload_error: nil)
       rescue StandardError => e
         # Only rebuilding is guarded. Gameplay/rendering errors still surface normally.
         state[:reload_error] = e.message
@@ -67,7 +68,11 @@ module Descent
           actor = state[:player].render_data
           frame[:groups] << actor
           frame[:fade_actors] = [actor[:fade_actor]]
+          frame[:light_receivers] << { sprite: actor[:sprites].first, bases: [state[:player].collision_rect] }
+          lamp = state[:player].light_source
+          frame[:light_sources] << lamp if lamp
         end
+        frame[:light_polygons] = prepare_lighting(frame, state)
         frame[:world_borders] = []
         frame[:world_markers] = []
         frame[:hud] = [UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 8 }, text: Keybinds.help_text)]
@@ -79,36 +84,33 @@ module Descent
         end
         Render.draw(args, frame: frame, camera: state[:camera], fade_state: state[:fade_state] ||= {},
                           tick: args.state.tick_count)
+        frame
       end
 
       private
 
+      def prepare_lighting(frame, state)
+        room_sources, moving_sources = frame.fetch(:light_sources, []).partition { |source| source[:id] != :player }
+        blockers = frame.fetch(:light_blockers, [])
+        # Compare physical inputs only: animation, fading, and the camera do not
+        # change fixed lights. Door geometry and source changes invalidate together.
+        geometry = blockers.map { |blocker| [blocker[:owner_ids], blocker[:bounds]] }
+        settings = [Lighting::DEFAULT_RADIUS, Lighting::CIRCLE_SEGMENTS]
+        cached = state[:room_lighting]
+        unless cached && cached[:sources] == room_sources && cached[:geometry] == geometry &&
+               cached[:settings] == settings
+          cached = { sources: room_sources, geometry: geometry, settings: settings,
+                     polygons: Lighting.prepare(light_sources: room_sources, light_blockers: blockers) }
+          state[:room_lighting] = cached
+        end
+        cached[:polygons] + Lighting.prepare(light_sources: moving_sources, light_blockers: blockers)
+      end
+
       def add_diagnostics(frame, state, args)
+        viewport = state[:camera].for_drawing.viewport_world
         frame[:hud] << UI.label({ x: Grid.w - 16, y: Grid.h - 8 }, text: "FPS: #{args.gtk.current_framerate.to_sf}")
         frame[:world_borders] = state[:room].collision_rects.map { |rect| rect.merge(r: 235, g: 185, b: 94) }
         frame[:world_borders] << state[:player].collision_rect.merge(r: 90, g: 255, b: 160)
-        occlusion_box = state[:player].render_data[:fade_actor]
-        frame[:world_borders] << {
-          x: occlusion_box[:x] - 8,
-          y: occlusion_box[:y] - 8,
-          h: occlusion_box[:occlusion_height],
-          w: occlusion_box[:occlusion_width],
-          r: 255,
-          g: 105,
-          b: 180
-        }
-        frame[:world_borders].concat(state[:room].fade_units.map do |unit|
-          unit[:footprint].merge(r: 100, g: 160, b: 255)
-        end)
-        # All scenery shares occluder geometry, independently of fade grouping.
-        sprites = state[:room].objects.map { |entry| entry[:sprite] } + state[:room].ceiling
-        visible = state[:camera].for_drawing.find_all_intersect_viewport(sprites.uniq)
-        frame[:world_lines] = visible.flat_map do |sprite|
-          SpriteGeometry.edges(sprite).map { |edge| edge.merge(r: 220, g: 100, b: 220) }
-        end
-        frame[:world_markers] = state[:room].lights.map do |light|
-          { x: light[:x] - 1, y: light[:y] - 1, w: 2, h: 2, path: :solid, r: 0, g: 255, b: 0 }
-        end
         frame[:world_borders] << {
           x: state[:room].spawn[:x] - 8,
           y: state[:room].spawn[:y] - 8,
@@ -118,6 +120,17 @@ module Descent
           g: 255,
           b: 255
         }
+        scenery = (state[:room].objects.map { |entry| entry[:sprite] } + state[:room].ceiling)
+                  .uniq(&:object_id)
+        visible = scenery.select { |sprite| Geometry.intersect_rect?(sprite, viewport) }
+        frame[:world_markers] = frame[:light_sources].map do |light|
+          { x: light[:x] - 2, y: light[:y] - 2, w: 4, h: 4, path: :solid, r: 0, g: 255, b: 0 }
+        end
+        frame[:world_lines] = visible.flat_map do |sprite|
+          SpriteGeometry.edges(sprite).map { |edge| edge.merge(r: 220, g: 100, b: 220) }
+        end
+        player_polygon = frame[:light_polygons].select { |light| light[:source][:id] == :player }
+        frame[:world_lines].concat(Lighting.polygon_lines(light_polygons: player_polygon))
       end
     end
   end

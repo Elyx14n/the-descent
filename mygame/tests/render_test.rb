@@ -5,6 +5,67 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
+  # First access determines the installed SDK's pass order. Keep this output
+  # buffer fresh so other tests cannot pre-create a consuming target.
+  class PassOrderOutputs
+    attr_accessor :background_color
+    attr_reader :targets, :primitives
+
+    def initialize
+      @targets = {}
+      @primitives = []
+    end
+
+    def [](name)
+      @targets[name] ||= { primitives: [], lines: [], borders: [] }
+    end
+  end
+
+  def test_lightmap_dependencies_render_before_the_scene_for_the_same_frame(_args, assert)
+    outputs = PassOrderOutputs.new
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    source = { x: 160, y: 90, radius: 64 }
+    lights = Descent::Lighting.prepare(light_sources: [source], light_blockers: [])
+    floor = { x: 0, y: 0, w: 320, h: 180, path: :solid }
+    Descent::Render.draw({ outputs: outputs }, frame: { floor: [floor], light_polygons: lights }, camera: camera)
+    assert.equal! outputs.targets.keys,
+                  [Descent::Lighting::LIGHT_MASK_TARGET, Descent::Lighting::LIGHTMAP_TARGET, Descent::Render::TARGET]
+    scene = outputs.targets[Descent::Render::TARGET][:primitives].flatten
+    assert.equal! scene.first, camera.to_draw_space(floor)
+    assert.equal! scene[1][:path], Descent::Lighting::LIGHTMAP_TARGET
+  end
+
+  def test_lighting_composites_floor_before_upright_artwork_and_keeps_diagnostics_and_hud_unlit(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    floor = { x: 0, y: 0, w: 320, h: 180, path: :solid }
+    wall = { x: 64, y: 64, w: 8, h: 64, path: :solid, a: 128 }
+    cap = { x: 64, y: 128, w: 8, h: 8, path: :solid }
+    source = { x: 40, y: 80, radius: 48 }
+    marker = { x: 40, y: 80, w: 2, h: 2, path: :solid, r: 0, g: 255, b: 0 }
+    frame = { floor: [floor], groups: [{ depth: 64, sprites: [wall] }], ceiling: [cap],
+              light_polygons: Descent::Lighting.prepare(light_sources: [source], light_blockers: []),
+              light_receivers: [{ sprite: wall, bases: [{ x: 64, y: 64, w: 8, h: 8 }] }],
+              world_markers: [marker], hud: [{ x: 8, y: 8, text: 'HUD' }] }
+    before = frame.to_s
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: frame, camera: camera)
+    drawn = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.equal! drawn.first, camera.to_draw_space(floor)
+    assert.equal! drawn[1][:path], Descent::Lighting::LIGHTMAP_TARGET
+    assert.true! drawn[2][:r] > 31
+    assert.equal! drawn[2][:a], 128
+    assert.equal! drawn[3].values_at(:r, :g, :b), [31, 31, 31]
+    assert.equal! drawn.last, camera.to_draw_space(marker)
+    assert.equal! args.outputs.primitives.flatten.last, frame[:hud].first
+    assert.equal! frame.to_s, before
+
+    frame[:light_polygons] = []
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: frame, camera: camera)
+    assert.true! args.outputs[Descent::Lighting::LIGHTMAP_TARGET].primitives.flatten.empty?
+    assert.equal! args.outputs[Descent::Render::TARGET].primitives.flatten[2][:r], 31
+  end
+
   def test_visible_cap_still_fades_when_its_supporting_base_is_offscreen(args, assert)
     camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
     actor = Descent::Player.new(x: 48, y: 16).render_data

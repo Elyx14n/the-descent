@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'tests/camera_test'
+require 'tests/display_configuration_test'
 require 'tests/entity_components_test'
 require 'tests/player_collision_test'
 require 'tests/player_respawn_test'
@@ -8,6 +9,8 @@ require 'tests/player_sprite_test'
 require 'tests/sprite_configuration_test'
 require 'tests/sprite_crop_test'
 require 'tests/sprite_geometry_test'
+require 'tests/raycasting_test'
+require 'tests/lighting_test'
 require 'tests/tiled_deserializer_test'
 require 'tests/tiled_opacity_test'
 require 'tests/room_test'
