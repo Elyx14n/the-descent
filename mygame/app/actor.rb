@@ -17,17 +17,17 @@ module Descent
       super(animation, animation_variant)
     end
 
-    def sprite_to_primitive
-      super(animation: animation, variant: animation_variant)
+    def sprite_to_primitive(x: @x, y: @y)
+      super(animation: animation, variant: animation_variant, x: x, y: y)
     end
 
-    def render_data
-      sprite = sprite_to_primitive
-      { depth: @y,
+    def render_data(x: @x, y: @y)
+      sprite = sprite_to_primitive(x: x, y: y)
+      { depth: y,
         sprites: [sprite],
         fade_actor:
-        { x: @x,
-          y: @y,
+        { x: x,
+          y: y,
           sprite: sprite,
           occlusion_width: self.class::OCCLUSION_WIDTH * @scale,
           occlusion_height: self.class::OCCLUSION_HEIGHT * @scale } }
