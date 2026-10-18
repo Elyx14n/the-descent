@@ -146,12 +146,12 @@ and large numbers of ordinary solids. Sources: [UI](../../mygame/app/ui.rb),
 `SDK: docs/guides/troubleshoot-performance.md`, Rendering Primitives and Solids.
 
 Glyph sets are cached per font and size combination. Preserve the
-[accepted text configuration](../adr/0002-reference-resolution-and-ui-fonts.md).
+[accepted text configuration](../adr/0013-keep-hd-disabled.md#ui-font).
 Avoid continually varying font sizes
 for animation; the guide recommends rendering labels into targets when scaling
 them. Sources: [UI](../../mygame/app/ui.rb),
 [metadata](../../mygame/metadata/game_metadata.txt),
-[font decision](../adr/0002-reference-resolution-and-ui-fonts.md);
+[font decision](../adr/0013-keep-hd-disabled.md#ui-font);
 `SDK: docs/guides/troubleshoot-performance.md`, Label size.
 
 ## Measurement plan and evidence boundary
