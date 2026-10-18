@@ -11,6 +11,8 @@ This supersedes [ADR-0011](0011-generated-tile-occluders.md)'s runtime represent
 
 ## Shared geometry, consumer-specific selection
 
+Lighting's geometry policy was subsequently resolved in [ADR-0014](0014-use-collider-bases-for-lighting.md): it uses authored collider bases rather than these projected visual outlines. The generated polygons and the fading/debugging decisions below remain unchanged.
+
 Each generated tile contains counterclockwise polygon rings and overall bounds in crop-local bottom-left coordinates. Rings omit the repeated closing vertex. Format 4 removes `regions`; loading older formats requests regeneration. `SpriteGeometry.polygons` transforms the active sprite's vertices, and `edges` emits exactly one segment per vertex, closing each ring independently. Anchors, unequal scale, flips, door variants, and light animation still follow the live sprite.
 
 `fade_units` retains its narrow meaning: sprite references grouped to share opacity, with a supporting base, footprint, and fade type. It uses a subset of available occluder geometry. It neither owns the polygon source nor selects future lighting blockers. Props outside fade units still have geometry available to other consumers. See the [glossary](../../GLOSSARY.md#rendering).

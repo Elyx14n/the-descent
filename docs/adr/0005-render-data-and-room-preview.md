@@ -61,8 +61,10 @@ These are current capabilities and limits, not an implemented map contract. The 
 | `ceiling` | World-space sprites drawn after the sorted groups |
 | `fade_units` | Hashes with the base's canonical `type`, original supporting `base`, world-space `footprint`, and original `sprites` references; associated base/cap artwork shares opacity |
 | `fade_actors` | Hashes with actor ground-anchor `x`, `y`, scaled `occlusion_width` and `occlusion_height`, and an original actor `sprite` reference identifying its final drawing order |
-| `light_sources` | Enabled room emitters with `id`, world-space `x`/`y`, authored `radius`/`intensity`/`color`, and `ignore_owner_ids` identifying their own scenery group |
-| `light_blockers` | One record per non-floor sprite: the live `sprite` reference, `owner_ids` for its scenery group, and current world-space `edges` with `x`, `y`, `x2`, `y2` |
+| `light_sources` | Enabled room emitters with `id`, ground-plane `x`/`y`, authored `radius`/`intensity`/`color`, and `ignore_owner_ids` identifying their own scenery group; RoomPreview appends the enabled player source |
+| `light_blockers` | One record per active object collider: `bounds`, the owner's live `sprite` reference, scenery-group `owner_ids`, and four world-space `edges` with `x`, `y`, `x2`, `y2` |
+| `light_receivers` | Sprite references paired with `bases`, the collider rectangles used to sample illumination; mounted artwork shares its host's bases, with optional `front_y` restricting foreground faces to light from their south/front side; RoomPreview appends actor receiving data |
+| `light_polygons` | RoomPreview-prepared `{ source:, sight_polygon: }` records; Lighting applies the radius-48 room fallback, and Render consumes the polygons for floor illumination and base sampling |
 | `world_borders` | World-space diagnostic border primitives |
 | `world_markers` | World-space diagnostic sprites, such as light-emitter markers |
 | `hud` | Screen-space primitives submitted above the scene |
@@ -90,6 +92,8 @@ The development preview compares exported JSON contents every 30 ticks and parse
 A failed rebuild retains the last valid room and exposes an error in the HUD and `args.state.room_preview[:reload_error]`. Unchanged failed contents are not repeatedly parsed; a changed export or R retries loading. Gameplay and rendering exceptions are outside the reload guard. Ruby configuration changes can still require R to rebuild persistent instances.
 
 ## Consequences and verification
+
+The lighting policy was revised on 2026-10-19 under [ADR-0014](0014-use-collider-bases-for-lighting.md). The 2026-10-18 visual-outline prototype above is historical: current blockers use active collider bases, all enabled sources are prepared, and RoomPreview includes filled floor illumination and base-sampled foreground tinting. Generated outlines remain the fading/debug geometry. The standalone LightingPreview was removed. Lighting prepares its mask/lightmap before Render creates the scene, honoring DragonRuby's first-access pass order. Render multiplies floor illumination directly in the scene before appending foreground sprites; no intermediate floor target is needed. RoomPreview owns fixed-room polygon reuse, comparing source settings and collider geometry; reload resets it. Lighting remains stateless, and the player polygon is recalculated each frame.
 
 This adds explicit render data and action translation in exchange for keeping Tiled details, gameplay behavior, and DragonRuby output submission local to their owning modules. It introduces no scene framework, event bus, DTO class, map assembly, or rendering optimization.
 

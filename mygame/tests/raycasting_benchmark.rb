@@ -31,7 +31,9 @@ class RaycastingBenchmarkTests
                  w: lamp[:radius] * 2, h: lamp[:radius] * 2 }
       blockers = room.render_data[:light_blockers]
       all_segments = benchmark_segments(blockers) + border
-      local_blockers = blockers.select { |blocker| Geometry.intersect_rect?(blocker[:sprite], bounds) }
+      local_blockers = blockers.select do |blocker|
+        Geometry.intersect_rect?(blocker.fetch(:bounds, blocker[:sprite]), bounds)
+      end
       local_segments = benchmark_segments(local_blockers) + border
       endpoints = all_segments.flat_map { |segment| [segment[:a], segment[:b]] }.uniq.length
       puts "RAYCAST_COUNTS x=#{x} y=#{y} full_segments=#{all_segments.length} " \

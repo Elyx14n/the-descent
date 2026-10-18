@@ -2,6 +2,7 @@
 
 require 'app/ui'
 require 'app/foreground_fade'
+require 'app/lighting'
 
 module Descent
   # Consume world-space frame hashes; never read Room, Player, input, or state.
@@ -15,6 +16,8 @@ module Descent
         args.outputs.background_color = UI::COLORS.fetch(:bg)
         if camera
           camera = camera.for_drawing
+          lightmap = Lighting.draw_lightmap(args, light_polygons: frame[:light_polygons], camera: camera) if
+            frame[:light_polygons]
           target = scene(args, camera)
           viewport = camera.viewport_world
           # Preserve full logical order for fade bases/members omitted by culling.
@@ -28,11 +31,24 @@ module Descent
           world = frame.fetch(:floor, []) + groups.flat_map { |group, _index| group[:sprites] } +
                   frame.fetch(:ceiling, [])
           world = camera.find_all_intersect_viewport(world)
-          world = ForegroundFade.apply(world,
+          faded = ForegroundFade.apply(world,
                                        units: frame.fetch(:fade_units, []), actors: frame.fetch(:fade_actors, []),
                                        viewport: viewport, state: fade_state, tick: tick, draw_order: order)
-          sprites = camera.to_draw_space(world)
-          target.primitives << sprites
+          if frame[:light_polygons]
+            floor_count = camera.find_all_intersect_viewport(frame.fetch(:floor, [])).length
+            target.primitives << camera.to_draw_space(faded.take(floor_count))
+            target.primitives << lightmap
+            colors = Lighting.receiver_colors(light_receivers: frame.fetch(:light_receivers, []),
+                                              light_polygons: frame[:light_polygons])
+            ambient = [Lighting::AMBIENT] * 3
+            foreground = faded.drop(floor_count).each_with_index.map do |sprite, index|
+              color = colors.fetch(world[floor_count + index].object_id, ambient)
+              Lighting.tint(sprite, color: color)
+            end
+            target.primitives << camera.to_draw_space(foreground)
+          else
+            target.primitives << camera.to_draw_space(faded)
+          end
           target.lines << frame.fetch(:world_lines, []).map do |line|
             endpoint = camera.to_screen(x: line[:x2], y: line[:y2])
             camera.to_screen_space(line).merge(x2: endpoint[:x], y2: endpoint[:y])

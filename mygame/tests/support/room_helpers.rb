@@ -30,6 +30,8 @@ module RoomTestHelpers
     args.outputs[Descent::Render::TARGET].lines.clear
     args.outputs[Descent::Render::TARGET].primitives.clear
     args.outputs[Descent::Render::TARGET].borders.clear
+    args.outputs[Descent::Lighting::LIGHTMAP_TARGET].primitives.clear
+    args.outputs[Descent::Lighting::LIGHT_MASK_TARGET].primitives.clear
   end
 
   def render_room_test(args)

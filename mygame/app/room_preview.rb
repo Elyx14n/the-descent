@@ -7,7 +7,7 @@ require 'app/player'
 require 'app/keybinds'
 require 'app/render'
 require 'app/sprite_geometry'
-require 'app/raycasting'
+require 'app/lighting'
 
 module Descent
   # One-room authoring consumer. Owns preview lifetime, not game rules or drawing.
@@ -55,7 +55,7 @@ module Descent
         player = Player.new
         player.reset(**room.spawn)
         camera = Camera.new(bounds: room.bounds)
-        state.merge!(room: room, player: player, camera: camera, fade_state: {}, reload_error: nil)
+        state.merge!(room: room, player: player, camera: camera, fade_state: {}, room_lighting: nil, reload_error: nil)
       rescue StandardError => e
         # Only rebuilding is guarded. Gameplay/rendering errors still surface normally.
         state[:reload_error] = e.message
@@ -68,9 +68,11 @@ module Descent
           actor = state[:player].render_data
           frame[:groups] << actor
           frame[:fade_actors] = [actor[:fade_actor]]
+          frame[:light_receivers] << { sprite: actor[:sprites].first, bases: [state[:player].collision_rect] }
           lamp = state[:player].light_source
           frame[:light_sources] << lamp if lamp
         end
+        frame[:light_polygons] = prepare_lighting(frame, state)
         frame[:world_borders] = []
         frame[:world_markers] = []
         frame[:hud] = [UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 8 }, text: Keybinds.help_text)]
@@ -82,9 +84,27 @@ module Descent
         end
         Render.draw(args, frame: frame, camera: state[:camera], fade_state: state[:fade_state] ||= {},
                           tick: args.state.tick_count)
+        frame
       end
 
       private
+
+      def prepare_lighting(frame, state)
+        room_sources, moving_sources = frame.fetch(:light_sources, []).partition { |source| source[:id] != :player }
+        blockers = frame.fetch(:light_blockers, [])
+        # Compare physical inputs only: animation, fading, and the camera do not
+        # change fixed lights. Door geometry and source changes invalidate together.
+        geometry = blockers.map { |blocker| [blocker[:owner_ids], blocker[:bounds]] }
+        settings = [Lighting::DEFAULT_RADIUS, Lighting::CIRCLE_SEGMENTS]
+        cached = state[:room_lighting]
+        unless cached && cached[:sources] == room_sources && cached[:geometry] == geometry &&
+               cached[:settings] == settings
+          cached = { sources: room_sources, geometry: geometry, settings: settings,
+                     polygons: Lighting.prepare(light_sources: room_sources, light_blockers: blockers) }
+          state[:room_lighting] = cached
+        end
+        cached[:polygons] + Lighting.prepare(light_sources: moving_sources, light_blockers: blockers)
+      end
 
       def add_diagnostics(frame, state, args)
         viewport = state[:camera].for_drawing.viewport_world
@@ -100,54 +120,17 @@ module Descent
           g: 255,
           b: 255
         }
-        visible = frame[:light_blockers].select { |blocker| Geometry.intersect_rect?(blocker[:sprite], viewport) }
+        scenery = (state[:room].objects.map { |entry| entry[:sprite] } + state[:room].ceiling)
+                  .uniq(&:object_id)
+        visible = scenery.select { |sprite| Geometry.intersect_rect?(sprite, viewport) }
         frame[:world_markers] = frame[:light_sources].map do |light|
           { x: light[:x] - 2, y: light[:y] - 2, w: 4, h: 4, path: :solid, r: 0, g: 255, b: 0 }
         end
-        frame[:world_lines] = visible.flat_map do |blocker|
-          blocker[:edges].map { |edge| edge.merge(r: 220, g: 100, b: 220) }
+        frame[:world_lines] = visible.flat_map do |sprite|
+          SpriteGeometry.edges(sprite).map { |edge| edge.merge(r: 220, g: 100, b: 220) }
         end
-        lamp = frame[:light_sources].find { |light| light[:id] == :player }
-        add_lamp_sight_polygon(frame, lamp) if lamp
-      end
-
-      def add_lamp_sight_polygon(frame, lamp)
-        x = lamp[:x]
-        y = lamp[:y]
-        radius = lamp[:radius]
-
-        corners = [
-          { x: x - radius, y: y - radius }, # bottom left
-          { x: x + radius, y: y - radius }, # bottom right
-          { x: x + radius, y: y + radius }, # top right
-          { x: x - radius, y: y + radius }  # top left
-        ]
-        lamp_radius_segments = corners.each_with_index.map do |point, index|
-          {
-            a: point,
-            b: corners[(index + 1) % corners.length]
-          }
-        end
-        # Keep offscreen blockers when they overlap the lamp's range.
-        light_bounds = { x: x - radius, y: y - radius, w: radius * 2, h: radius * 2 }
-        blockers = frame[:light_blockers].select do |blocker|
-          Geometry.intersect_rect?(blocker[:sprite], light_bounds)
-        end
-        segments = blockers.flat_map do |blocker|
-          blocker[:edges].map do |edge|
-            {
-              a: { x: edge[:x], y: edge[:y] },
-              b: { x: edge[:x2], y: edge[:y2] }
-            }
-          end
-        end
-        segments.concat(lamp_radius_segments)
-        sight_polygon = Raycasting.get_sight_polygon(x, y, segments: segments)
-        sight_polygon_lines = sight_polygon.each_with_index.map do |point, index|
-          following = sight_polygon[(index + 1) % sight_polygon.length]
-          { x: point[:x], y: point[:y], x2: following[:x], y2: following[:y], r: 255, g: 0, b: 0 }
-        end
-        frame[:world_lines].concat(sight_polygon_lines)
+        player_polygon = frame[:light_polygons].select { |light| light[:source][:id] == :player }
+        frame[:world_lines].concat(Lighting.polygon_lines(light_polygons: player_polygon))
       end
     end
   end

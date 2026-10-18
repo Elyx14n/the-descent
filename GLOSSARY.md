@@ -50,7 +50,9 @@ _Avoid_: Arrangement (when referring only to these content choices)
 
 **Foreground fading**: Reducing the opacity of nearby scenery that draws over an actor, so the actor remains readable behind it. This affects the camera's view without changing movement blocking or gameplay sight rules.
 
-**Occluder**: A simplified shape describing which parts of scenery visually obstruct something behind it. Generated tile occluders support foreground fading and provide boundaries for future lighting; they do not define movement collision. See [ADR-0012](docs/adr/0012-continuous-occluder-queries.md).
+**Occluder**: A simplified shape describing which parts of scenery visually obstruct something behind it. Generated tile occluders support foreground fading; movement and ground-light blocking use authored colliders independently. See [ADR-0012](docs/adr/0012-continuous-occluder-queries.md) and [ADR-0014](docs/adr/0014-use-collider-bases-for-lighting.md).
+
+**Light blocker**: An object's active collider used as a ground-plane obstacle to illumination. Tall artwork and caps do not add separate blocking silhouettes; see [ADR-0014](docs/adr/0014-use-collider-bases-for-lighting.md).
 
 **Fade unit**: A local group of scenery sprites that shares one foreground-fading response, such as a wall face, its cap, and mounted artwork. It references a subset of the available occluder geometry; lighting selects its blockers independently.
 

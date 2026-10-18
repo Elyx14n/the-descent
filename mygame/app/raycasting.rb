@@ -21,11 +21,14 @@ module Descent
         determinant = (r_dx * s_dy) - (r_dy * s_dx)
         return nil if determinant.abs < 0.00001
 
+        # Any line can be written in parametric form as: Point + Direction * T
         # Ray X = r_px + r_dx * T1
         # Ray Y = r_py + r_dy * T1
         # Segment X = s_px + s_dx * T2
         # Segment Y = s_py + s_dy * T2
         t2 = ((r_dx * (s_py - r_py)) + (r_dy * (r_px - s_px))) / ((s_dx * r_dy) - (s_dy * r_dx)).to_f
+        # Mostly horizontal ray → use X.
+        # Mostly vertical ray → use Y
         t1 = if r_dx.abs >= r_dy.abs
                (s_px + (s_dx * t2) - r_px) / r_dx.to_f
              else

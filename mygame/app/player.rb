@@ -43,7 +43,7 @@ module Descent
       ignore_owner_ids: [],
       intensity: 1,
       ambient_brightness: 0.12,
-      radius: 96
+      radius: 64
     }.freeze
 
     attr_accessor :sanity, :lamp_on
@@ -81,7 +81,8 @@ module Descent
 
       LIGHT_CONFIG.merge(
         x: @x,
-        y: @y + (16 * @scale)
+        # Stay inside the feet, away from a wall edge when walking south into it.
+        y: @y + (collision_rect[:h] / 2.0)
       )
     end
 
