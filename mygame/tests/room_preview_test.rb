@@ -7,6 +7,154 @@ class RoomPreviewTests
   include RoomTestHelpers
   include KeybindTestHelpers
 
+  def timing_test_tick(preview, now_us, pressed: [], held: [])
+    preview[:inputs][:keyboard] = keybind_test_keyboard(preview, pressed: pressed, held: held)
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.tick(preview, now_us: now_us)
+  end
+
+  def test_zero_step_callbacks_buffer_each_press_and_catch_up_does_not_repeat_it(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    start_x = state[:player].x
+    timing_test_tick(preview, 2_000, pressed: [:f], held: [:d])
+    timing_test_tick(preview, 4_000, pressed: [:f], held: [:d])
+    assert.true! state[:player].lamp_on
+    assert.equal! state[:clock].tick, 0
+    timing_test_tick(preview, 16_667, held: [:d])
+    assert.false! state[:player].lamp_on
+    assert.equal! state[:pending_actions].length, 1
+    timing_test_tick(preview, 66_667, held: [:d])
+    assert.true! state[:player].lamp_on
+    assert.equal! state[:clock].tick, 4
+    assert.equal! state[:player].x, start_x + 4
+    assert.true! state[:pending_actions].empty?
+    # Latest held input wins even when a press was collected while moving.
+    timing_test_tick(preview, 70_000, pressed: [:f], held: [:d])
+    timing_test_tick(preview, 83_334)
+    assert.equal! state[:player].x, start_x + 4
+    assert.false! state[:player].lamp_on
+  end
+
+  def test_catch_up_interaction_and_lamp_press_are_consumed_once(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    state[:player].reset(x: 240, y: 220)
+    light = state[:room].lights.find { |entry| entry[:id] == 6 }
+    timing_test_tick(preview, 50_000, pressed: %i[e f])
+    assert.equal! state[:clock].tick, 3
+    assert.false! light[:enabled]
+    assert.false! state[:player].lamp_on
+    assert.true! state[:pending_actions].empty?
+    blits = preview[:outputs].primitives.flatten.select { |primitive| primitive[:path] == :scene }
+    assert.equal! blits.length, 1
+  end
+
+  def test_interpolated_frame_shares_one_anchor_without_mutating_player_or_camera(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    frame = timing_test_tick(preview, 25_000, held: [:d])
+    player = state[:player]
+    assert.equal! player.x, 177
+    actor = frame[:groups].last
+    sprite = actor[:sprites].first
+    assert.equal! sprite[:x], 176.5
+    assert.equal! actor[:depth], player.y
+    assert.equal! frame[:fade_actors].first[:x], sprite[:x]
+    feet = frame[:light_receivers].last[:bases].first
+    assert.equal! feet[:x] + (feet[:w] / 2.0), sprite[:x]
+    lamp = frame[:light_sources].find { |source| source[:id] == :player }
+    assert.equal! lamp.values_at(:x, :y), [sprite[:x], feet[:y] + (feet[:h] / 2.0)]
+    assert.equal! state[:camera].x, player.x
+    drawn = state[:camera].dup.follow(x: sprite[:x], y: player.y).to_draw_space(sprite)
+    assert.true! preview_artwork_drawn?(preview, drawn)
+    # Render again without advancing time: neither animation nor fades advance.
+    history = state[:fade_state].values.map(&:dup)
+    animation_tick = player.sprite.animation_tick
+    clear_room_test_outputs(preview)
+    Descent::RoomPreview.render(preview)
+    assert.equal! player.x, 177
+    assert.equal! player.sprite.animation_tick, animation_tick
+    assert.equal! state[:fade_state].values, history
+  end
+
+  def test_stalls_teleports_and_respawn_collapse_history(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    timing_test_tick(preview, 25_000, held: [:d])
+    timing_test_tick(preview, 26_000, pressed: [:f])
+    frame = timing_test_tick(preview, 300_000)
+    assert.equal! state[:clock].tick, 1
+    assert.true! state[:pending_actions].empty?
+    assert.true! state[:player].lamp_on
+    assert.equal! frame[:groups].last[:sprites].first[:x], state[:player].x
+    timing_test_tick(preview, 325_000, held: [:d])
+    player = state[:player]
+    # A same-position respawn must also stop interpolation of the last move.
+    player.reset(x: player.x, y: player.y)
+    clear_room_test_outputs(preview)
+    frame = Descent::RoomPreview.render(preview)
+    assert.equal! frame[:groups].last[:sprites].first[:x], player.x
+    player.x = 240
+    clear_room_test_outputs(preview)
+    frame = Descent::RoomPreview.render(preview)
+    assert.equal! frame[:groups].last[:sprites].first[:x], 240
+  end
+
+  def test_diagonal_depth_and_clamped_camera_use_the_presented_position(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    frame = timing_test_tick(preview, 25_000, held: %i[d w])
+    actor = frame[:groups].last
+    assert.equal! actor[:depth], actor[:fade_actor][:y]
+    assert.true! actor[:depth] < state[:player].y
+    assert.true! actor[:depth] > state[:previous_position][:y]
+
+    player = state[:player]
+    player.reset(x: 56, y: 176)
+    frame = timing_test_tick(preview, 50_000, held: [:d])
+    sprite = frame[:groups].last[:sprites].first
+    camera = state[:camera].dup.follow(x: sprite[:x], y: player.y)
+    assert.equal! camera.x, state[:room].bounds[:x] + camera.viewport_w_half
+    assert.true! preview_artwork_drawn?(preview, camera.to_draw_space(sprite))
+  end
+
+  def test_failed_reload_keeps_queued_input_and_valid_simulation(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    room = state[:room]
+    timing_test_tick(preview, 1_000, pressed: [:f])
+    preview[:gtk].contents = '{'
+    timing_test_tick(preview, 50_000, pressed: [:r])
+    assert.true! state[:room].equal?(room)
+    assert.equal! state[:clock].tick, 3
+    assert.false! state[:player].lamp_on
+    assert.true! state[:pending_actions].empty?
+    assert.true! state[:reload_error].is_a?(String)
+  end
+
+  def test_forced_reload_clears_actions_and_excludes_loading_time(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    timing_test_tick(preview, 1_000, pressed: [:f])
+    old_player = state[:player]
+    timing_test_tick(preview, 100_000, pressed: %i[r f])
+    assert.false! state[:player].equal?(old_player)
+    assert.true! state[:pending_actions].empty?
+    assert.equal! state[:clock].steps, 0
+    assert.equal! state[:clock].alpha, 0
+    timing_test_tick(preview, 116_667)
+    assert.equal! state[:clock].tick, 1
+    assert.true! state[:player].lamp_on
+  end
+
   def test_lamp_keeps_its_range_when_walking_into_southern_walls_and_door(args, assert)
     room = tiled_test_room(args)
     [[48, 110], [80, 110], [128, 80], [176, 80], [272, 110]].each do |x, y|
@@ -273,9 +421,22 @@ class RoomPreviewTests
   end
 
   def preview_test_tick(args, tick)
+    # Existing authored-room scenarios specify simulation ticks. Supply elapsed
+    # time explicitly, including intervening callbacks without repeated presses.
+    keyboard = args[:inputs][:keyboard]
+    previous = args[:test_tick]
+    if previous && tick > previous + 1
+      args[:inputs][:keyboard] = keyboard.class.new
+      ((previous + 1)...tick).each do |intermediate|
+        clear_room_test_outputs(args)
+        Descent::RoomPreview.tick(args, now_us: (intermediate * 1_000_000).fdiv(60).ceil)
+      end
+    end
+    args[:inputs][:keyboard] = keyboard
     args[:state][:tick_count] = tick
+    args[:test_tick] = tick
     clear_room_test_outputs(args)
-    Descent::RoomPreview.tick(args)
+    Descent::RoomPreview.tick(args, now_us: (tick * 1_000_000).fdiv(60).ceil)
     args[:state][:room_preview]
   end
 

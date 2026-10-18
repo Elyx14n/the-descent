@@ -76,13 +76,13 @@ module Descent
       @lamp_on = !@lamp_on
     end
 
-    def light_source
+    def light_source(x: @x, y: @y)
       return nil unless @lamp_on
 
       LIGHT_CONFIG.merge(
-        x: @x,
+        x: x,
         # Stay inside the feet, away from a wall edge when walking south into it.
-        y: @y + (collision_rect[:h] / 2.0)
+        y: y + (collision_rect[:h] / 2.0)
       )
     end
 
