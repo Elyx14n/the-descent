@@ -1,10 +1,12 @@
 ---
 status: superseded
-superseded_by: 0012-continuous-occluder-queries.md
+superseded_by: 0015-use-colliders-for-foreground-fading.md
 date: 2026-10-17
 ---
 
 # Generate simplified tile occluders outside the game
+
+Retired by [ADR-0015](0015-use-colliders-for-foreground-fading.md): active colliders replace all alpha-derived fade geometry, and the generated pipeline and magenta overlay are removed. The remaining text records the historical decision.
 
 [ADR-0012](0012-continuous-occluder-queries.md) replaces the sampled rectangle representation and debug overlay described below. It retains the generation pipeline, approved simplification policy, and loading/freshness checks.
 

@@ -57,7 +57,7 @@ class RenderBenchmarkTests
     puts "RENDER_BENCH_COUNTS copies=#{copies} sprites=#{world.length} " \
          "visible=#{camera.find_all_intersect_viewport(world).length} " \
          "units=#{room.fade_units.length} lights=#{room.lights.length} " \
-         "edges=#{world.sum { |sprite| sprite.fetch(:occlusion_polygons, []).sum(&:length) }}"
+         "fade_colliders=#{room.fade_units.sum { |unit| unit[:colliders].length }}"
   end
 
   def benchmark_step(args, context, operation, tick)

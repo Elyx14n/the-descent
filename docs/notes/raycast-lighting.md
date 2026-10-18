@@ -2,13 +2,15 @@
 
 Date: 2026-10-18; updated 2026-10-19. Status: guided implementation in progress; collider-base lighting and mask falloff are integrated; playtesting continues.
 
+Geometry update (2026-10-19): [ADR-0015](../adr/0015-use-colliders-for-foreground-fading.md) removes the alpha/polygon asset pipeline and magenta diagnostics. Earlier visual-outline prototypes and timings below remain historical evidence.
+
 The PR's endpoint is a complete lighting system and test suite: authored room lights and a toggleable, circular player lamp, with sharp shadows and soft radial falloff. Implement it yourself in small commits, with quick checks and playtesting between them. Ask for focused help at the current checkpoint rather than working through a full solution up front.
 
 The main references are Nicky Case's [Sight & Light guide](https://ncase.me/sight-and-light/) and the supplied HTML preserved in the [reference appendix](#reference-snippet). Follow their names and vocabulary while adapting the implementation to Ruby, upward-increasing world Y, and the game's camera/render targets. The supplied HTML is a user-provided variant; the guide also explores fuzzy shadows, which remain outside this PR.
 
 ## Collider bases and integrated lighting
 
-The user accepted the one-wall experiment and chose active object colliders as ground-plane blocking bases throughout the normal room preview. [ADR-0014](../adr/0014-use-collider-bases-for-lighting.md) records that decision. Tall projected artwork and ceiling caps no longer supply floor-lighting silhouettes. Generated alpha outlines remain in use for foreground fading and magenta debug outlines; removing them would change fading, not merely lighting.
+The user accepted the one-wall experiment and chose active object colliders as ground-plane blocking bases throughout the normal room preview. [ADR-0014](../adr/0014-use-collider-bases-for-lighting.md) records that decision. Tall projected artwork and ceiling caps no longer supply floor-lighting silhouettes. [ADR-0015](../adr/0015-use-colliders-for-foreground-fading.md) subsequently replaced alpha-derived fading with active wall/door colliders and full artwork rectangles, removing the generated pipeline and magenta outlines.
 
 The [foreground-lighting research](foreground-lighting-research.md) explains caster/receiver separation and richer alternatives. Height-aware shadows are deferred: the accepted approximation shades foreground artwork from its base and leaves caps ambient.
 
@@ -27,7 +29,9 @@ The handoffs are:
 1. `Room#render_data` supplies enabled `light_sources`, one `light_blockers` record per active object collider, and `light_receivers` pairing artwork with its bases. Doors use active open/closed rectangles; mounted sources and receivers use their hosts. Colliderless artwork receives via its placement baseline without creating a caster.
 2. `RoomPreview` appends the player's source at its foot-collider center and its receiving base. It calls stateless `Lighting.prepare(light_sources:, light_blockers:)` for `{ source:, sight_polygon: }` records. Each source excludes its own owner group and terminates rays on a 32-sided circular boundary. The surrounding square only selects nearby blockers.
 3. `Lighting.triangles` builds a source-centered fan using `camera.to_screen` for the source and every boundary vertex, preserving fractional coordinates through drawing. `Lighting.draw_lightmap` prepares `:radial_light` from the existing mask alpha, then accumulates polygon-clipped illumination above RGB-31 ambient in `:lightmap`. Only afterward does Render create `:scene`, draw its floor, multiply the lightmap over that floor, and append the existing depth-sorted foreground. There is no separate `:lit_floor` target.
-4. `Lighting.receiver_colors` samples the prepared polygons at object bases; `Lighting.tint` shades foreground RGB while preserving authored colors and fade alpha. Foreground faces carry `front_y`: sources behind that south-facing surface cannot brighten the whole sprite through an exposed side/corner. Top-down walls retain ordinary base sampling. Caps use ambient. HUD and diagnostics remain above lighting. B reuses the prepared player polygon for its red outline; magenta shows artwork geometry and yellow shows physical colliders.
+4. `Lighting.receiver_colors` samples the prepared polygons at object bases; `Lighting.tint` shades foreground RGB while preserving authored colors and fade alpha. Foreground faces carry `front_y`: sources behind that south-facing surface cannot brighten the whole sprite through an exposed side/corner. Top-down walls retain ordinary base sampling. Caps use ambient. HUD and diagnostics remain above lighting. B reuses the prepared player polygon for its red outline; yellow shows physical colliders; generated artwork outlines have been removed.
+
+`Lighting`'s private `received_light_strength(light:, receiver_base:)` helper calculates how much one light contributes to a receiving object. It checks distance and visibility at that object's base and returns a strength from 0 to 1, used to tint the whole receiving sprite.
 
 Movement regressions exposed strict ray/segment endpoint rounding in the receiving check: a corner sample could alternate between lit and ambient. The angular search now selects the boundary edge and tests its inward side directly, avoiding another endpoint intersection. Centering the player source inside its foot collider prevents zero-distance hits at southern contact.
 
@@ -50,7 +54,7 @@ This probe moves the player with all six fixed room sources enabled; it does not
 
 After the movement/contact/face-shading fixes, the same local probe measured 63.48 / 61.14 FPS with diagnostics off at 640×360 / 1920×1080 (median Ruby preparation 10.864 / 11.416 ms), and 57.58 / 52.37 FPS with diagnostics on (14.559 / 16.403 ms). Treat these as a later observation with the corrected source origin, not an isolated timing comparison of the receiving check. A separate rendered moving-lamp probe kept all 7,600 sampled interior-floor pixels fully illuminated across 19 consecutive frames; native tests cover continuous base illumination during fractional movement. Rendered southern-corner and wall/door-contact captures were also inspected. User confirmation of the reported scenarios remains pending.
 
-Native coverage includes circle approximation, intersection/owner exclusions, camera conversion, floor/foreground composition, hidden receivers, color/intensity, lamp and door changes, cache invalidation, and reload recovery. The full suite passes 183 tests, including fractional-motion vertex sampling and lamp range at southern wall/door contact. `bin/rake run -- --eval tests/lighting_playback.rb` captures the normal room, closed/open door, player-lamp-off, all-lights-off, southern corner/wall/door contact, and isolated mounted-light on/off states under ignored `mygame/tmp/`. Those rendered captures were inspected locally; controls, readability, and displayed FPS still require playtesting.
+Native coverage includes circle approximation, intersection/owner exclusions, camera conversion, floor/foreground composition, hidden receivers, color/intensity, lamp and door changes, cache invalidation, and reload recovery. At that lighting checkpoint the full suite passed 183 tests, including fractional-motion vertex sampling and lamp range at southern wall/door contact. `bin/rake run -- --eval tests/lighting_playback.rb` captures the normal room, closed/open door, player-lamp-off, all-lights-off, southern corner/wall/door contact, and isolated mounted-light on/off states under ignored `mygame/tmp/`. Those rendered captures were inspected locally; controls, readability, and displayed FPS still require playtesting.
 
 ### Diagonal sprite-edge jitter: a stale floor pass
 
@@ -100,13 +104,13 @@ The Ritual Gate's lights 121/122 mount on decorative ledges 117/118, which have 
 
 Suggested homes and dependency direction:
 
-- **Geometry:** Room exposes active collider edges for lighting. [SpriteGeometry](../../mygame/app/sprite_geometry.rb) continues transforming generated artwork outlines for fading and diagnostics under [ADR-0012](../adr/0012-continuous-occluder-queries.md). No asset-generation changes are needed.
+- **Geometry:** Room exposes active collider edges for lighting. ForegroundFade uses active wall/door colliders and private rectangle helpers under [ADR-0015](../adr/0015-use-colliders-for-foreground-fading.md). No generated artwork geometry remains.
 - **Inputs:** Room selects blockers and exposes enabled authored emitters. Player produces its lamp data. RoomPreview combines these into plain frame fields `light_sources` and `light_blockers`; Render continues to consume frame data without reaching into Room or Player.
 - **Math:** add `mygame/app/raycasting.rb` for stateless intersection and visibility-polygon calculations. It consumes ordinary geometry, without DragonRuby outputs, input, or camera state.
 - **Drawing:** add `mygame/app/lighting.rb` for polygon drawing, radial falloff, and lightmap preparation. Render calls it when composing the world scene. Keep the raycaster independent of drawing.
 - **Tests:** add deterministic math coverage under `mygame/tests/raycasting_test.rb`, then lighting integration coverage under `mygame/tests/lighting_test.rb` and relevant existing suites.
 
-Keep geometry in world coordinates until drawing. Reuse the installed SDK and existing occluder data; add no gems or runtime libraries. Consult `$DRAGONRUBY_HOME/docs/api/outputs.md` and `samples/07_advanced_rendering/14_triangles` when reaching the drawing checkpoint, and verify the needed operations in the installed Standard build.
+Keep geometry in world coordinates until drawing. Reuse the installed SDK and authored collider data; add no gems or runtime libraries. Consult `$DRAGONRUBY_HOME/docs/api/outputs.md` and `samples/07_advanced_rendering/14_triangles` when reaching the drawing checkpoint, and verify the needed operations in the installed Standard build.
 
 ### Keep the reference vocabulary
 
@@ -306,7 +310,7 @@ Run narrow native tests while iterating, then `bin/rake test` and `bin/rubocop` 
 - Use player radius 64 world pixels, room fallback radius 48, intensity 1, white light, and ambient brightness 12%. Positive authored radii and authored colors override these defaults; zero radius and empty color use defaults. Intensity controls each light's contribution.
 - Place the player emitter at its foot-collider center on the ground plane, so a southern wall cannot coincide with the ray origin. Room sources keep authored X and use their collider base's lowest Y; mounted sources use one world pixel south/in front of the host baseline to avoid a blocking wall edge.
 - Exclude the emitter's own collider owner and mounted host group only for that emitter. Other objects' colliders still block it; inspect mounted wall illumination during playtesting.
-- Blockers use active object colliders regardless of temporary foreground fade opacity. Generated alpha geometry remains specific to fading and diagnostics. Height-aware shadows are deferred.
+- Blockers use active object colliders regardless of temporary foreground fade opacity. Foreground fading also uses active colliders under ADR-0015; generated alpha geometry is removed. Height-aware shadows are deferred.
 - Witness detection, actor shadows, soft shadow edges, flicker, and speculative performance infrastructure are outside this PR.
 - Radius, lamp anchor, and ambient brightness are tuning defaults. Final visual acceptance requires playtesting; implementation details can be learned at each checkpoint without supplying the solution here.
 

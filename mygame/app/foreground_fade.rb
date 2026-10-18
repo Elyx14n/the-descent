@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'app/sprite_geometry'
-
 module Descent
   # Actor-relative opacity, independent of camera placement and gameplay state.
   # Units reference the original sprites so identical artwork keeps its own order.
@@ -31,8 +29,12 @@ module Descent
           visible.each do |actor|
             next unless occludes?(unit, actor, indices)
 
-            contribution = multiplier(unit[:footprint], actor, type: unit[:type])
-            opacity = contribution if contribution < opacity
+            unit[:colliders].each do |collider|
+              next unless collider_occludes?(collider, actor)
+
+              contribution = multiplier(collider, actor, type: unit[:type])
+              opacity = contribution if contribution < opacity
+            end
             break if opacity <= min_opacity
           end
           if state
@@ -56,9 +58,9 @@ module Descent
         end
       end
 
-      def multiplier(footprint, actor, type:)
-        # Measure vertical gap between the player's y above the footprint's top edge; inside it, the gap is zero.
-        d = [actor[:y] - (footprint[:y] + footprint[:h]), 0].max
+      def multiplier(collider, actor, type:)
+        # Measure the actor's ground gap north of the collider; inside it, the gap is zero.
+        d = [actor[:y] - (collider[:y] + collider[:h]), 0].max
         # Normalize the gap to 0–1 across the fade radius.
         t = d.fdiv(RADIUS).clamp(0, 1)
         min_opacity = MIN_OPACITIES.fetch(type)
@@ -85,32 +87,36 @@ module Descent
       end
 
       def occludes?(unit, actor, indices)
-        # A cap may extend north of the feet, but its base must be south of them.
-        # Use continuous ground Y: a same-cell base can still genuinely hide an
-        # actor. Overhead rendering alone does not establish this direction.
-        return false if unit[:footprint][:y] >= actor[:y]
-        # At this gap the spatial target is already fully opaque, even if tall
-        # artwork still crosses the actor. History restoration continues above.
-        return false if actor[:y] >= unit[:footprint][:y] + unit[:footprint][:h] + RADIUS
-
         actor_index = indices.fetch(actor[:sprite].object_id)
         base = unit.fetch(:base)
         base_index = indices[base.object_id]
         return false unless base_index && (base_index <=> actor_index).positive?
 
-        # The actor's center must cross the supporting base, not just graze it.
-        base_bounds = SpriteGeometry.bounds(base)
-        return false unless base_bounds[:x] <= actor[:x] && actor[:x] < base_bounds[:x] + base_bounds[:w]
-
-        # A member must cross the center line and be wider than the actor's body.
+        # Full artwork bounds must cross the actor's feet-to-head center line.
         unit[:sprites].any? do |sprite|
           index = indices[sprite.object_id]
           next false unless index && (index <=> actor_index).positive?
 
-          SpriteGeometry.crosses_span?(sprite, x: actor[:x], y: actor[:y],
-                                               height: actor.fetch(:occlusion_height),
-                                               width: actor.fetch(:occlusion_width))
+          crosses_center?(sprite, actor)
         end
+      end
+
+      def collider_occludes?(collider, actor)
+        collider[:y] < actor[:y] && actor[:y] < collider[:y] + collider[:h] + RADIUS &&
+          collider[:x] <= actor[:x] && actor[:x] < collider[:x] + collider[:w] &&
+          collider[:w] > actor.fetch(:occlusion_width)
+      end
+
+      def crosses_center?(sprite, actor)
+        rect = bounds(sprite)
+        rect[:x] <= actor[:x] && actor[:x] < rect[:x] + rect[:w] &&
+          rect[:y] < actor[:y] + actor.fetch(:occlusion_height) && rect[:y] + rect[:h] > actor[:y]
+      end
+
+      def bounds(sprite)
+        { x: sprite[:x] - (sprite[:w] * sprite.fetch(:anchor_x, 0)),
+          y: sprite[:y] - (sprite[:h] * sprite.fetch(:anchor_y, 0)),
+          w: sprite[:w], h: sprite[:h] }
       end
     end
   end

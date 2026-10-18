@@ -107,17 +107,14 @@ class LightTests
     unit = room.fade_units.find { |entry| entry[:sprites].any? { |member| member.equal?(sprite) } }
     assert.true! unit.is_a?(Hash)
     assert.equal! placement.last(3), [true, true, :light]
-    bounds = []
     [0, 9, 18, 27].each do |tick|
       room.update_animations(tick: tick)
       assert.equal! sprite, light[:lit_sprite]
       assert.equal! sprite.values_at(*keys), placement
-      bounds << sprite[:occlusion_bounds]
     end
     room.set_light_enabled(122, enabled: false)
     assert.equal! sprite, light[:unlit_sprite]
     assert.equal! sprite.values_at(*keys), placement
-    assert.true!(bounds.any? { |rect| rect != sprite[:occlusion_bounds] })
     wall = room.objects.find { |entry| entry[:id] == 118 }
     assert.equal! light[:depth], wall[:depth]
     assert.true!(wall[:mounted_objects].any? { |entry| entry.equal?(light) })

@@ -5,6 +5,8 @@ date: 2026-10-17
 
 # Prefer general visible-group sorting over a cached scenery-order protocol
 
+Update: [ADR-0015](0015-use-colliders-for-foreground-fading.md) retires the shared SpriteGeometry module and alpha/polygon fade geometry. Other retained preparation changes and the simple sorting decision still apply; measurements below describe their historical workload.
+
 Cached scenery ordering reduced measured Ruby preparation time but added more interface and implementation complexity than the current game warrants. Retain the general stable sort of visible groups and remove the sorted-prefix hint, validation, and actor-merge path. This supersedes the cached-ordering acceptance recorded in [ADR-0009](0009-measured-render-preparation.md) at commit `691b6cb`; its other rendering decisions remain in force.
 
 ## Original problem and evaluated solution

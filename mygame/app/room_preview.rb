@@ -6,7 +6,6 @@ require 'app/camera'
 require 'app/player'
 require 'app/keybinds'
 require 'app/render'
-require 'app/sprite_geometry'
 require 'app/lighting'
 
 module Descent
@@ -49,7 +48,7 @@ module Descent
         raise ArgumentError, "#{state[:path]}: Cannot read Tiled map" unless contents
 
         decoded = TiledDeserializer.deserialize(
-          args.gtk.parse_json(contents), path: state[:path], occluders: Descent::OccluderData.load(args.gtk)
+          args.gtk.parse_json(contents), path: state[:path]
         )
         room = Room.new(**decoded)
         player = Player.new
@@ -76,7 +75,10 @@ module Descent
         frame[:world_borders] = []
         frame[:world_markers] = []
         frame[:hud] = [UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 8 }, text: Keybinds.help_text)]
-        add_diagnostics(frame, state, args) if state[:room] && state[:show_bounds]
+        # Keep changing text widths on whole pixels; centered odd widths land between pixels.
+        frame[:hud] << UI.label({ x: Grid.w - 4, y: Grid.h - 4 },
+                                text: "FPS: #{args.gtk.current_framerate.to_sf}", anchor_x: 1, anchor_y: 1)
+        add_diagnostics(frame, state) if state[:room] && state[:show_bounds]
         if state[:reload_error]
           message = "Reload: #{state[:reload_error].lines.first.to_s.strip}"
           message = "#{message[0, 72]}..." if message.length > 75
@@ -106,9 +108,7 @@ module Descent
         cached[:polygons] + Lighting.prepare(light_sources: moving_sources, light_blockers: blockers)
       end
 
-      def add_diagnostics(frame, state, args)
-        viewport = state[:camera].for_drawing.viewport_world
-        frame[:hud] << UI.label({ x: Grid.w - 16, y: Grid.h - 8 }, text: "FPS: #{args.gtk.current_framerate.to_sf}")
+      def add_diagnostics(frame, state)
         frame[:world_borders] = state[:room].collision_rects.map { |rect| rect.merge(r: 235, g: 185, b: 94) }
         frame[:world_borders] << state[:player].collision_rect.merge(r: 90, g: 255, b: 160)
         frame[:world_borders] << {
@@ -120,17 +120,11 @@ module Descent
           g: 255,
           b: 255
         }
-        scenery = (state[:room].objects.map { |entry| entry[:sprite] } + state[:room].ceiling)
-                  .uniq(&:object_id)
-        visible = scenery.select { |sprite| Geometry.intersect_rect?(sprite, viewport) }
         frame[:world_markers] = frame[:light_sources].map do |light|
           { x: light[:x] - 2, y: light[:y] - 2, w: 4, h: 4, path: :solid, r: 0, g: 255, b: 0 }
         end
-        frame[:world_lines] = visible.flat_map do |sprite|
-          SpriteGeometry.edges(sprite).map { |edge| edge.merge(r: 220, g: 100, b: 220) }
-        end
         player_polygon = frame[:light_polygons].select { |light| light[:source][:id] == :player }
-        frame[:world_lines].concat(Lighting.polygon_lines(light_polygons: player_polygon))
+        frame[:world_lines] = Lighting.polygon_lines(light_polygons: player_polygon)
       end
     end
   end

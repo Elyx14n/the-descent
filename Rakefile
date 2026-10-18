@@ -44,22 +44,4 @@ end
 desc 'Run lint and native tests'
 task check: %i[lint test]
 
-namespace :assets do
-  desc 'Generate game occluder data (MAP=..., TOLERANCE=2, OUT=mygame/data)'
-  task :occluders do
-    require_relative 'lib/occluder_assets'
-
-    map = ENV.fetch('MAP', 'mygame/tiled/ritual_gate.json')
-    output = ENV.fetch('OUT', 'mygame/data')
-    generator = OccluderAssets.new(tolerance: Float(ENV.fetch('TOLERANCE', '2')))
-    generator.generate(map, output: output)
-    puts "Generated #{output}/occluders.json"
-  end
-
-  desc 'Test asset generation (requires GEOS)'
-  task :test do
-    ruby 'test/occluder_assets_test.rb'
-  end
-end
-
 task default: :check

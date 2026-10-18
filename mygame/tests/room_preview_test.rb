@@ -96,39 +96,18 @@ class RoomPreviewTests
     assert.false!(remaining.any? { |light| light[:source][:id] == :player })
   end
 
-  def test_debug_lines_match_all_scenery_polygon_edges_after_camera_translation(args, assert)
+  def test_debug_geometry_uses_physics_borders_and_only_red_lamp_lines(args, assert)
     preview = preview_test_args(args)
     preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
     state = preview_test_tick(preview, 0)
-    room = state[:room]
-    fade_members = room.fade_units.flat_map { |unit| unit[:sprites] }
-    scenery = (room.objects.map { |entry| entry[:sprite] } + room.ceiling).uniq
-    assert.true!(scenery.any? { |sprite| !fade_members.include?(sprite) && sprite[:occlusion_polygons].any? })
     [false, true].each do |open|
-      room.set_door_open(267, open: open)
-      state[:camera].follow(x: 260, y: 150)
+      state[:room].set_door_open(267, open: open)
       clear_room_test_outputs(preview)
-      Descent::RoomPreview.render(preview)
-      lines = preview[:outputs][Descent::Render::TARGET].lines.flatten.select do |line|
-        line.values_at(:r, :g, :b) == [220, 100, 220]
-      end
-      camera = state[:camera].for_drawing
-      expected = camera.find_all_intersect_viewport(scenery).flat_map do |sprite|
-        Descent::SpriteGeometry.polygons(sprite).flat_map do |ring|
-          ring.each_with_index.map do |point, index|
-            following = ring[(index + 1) % ring.length]
-            start = camera.to_screen(x: point[0], y: point[1])
-            finish = camera.to_screen(x: following[0], y: following[1])
-            [start[:x], start[:y], finish[:x], finish[:y]]
-          end
-        end
-      end
-      assert.equal! lines.map { |line| line.values_at(:x, :y, :x2, :y2) }, expected
-      assert.true! lines.any?
-      assert.true!(lines.all? { |line| line.values_at(:r, :g, :b) == [220, 100, 220] })
-      assert.false!(preview[:outputs][Descent::Render::TARGET].borders.flatten.any? do |border|
-        border.values_at(:r, :g, :b) == [220, 100, 220]
-      end)
+      frame = Descent::RoomPreview.render(preview)
+      assert.true! frame[:world_lines].any?
+      assert.true!(frame[:world_lines].all? { |line| line.values_at(:r, :g, :b) == [255, 0, 0] })
+      physics = frame[:world_borders].select { |rect| rect.values_at(:r, :g, :b) == [235, 185, 94] }
+      assert.equal! physics.map { |rect| rect.slice(:x, :y, :w, :h) }, state[:room].collision_rects
     end
   end
 
@@ -175,7 +154,7 @@ class RoomPreviewTests
     clear_room_test_outputs(preview)
     Descent::RoomPreview.render(preview)
     assert.false!(target.lines.flatten.any? { |line| line.values_at(:r, :g, :b) == [255, 0, 0] })
-    assert.true!(target.lines.flatten.any? { |line| line.values_at(:r, :g, :b) == [220, 100, 220] })
+    assert.true! target.lines.flatten.empty?
     assert.true!(target.primitives.flatten.any? { |sprite| sprite.values_at(:r, :g, :b) == [0, 255, 0] })
   end
 
@@ -213,19 +192,25 @@ class RoomPreviewTests
     room = state[:room]
     door = room.doors.find { |entry| entry[:id] == 267 }
     closed = door[:parts].map { |part| part[:sprite].dup }
-    state[:player].reset(x: 176, y: 72)
+    state[:player].reset(x: 176, y: 48)
     out_ticks = Descent::ForegroundFade::FADE_OUT_TICKS
     (1..out_ticks).each { |tick| preview_test_tick(preview, tick) }
-    opacity = (Descent::ForegroundFade.multiplier({ x: 160, y: 32, w: 32, h: 32 },
-                                                  { x: 176, y: 72 }, type: :door) * 255).round
+    opacity = (Descent::ForegroundFade.multiplier(door[:closed_colliders].first,
+                                                  { x: 176, y: 48 }, type: :door) * 255).round
     closed.each do |sprite|
       assert.true! preview_artwork_drawn?(preview, state[:camera].to_draw_space(sprite.merge(a: opacity)))
     end
     assert.equal! door[:parts].map { |part| part[:sprite] }, closed
+    unit = room.fade_units.find { |candidate| candidate[:base].equal?(door[:sprite]) }
+    history = state[:fade_state][unit.object_id]
     room.set_door_open(267, open: true)
+    assert.equal! unit[:colliders], []
     preview_test_tick(preview, out_ticks + 1)
+    assert.true! state[:fade_state][unit.object_id].equal?(history)
+    restoring = (history[:opacity] * 255).round
+    assert.true! restoring > opacity && restoring < 255
     door[:parts].each do |part|
-      assert.true! preview_artwork_drawn?(preview, state[:camera].to_draw_space(part[:sprite].merge(a: opacity)))
+      assert.true! preview_artwork_drawn?(preview, state[:camera].to_draw_space(part[:sprite].merge(a: restoring)))
     end
     preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:r])
     state = preview_test_tick(preview, out_ticks + 2)
@@ -263,15 +248,13 @@ class RoomPreviewTests
     end
 
     def read_file(path)
-      return @gtk.read_file(path) if path == Descent::OccluderData::PATH || path.start_with?('sprites/')
-
       @reads += 1
       @paths << path
       @contents
     end
 
     def parse_json(contents)
-      @parses += 1 unless contents.start_with?('{"format_version":')
+      @parses += 1
       @gtk.parse_json(contents)
     end
 

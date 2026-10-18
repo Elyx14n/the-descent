@@ -71,7 +71,7 @@ class RenderTests
     actor = Descent::Player.new(x: 48, y: 16).render_data
     base = { x: 32, y: -32, w: 32, h: 16, path: :solid }
     cap = base.merge(y: 0, h: 48)
-    unit = { type: :wall, base: base, footprint: base.merge(h: 32), sprites: [base, cap] }
+    unit = { type: :wall, base: base, colliders: [base.merge(h: 32)], sprites: [base, cap] }
     frame = { groups: [{ depth: -32, sprites: [base] }, actor], ceiling: [cap],
               fade_units: [unit], fade_actors: [actor[:fade_actor]] }
     clear_room_test_outputs(args)
@@ -85,7 +85,7 @@ class RenderTests
     camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
     actor = Descent::Player.new(x: 48, y: 64).render_data
     base = { x: 32, y: 32, w: 32, h: 64, path: :solid }
-    unit = { type: :wall, base: base, footprint: base.merge(h: 32), sprites: [base] }
+    unit = { type: :wall, base: base, colliders: [base.merge(h: 32)], sprites: [base] }
     # The later authored group draws first. Its reference must not overwrite
     # the same sprite's final front occurrence when preparing fade order.
     frame = { groups: [{ depth: 32, sprites: [base] }, actor, { depth: 96, sprites: [base] }],
@@ -114,7 +114,7 @@ class RenderTests
     actor = Descent::Player.new(x: 330, y: 64).render_data
     base = { x: 324, y: 32, w: 32, h: 32, path: :solid }
     cap = base.merge(y: 64)
-    unit = { type: :wall, base: base, footprint: base, sprites: [base, cap] }
+    unit = { type: :wall, base: base, colliders: [base], sprites: [base, cap] }
     frame = { groups: [{ depth: 32, sprites: [base] }, actor], ceiling: [cap],
               fade_units: [unit], fade_actors: [actor[:fade_actor]] }
     history = {}
@@ -137,8 +137,9 @@ class RenderTests
     room = tiled_test_room(args)
     camera = Descent::Camera.new(bounds: room.bounds)
     [193, 166, 217, 216].each do |id|
-      base = room.objects.find { |entry| entry[:id] == id }[:sprite]
-      visible = Descent::SpriteGeometry.occupied_bounds(base)
+      entry = room.objects.find { |candidate| candidate[:id] == id }
+      base = entry[:sprite]
+      visible = entry[:colliders].first
       [base[:x] + 16, visible[:x] + (visible[:w] / 2)].each do |x|
         actor = Descent::Player.new(x: x, y: base[:y] + 8).render_data
         frame = room.render_data
@@ -166,7 +167,7 @@ class RenderTests
     alphas = []
     out_ticks = Descent::ForegroundFade::FADE_OUT_TICKS
     in_ticks = Descent::ForegroundFade::FADE_IN_TICKS
-    [[0, 144, 68], [out_ticks, 144, 68], [out_ticks + 1, 180, 100],
+    [[0, 144, 48], [out_ticks, 144, 48], [out_ticks + 1, 180, 100],
      [out_ticks + in_ticks + 1, 180, 100]].each do |tick, x, y|
       actor = Descent::Player.new(x: x, y: y).render_data
       frame = room.render_data
@@ -226,7 +227,7 @@ class RenderTests
     floor = wall.merge(r: 4)
     hud = { x: 10, y: 10, text: 'HUD' }
     frame = { floor: [floor], groups: [{ depth: 32, sprites: [wall, prop] }, actor], ceiling: [cap],
-              fade_units: [{ type: :wall, base: wall, footprint: wall, sprites: [wall, cap] }],
+              fade_units: [{ type: :wall, base: wall, colliders: [wall], sprites: [wall, cap] }],
               fade_actors: [actor[:fade_actor]], hud: [hud] }
     original = frame.to_s
     clear_room_test_outputs(args)
@@ -243,13 +244,14 @@ class RenderTests
     camera = Descent::Camera.new(bounds: room.bounds)
     wall = room.objects.find { |entry| entry[:id] == 241 }[:sprite]
     camera_positions = [80, 120]
-    # At 68 the center line crosses the cap's artwork; 80 only crossed its padding.
-    [68, 96, 68].each do |y|
+    collider = room.objects.find { |entry| entry[:id] == 241 }[:colliders].first
+    # Near the collider fades; exactly 32 pixels north of its top restores.
+    [48, collider[:y] + collider[:h] + 32, 48].each do |y|
       actor = Descent::Player.new(x: 144, y: y).render_data
       frame = room.render_data
       frame[:groups] << actor
       frame[:fade_actors] = [actor[:fade_actor]]
-      expected = y == 68 ? 72 : 255
+      expected = (Descent::ForegroundFade.multiplier(collider, { y: y }, type: :wall) * 255).round
       camera_positions.each do |camera_y|
         camera.follow(x: 144, y: camera_y)
         clear_room_test_outputs(args)

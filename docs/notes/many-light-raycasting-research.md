@@ -1,5 +1,7 @@
 # Scaling visibility across many lights
 
+Historical geometry note (2026-10-19): [ADR-0015](../adr/0015-use-colliders-for-foreground-fading.md) removes all alpha-derived fade geometry, SpriteGeometry, generated occluder assets, and their tasks/dependencies. Fading uses active wall/door colliders plus full artwork rectangles; lighting uses active object colliders under ADR-0014. Pipeline instructions, silhouette-specific behavior, and measurements below describe earlier implementations. Current setup is in [README](../../README.md), and current behavior is in [CONTEXT](../../CONTEXT.md).
+
 Research date: 2026-10-18. Proposal and source evidence; no replacement algorithm is implemented by this note. Keep [HD disabled](../adr/0013-keep-hd-disabled.md), the current generated [occluders](../adr/0012-continuous-occluder-queries.md), and the user's exclusion of rotational sweep. See the [native audit and measurements](many-light-raycasting-audit.md); published C/C++/GPU results do not predict DragonRuby Ruby timings.
 
 ## Architectural work comes first

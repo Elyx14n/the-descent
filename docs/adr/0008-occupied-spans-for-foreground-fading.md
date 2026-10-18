@@ -1,10 +1,12 @@
 ---
 status: superseded
 date: 2026-10-15
-superseded_by: 0011-generated-tile-occluders.md
+superseded_by: 0015-use-colliders-for-foreground-fading.md
 ---
 
 # Test occupied spans when fading irregular scenery
+
+Retired by [ADR-0015](0015-use-colliders-for-foreground-fading.md): active colliders replace all alpha-derived fade geometry, and the generated pipeline and magenta overlay are removed. The remaining text records the historical decision.
 
 [ADR-0011](0011-generated-tile-occluders.md) replaces runtime exact-alpha scanning with generated simplified polygons and polygon-derived fade regions. The local-width and actor-center eligibility rules continue; the exact silhouette and internal-hole guarantees below are historical.
 

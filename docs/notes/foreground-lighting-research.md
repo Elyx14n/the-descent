@@ -1,5 +1,7 @@
 # Lighting tall foreground scenery in an angled 2D view
 
+Historical geometry note (2026-10-19): [ADR-0015](../adr/0015-use-colliders-for-foreground-fading.md) removes all alpha-derived fade geometry, SpriteGeometry, generated occluder assets, and their tasks/dependencies. Fading uses active wall/door colliders plus full artwork rectangles; lighting uses active object colliders under ADR-0014. Pipeline instructions, silhouette-specific behavior, and measurements below describe earlier implementations. Current setup is in [README](../../README.md), and current behavior is in [CONTEXT](../../CONTEXT.md).
+
 Date: 2026-10-19. Status: research leading to the accepted collider-base approximation in [ADR-0014](../adr/0014-use-collider-bases-for-lighting.md). The historical problem and alternatives below record the investigation; the prototype is now folded into normal RoomPreview.
 
 ## What the original raycaster assumed

@@ -171,14 +171,14 @@ class RoomTests
 
   def test_south_fade_units_pair_caps_faces_and_corners_without_joining_neighbor_columns(args, assert)
     room = tiled_test_room(args)
-    [[128, 64, [241], 32], [96, 64, [245, 265], 32], [64, 96, [246], 64]].each do |x, y, ids, base_y|
+    [[128, 64, [241]], [96, 64, [245, 265]], [64, 96, [246]]].each do |x, y, ids|
       cap = room.ceiling.find { |sprite| sprite[:x] == x && sprite[:y] == y }
       unit = room.fade_units.find { |candidate| candidate[:sprites].any? { |sprite| sprite.equal?(cap) } }
-      assert.equal! unit[:footprint], { x: x, y: base_y, w: 32, h: 32 }
       assert.equal! unit[:type], :wall
       members = room.objects.select do |entry|
         unit[:sprites].any? { |sprite| sprite.equal?(entry[:sprite]) }
       end
+      assert.equal!(unit[:colliders], members.flat_map { |entry| entry[:colliders] })
       assert.equal! members.map { |entry| entry[:id] }.sort, ids.sort
       assert.equal! unit[:sprites].length, ids.length + 1
     end
@@ -192,6 +192,10 @@ class RoomTests
       candidate[:sprites].any? { |sprite| sprite.equal?(wall[:sprite]) }
     end
     assert.true!(unit[:sprites].any? { |sprite| sprite.equal?(candle[:sprite]) })
+    # Mounted artwork shares opacity but cannot extend its host's fade range.
+    candle[:colliders] = [{ x: 0, y: 0, w: 1000, h: 1000 }]
+    room.set_door_open(267, open: true)
+    assert.false!(unit[:colliders].any? { |rect| rect.equal?(candle[:colliders].first) })
     prop_types = %i[prop light pedestal]
     ordinary = room.objects.select { |entry| prop_types.include?(entry[:type]) && !entry[:mounted_on] }
     all_sprites = room.fade_units.flat_map { |candidate| candidate[:sprites] }
@@ -201,19 +205,41 @@ class RoomTests
     end
   end
 
-  def test_door_fade_units_keep_active_base_cap_references_and_stable_footprints(args, assert)
+  def test_orphan_caps_and_colliderless_walls_cannot_trigger_fading(_args, assert)
+    collections = RoomData.empty_collections
+    base = { x: 32, y: 32, w: 32, h: 32, type: :wall, path: :solid, a: 255 }
+    cap = base.merge(y: 64, type: :ceiling)
+    orphan = cap.merge(x: 96)
+    collections[:objects] << { id: 1, type: :wall, sprite: base, colliders: [] }
+    collections[:ceiling].push(cap, orphan)
+    room = Descent::Room.new(bounds: { x: 0, y: 0, w: 320, h: 180 }, spawn: { x: 48, y: 64 },
+                             collections: collections)
+    assert.equal! room.fade_units.length, 2
+    assert.true!(room.fade_units.all? { |unit| unit[:colliders].empty? })
+    [48, 112].each do |x|
+      actor = Descent::Player.new(x: x, y: 64).render_data[:fade_actor]
+      drawn = Descent::ForegroundFade.apply([actor[:sprite], base, cap, orphan], units: room.fade_units,
+                                                                                 actors: [actor], viewport: room.bounds)
+      assert.equal! drawn.last(3).map { |sprite| sprite[:a] }, [255, 255, 255]
+    end
+  end
+
+  def test_door_fade_units_keep_references_and_refresh_active_colliders(args, assert)
     room = tiled_test_room(args)
     door = room.doors.find { |entry| entry[:id] == 267 }
     base, cap = door[:parts].map { |part| part[:sprite] }
     unit = room.fade_units.find { |candidate| candidate[:sprites].any? { |sprite| sprite.equal?(base) } }
     assert.equal! unit[:type], :door
     assert.true!(unit[:sprites].any? { |sprite| sprite.equal?(cap) })
-    footprint = unit[:footprint].dup
+    assert.equal! unit[:colliders], door[:closed_colliders]
+    identity = unit.object_id
     closed = cap.dup
     room.set_door_open(267, open: true)
-    assert.equal! unit[:footprint], footprint
+    assert.equal! unit.object_id, identity
+    assert.equal! unit[:colliders], door[:open_colliders]
     assert.true!(unit[:sprites].any? { |sprite| sprite.equal?(cap) && sprite[:source_x].zero? })
     room.set_door_open(267, open: false)
+    assert.equal! unit[:colliders], door[:closed_colliders]
     assert.equal! cap, closed
     frame = room.render_data
     frame[:fade_units].clear

@@ -93,7 +93,9 @@ module Descent
             # the entire front face from a source on the floor behind it.
             next if receiver.key?(:front_y) && light[:source][:y] > receiver[:front_y]
 
-            strength = receiver[:bases].map { |base| base_strength(light, base) }.max || 0
+            strength = receiver[:bases].map do |receiver_base|
+              received_light_strength(light: light, receiver_base: receiver_base)
+            end.max || 0
             channels = colors.fetch(receiver[:sprite].object_id)
             channel_names.each_with_index do |channel, index|
               channels[index] += color[channel] * color[:a].fdiv(255) * strength
@@ -132,10 +134,12 @@ module Descent
           b: (channels[2] * intensity).round.clamp(0, 255), a: alpha }
       end
 
-      def base_strength(light, base)
+      # Strength (0..1) of this light at the receiving object's base.
+      # Used to tint the whole receiving sprite.
+      def received_light_strength(light:, receiver_base:)
         source = light[:source]
-        dx = source[:x].clamp(base[:x], base[:x] + base[:w]) - source[:x]
-        dy = source[:y].clamp(base[:y], base[:y] + base[:h]) - source[:y]
+        dx = source[:x].clamp(receiver_base[:x], receiver_base[:x] + receiver_base[:w]) - source[:x]
+        dy = source[:y].clamp(receiver_base[:y], receiver_base[:y] + receiver_base[:h]) - source[:y]
         distance = Math.hypot(dx, dy)
         return 0 if distance >= source[:radius] || light[:sight_polygon].length < 3
         return 1 if distance.zero?

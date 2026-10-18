@@ -10,15 +10,13 @@ module RoomTestHelpers
   def tiled_test_room(args, data = nil)
     decoded = Descent::TiledDeserializer.deserialize(
       data || tiled_test_map(args),
-      path: 'tiled/ritual_gate.json',
-      occluders: Descent::OccluderData.load(args.gtk)
+      path: 'tiled/ritual_gate.json'
     )
     Descent::Room.new(**decoded)
   end
 
-  def tiled_test_error(args, data)
-    Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                 occluders: Descent::OccluderData.load(args.gtk))
+  def tiled_test_error(_args, data)
+    Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json')
     nil
   rescue ArgumentError => e
     e.message

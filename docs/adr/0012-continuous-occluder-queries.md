@@ -1,9 +1,12 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0015-use-colliders-for-foreground-fading.md
 date: 2026-10-17
 ---
 
 # Query and display the generated occluder polygons directly
+
+Retired by [ADR-0015](0015-use-colliders-for-foreground-fading.md): active colliders replace all alpha-derived fade geometry, and the generated pipeline and magenta overlay are removed. The remaining text records the historical decision.
 
 Playtesting confirmed the generated occluders worked, but debug mode showed the many horizontal rectangles derived from them. Those rectangles retained unnecessary geometry and obscured the approved polygon simplification. Use the generated polygons directly for foreground-fade queries and debug outlines. The user accepted small eligibility changes along slopes caused by removing row-center sampling.
 

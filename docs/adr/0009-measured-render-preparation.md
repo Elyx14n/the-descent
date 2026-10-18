@@ -6,6 +6,8 @@ updated: 2026-10-17
 
 # Reuse rendering work at the lifetime of its inputs
 
+Update: [ADR-0015](0015-use-colliders-for-foreground-fading.md) retires the shared SpriteGeometry module and alpha/polygon fade geometry. Other retained preparation changes and the simple sorting decision still apply; measurements below describe their historical workload.
+
 Room rendering rebuilt fixed collections and repeatedly calculated the same camera values for each sprite. Native measurements showed avoidable Ruby preparation cost, without establishing a displayed-FPS or GPU bottleneck. Cache room membership until reload and camera drawing values for one draw, accepting each optimization separately only after measurable improvement and regression checks.
 
 This refines implementation under [ADR-0005](0005-render-data-and-room-preview.md); its plain frame interface and responsibility boundaries remain. The snapping math, HD, sampling, and viewport-sized target from [ADR-0001](0001-viewport-sized-camera.md) remain in force.

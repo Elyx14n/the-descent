@@ -1,5 +1,7 @@
 # Many-light raycasting audit
 
+Historical geometry note (2026-10-19): [ADR-0015](../adr/0015-use-colliders-for-foreground-fading.md) removes all alpha-derived fade geometry, SpriteGeometry, generated occluder assets, and their tasks/dependencies. Fading uses active wall/door colliders plus full artwork rectangles; lighting uses active object colliders under ADR-0014. Pipeline instructions, silhouette-specific behavior, and measurements below describe earlier implementations. Current setup is in [README](../../README.md), and current behavior is in [CONTEXT](../../CONTEXT.md).
+
 2026-10-18. Audit, measured experiments, and proposals; no production lighting changes. Baseline: `3459b34b1bdec3e2d4e93049e24af32e92f55180`, plus the user's explanatory comments in `raycasting.rb`, preserved unchanged. See [algorithm research and primary sources](many-light-raycasting-research.md).
 
 Later integration note (2026-10-19): the measurements below used projected visual outlines, radius 96, square range boundaries, and an unfilled scene. Current RoomPreview uses collider bases, player radius 64 / room fallback 48, circular boundaries, filled floor lighting, and fixed-room polygon reuse under [ADR-0014](../adr/0014-use-collider-bases-for-lighting.md). The opt-in audit probes now read current collider inputs/defaults but retain square boundaries and bypass filled lighting to isolate casting stages; reruns are different workloads. Use the [integrated checkpoint](raycast-lighting.md#wired-learning-checkpoint-2026-10-19) for current measurements.

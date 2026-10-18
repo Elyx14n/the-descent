@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'app/room_data'
-require 'app/occluder_data'
 
 module Descent
   # Decode finite orthogonal Tiled exports into keyword data for Room.new.
@@ -19,9 +18,6 @@ module Descent
     LAYER_OFFSET_KEYS = %w[x y offsetx offsety].freeze
     SUPPORTED_OBJECT_ALIGNMENTS = [nil, 'unspecified', 'bottomleft'].freeze
     UNSUPPORTED_COLLISION_SHAPES = %w[polygon polyline ellipse point].freeze
-    OCCLUDER_GRID = { 'tilewidth' => 'tile_width', 'tileheight' => 'tile_height',
-                      'imagewidth' => 'image_width', 'imageheight' => 'image_height',
-                      'columns' => 'columns', 'margin' => 'margin', 'spacing' => 'spacing' }.freeze
 
     # Tiled packs a map-wide tile ID and transformation flags into one 32-bit
     # integer (GID). The highest four bits hold flags; the lower 28 hold the ID.
@@ -36,17 +32,16 @@ module Descent
         contents = gtk.read_file(path)
         raise ArgumentError, "#{path}: Cannot read Tiled map" unless contents
 
-        deserialize(gtk.parse_json(contents), path: path, occluders: OccluderData.load(gtk))
+        deserialize(gtk.parse_json(contents), path: path)
       end
 
-      def deserialize(data, path:, occluders:)
+      def deserialize(data, path:)
         context = {
           data: data,
           path: path,
           collections: RoomData.empty_collections,
           caps: {},
-          spawns: [],
-          occluders: occluders
+          spawns: []
         }
         validate_map(context)
         prepare_tilesets(context)
@@ -109,17 +104,7 @@ module Descent
           end
           raise_map_error(context, 'Tileset drawing offsets are not supported') if tileset['tileoffset']
           image = image_path(context, tileset.fetch('image'))
-          geometry = context[:occluders].fetch('tilesets').find { |entry| entry['image'] == image }
-          matches_grid = geometry && OCCLUDER_GRID.all? do |key, exported_key|
-            geometry[exported_key] == tileset.fetch(key, 0)
-          end
-          unless matches_grid
-            raise_map_error(context, "Missing or outdated occluders for #{image}; run bin/rake assets:occluders")
-          end
-          if geometry.fetch('tiles').length != tileset.fetch('tilecount')
-            raise_map_error(context, "Outdated occluder tile count for #{image}; run bin/rake assets:occluders")
-          end
-          tileset.merge('resolved_image' => image, 'occluders' => geometry.fetch('tiles'),
+          tileset.merge('resolved_image' => image,
                         'tile_definitions' => tileset.fetch('tiles', []).to_h { |tile| [tile.fetch('id'), tile] })
         end
         context[:tilesets] = context[:tilesets].sort_by { |tileset| tileset.fetch('firstgid') }
@@ -202,19 +187,11 @@ module Descent
         row = tile[:id].div(tileset.fetch('columns'))
         # Test flags on the original GID, not the tile ID that had them cleared.
         # anybits? returns a boolean for DragonRuby's sprite flip settings.
-        sprite = rect.merge(type: type, path: tileset.fetch('resolved_image'),
-                            source_x: margin + (column * (w + spacing)),
-                            source_y: tileset.fetch('imageheight') - margin - (row * (h + spacing)) - h,
-                            source_w: w, source_h: h, a: (opacity * 255).round,
-                            flip_horizontally: gid.anybits?(HORIZONTAL), flip_vertically: gid.anybits?(VERTICAL))
-        sprite.merge(occluder_geometry(tile))
-      end
-
-      def occluder_geometry(tile)
-        record = tile[:tileset].fetch('occluders').fetch(tile[:id])
-        rect = record['bounds']
-        { occlusion_polygons: record.fetch('polygons'),
-          occlusion_bounds: rect && { x: rect[0], y: rect[1], w: rect[2], h: rect[3] } }
+        rect.merge(type: type, path: tileset.fetch('resolved_image'),
+                   source_x: margin + (column * (w + spacing)),
+                   source_y: tileset.fetch('imageheight') - margin - (row * (h + spacing)) - h,
+                   source_w: w, source_h: h, a: (opacity * 255).round,
+                   flip_horizontally: gid.anybits?(HORIZONTAL), flip_vertically: gid.anybits?(VERTICAL))
       end
 
       def load_tile_layer(context, layer)

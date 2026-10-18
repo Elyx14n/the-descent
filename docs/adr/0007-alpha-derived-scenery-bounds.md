@@ -1,9 +1,12 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0015-use-colliders-for-foreground-fading.md
 date: 2026-10-14
 ---
 
 # Reject scenery padding and narrow occluders with measured bounds
+
+Retired by [ADR-0015](0015-use-colliders-for-foreground-fading.md): active colliders replace all alpha-derived fade geometry, and the generated pipeline and magenta overlay are removed. The remaining text records the historical decision.
 
 The single-rectangle fade eligibility rule below was superseded by [ADR-0008](0008-occupied-spans-for-foreground-fading.md) after L-shaped sprites demonstrated false positives. [ADR-0011](0011-generated-tile-occluders.md) subsequently replaces runtime pixel loading and exact-alpha geometry with generated simplified occluders. Supporting footprints, actor dimensions, and the strict width rule remain in force; the measurement workflow below is historical.
 

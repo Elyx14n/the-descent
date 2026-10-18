@@ -38,18 +38,6 @@ source ~/.bashrc
 
 If you use Zsh on Linux, use `~/.zshrc` instead of `~/.bashrc`.
 
-Install GEOS for RGeo before `bundle install`: `brew install geos` on macOS, or `sudo apt-get install libgeos-dev` on Ubuntu. If RGeo was already installed without GEOS, rebuild it afterward with `bundle pristine rgeo`.
-
-On Linux (including WSL Ubuntu), Homebrew's GEOS may compile successfully but fail to load because its library directory is outside the system loader's search path. If you installed GEOS with Homebrew and the asset task still reports it unavailable, configure RGeo's build and runtime library paths locally, then rebuild:
-
-```sh
-geos_prefix="$(brew --prefix geos)"
-bundle config set --local build.rgeo "--with-geos-config=$geos_prefix/bin/geos-config --with-ldflags=-Wl,-rpath,$geos_prefix/lib"
-bundle pristine rgeo
-```
-
-This setting is stored in the Git-ignored `.bundle/config` for your machine.
-
 From the repository root, install the locked gem versions and launch:
 
 ```sh
@@ -65,18 +53,7 @@ bin/rake run tiled/ritual_gate.json
 
 The SDK's `dragonruby` binary must have executable permission. If necessary, run `chmod +x "$DRAGONRUBY_HOME/dragonruby"` after extracting your SDK.
 
-### Generate tile occluders
-
-Prepared outlines are checked in at `mygame/data/occluders.json`, so initial setup needs no regeneration. After changing atlas artwork or its crop grid, run:
-
-```sh
-bin/rake assets:occluders
-bin/rake assets:test
-```
-
-Press R in the game to reload, review the outlines with B, and commit the generated JSON. The task defaults to `mygame/tiled/ritual_gate.json` and two-source-pixel simplification; `MAP`, `TOLERANCE`, and `OUT` override the map, tolerance, and output directory.
-
-**Versions:** `Gemfile.lock` pins Ruby gems; GEOS is installed separately and has no exact project pin. Generation worked with GEOS 3.12.1 on Linux and 3.15 on macOS, but 3.15 changed two outlines slightly. A different Homebrew version can work; matching GEOS versions matters for reproducing geometry. Check yours with `geos-config --version` and review generated changes after upgrades. See [ADR-0012](docs/adr/0012-continuous-occluder-queries.md) for details.
+Foreground fading and ground-light blocking use authored Tiled colliders. Atlas changes need no generated occluder data or extra asset task; press R to rebuild the room after code/art changes. B shows physics bounds, emitter markers, and the player's red visibility polygon. See [ADR-0015](docs/adr/0015-use-colliders-for-foreground-fading.md).
 
 ## Development checks
 
@@ -117,7 +94,6 @@ Project-owned files:
 ```text
 mygame/
   app/                  Game Ruby code; main.rb is the entry point
-  data/                 Authored and generated game data
   tiled/                Tiled project, source maps, and JSON exports
   fonts/                Game-specific fonts
   metadata/             DragonRuby game and platform configuration

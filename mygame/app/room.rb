@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'app/room_data'
-require 'app/sprite_geometry'
 
 module Descent
   # Loaded world data. Static artwork uses ordinary DragonRuby primitives.
@@ -89,6 +88,7 @@ module Descent
 
       door[:open] = open
       apply_door_state(door)
+      refresh_fade_colliders
       door
     end
 
@@ -199,8 +199,7 @@ module Descent
       [entry[:sprite]] + entry.fetch(:mounted_objects, []).map { |mounted| mounted[:sprite] }
     end
 
-    # Fade units only group opacity; each sprite owns its shared occluder polygons.
-    # Lighting must select its blockers independently of this fade-only subset.
+    # Fade units share opacity and use their wall/door owners' active colliders.
     # Associate caps locally, without joining a connected wall into one large
     # fade. Same-cell walls handle corners where face and ceiling art overlap.
     def prepare_fade_units
@@ -217,6 +216,17 @@ module Descent
       end
       bases.reject { |entry| associated[entry[:id]] }.each do |entry|
         @fade_units << fade_unit(entry[:sprite], sprites: scenery_sprites(entry))
+      end
+      refresh_fade_colliders
+    end
+
+    def refresh_fade_colliders
+      @fade_units.each do |unit|
+        owners = @objects.select do |entry|
+          FADE_BASE_TYPES.include?(entry[:type]) &&
+            unit[:sprites].any? { |sprite| sprite.equal?(entry[:sprite]) }
+        end
+        unit[:colliders] = owners.flat_map { |entry| active_colliders(entry) }
       end
     end
 
@@ -253,7 +263,7 @@ module Descent
       {
         type: base.fetch(:type),
         base: base,
-        footprint: base.slice(:x, :y, :w, :h),
+        colliders: [],
         sprites: sprites
       }
     end
