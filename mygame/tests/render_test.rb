@@ -5,6 +5,60 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
+  def test_direct_player_stays_raster_aligned_when_the_camera_clamps(_args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    axes = %i[x y]
+    [[100, 500], [900, 500], [500, 60], [500, 940], [100, 60], [900, 940]].each do |x, y|
+      16.times do |phase|
+        position = { x: x + phase.fdiv(16), y: y + phase.fdiv(16) }
+        actor = Descent::Player.new(**position).render_data
+        camera.follow(**position)
+        outputs = PassOrderOutputs.new
+        frame = { groups: [actor], fade_actors: [actor[:fade_actor]] }
+        before = frame.to_s
+        Descent::Render.draw({ outputs: outputs }, frame: frame, camera: camera, compose_scroll: true)
+        sprite = outputs.primitives[1]
+        ideal = camera.for_drawing(snap: false).to_screen_space(actor[:sprites].first)
+        axes.each do |axis|
+          assert.equal! sprite[axis], sprite[axis].round
+          assert.true! (sprite[axis] - ideal[axis]).abs <= 0.5
+        end
+        assert.equal! frame.to_s, before
+        assert.equal! actor[:fade_actor].values_at(:x, :y), position.values_at(:x, :y)
+        assert.equal! sprite.values_at(:w, :h, :source_x, :source_y, :source_w, :source_h),
+                      actor[:sprites].first.values_at(:w, :h, :source_x, :source_y, :source_w, :source_h)
+      end
+    end
+  end
+
+  def test_direct_actor_alignment_uses_anchored_bounds_and_keeps_camera_scroll_fractional(_args, assert)
+    camera = Descent::Camera.new(bounds: { x: -1000, y: -1000, w: 2000, h: 2000 })
+    axes = %i[x y]
+    previous_blit = nil
+    [-0.75, -0.5, -0.25, 0, 0.25].each do |offset|
+      camera.follow(x: offset, y: offset)
+      sprite = { x: -80.1 + offset, y: -30.1 + offset, w: 13, h: 21, anchor_x: 0.5, anchor_y: 0.5,
+                 path: :solid }
+      frame = { groups: [{ depth: sprite[:y], sprites: [sprite] }], fade_actors: [{ sprite: sprite }] }
+      outputs = PassOrderOutputs.new
+      Descent::Render.draw({ outputs: outputs }, frame: frame, camera: camera, compose_scroll: true)
+      drawn = outputs.primitives[1]
+      left = drawn[:x] - (drawn[:w] * drawn[:anchor_x])
+      bottom = drawn[:y] - (drawn[:h] * drawn[:anchor_y])
+      assert.equal! left, left.round
+      assert.equal! bottom, bottom.round
+      blit = outputs.primitives.first
+      if previous_blit
+        axes.each do |axis|
+          delta = blit[axis] - previous_blit[axis]
+          # At the floor-camera boundary, the aligned scene advances one pixel.
+          assert.true! (delta + 0.25).abs < 0.00001 || (delta - 0.75).abs < 0.00001
+        end
+      end
+      previous_blit = blit
+    end
+  end
+
   def test_composited_scroll_aligns_tiles_and_preserves_fractional_actor_and_camera_positions(_args, assert)
     camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
     actor = Descent::Player.new(x: 500.4, y: 500.125).render_data

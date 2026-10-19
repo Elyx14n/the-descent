@@ -115,3 +115,22 @@ SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 \
 ```
 
 Image measurements used an external temporary PNG decoder and RGB analysis; they are descriptive experiments, not assertions in the native unit suite. No production Ruby files, metadata, gameplay state, or accepted ADRs changed in this investigation.
+
+## Follow-up: direct actor blur at camera boundaries
+
+After merging the diagonal-jitter fix, the user reported that some sprites, especially the player's face, occasionally looked blurry, including while standing still. The merged renderer still draws the player directly between scenery runs; none of the single-scene experiments above had entered production.
+
+The earlier sharpness baseline covered actors centered under a following camera. It missed fractional screen positions when the camera clamps at a room edge. In a new renderer probe, the same frozen south-facing player frame remained unchanged at all 16 following-camera offsets, but softened as it crossed fractional screen pixels with one or both camera axes clamped. Relative to the sharpest phase, minimum total edge contrast was 0.80 with X clamped, 0.83 with Y clamped, and 0.66 with both clamped. A player that stops at one of those fractional positions retains the soft image while standing still; changing animation is not required to produce it.
+
+The fix rounds only the final screen-space bounds of directly drawn actors to the native raster, after adding the scenery's fractional presentation offset. It accounts for anchors, so centered odd-sized artwork aligns its rectangle edges rather than blindly rounding its center. It does not round the world position, interpolated presentation anchor, camera motion, lighting source, receiving collider, or foreground-fade geometry. Sprite crops, dimensions, tint, depth ordering, and metadata sampling remain unchanged.
+
+Verification:
+
+- Before/after renderer captures cover 16 phases each with a following camera, X clamped, Y clamped, and both clamped. After the fix, the frozen player's nonblack pixel pattern was identical at every phase after accounting for integer movement, in all four scenarios.
+- Another 64 captures hold the player stationary at fractional world coordinates and advance only the idle animation: all eight frames, four facings, following and clamped cameras. Every rendered player region exactly matched a separately drawn pixel-aligned reference of the same animation frame, with zero mismatching pixels.
+- Two native regressions cover 96 clamped player positions across low/high edges and corners, unchanged fractional fade anchors and frame data, preserved sprite crops, anchored odd-sized actors, negative coordinates, and fractional scenery offsets across floor-camera boundaries. They failed before the fix. All 194 native tests and RuboCop (53 files) pass afterward.
+- Temporary workspace artifacts: `tmp/direct_actor_blur_probe.rb`, `tmp/idle_actor_blur_probe.rb`, `tmp/actor-blur-before-*.png`, `tmp/actor-blur-*.png`, and `tmp/idle-blur-*.png`, relative to `mygame/`. The probes use the same offscreen command pattern as above.
+
+This is a draw-only crispness tradeoff: the actor now moves by native pixel steps when crossing a stationary viewport, with at most half a native pixel of alignment error on either axis. The fractional camera/scene scroll that fixed whole-viewport diagonal jitter remains in place. Scene textures still undergo fractional filtering, so this does not promise permanently crisp moving scenery or remove soft detail already present in a source frame. Human playtesting must confirm standing-player detail, motion near room edges, the transition into camera following, and continued absence of camera shake.
+
+The user subsequently confirmed that the final-screen alignment fixed the reported blur. This confirms the observed issue; it does not broaden the claim to every scenery texture or all future actor scaling policies.
