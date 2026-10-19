@@ -112,7 +112,7 @@ module Descent
           frame[:hud] << UI.label({ x: Grid.w.fdiv(2), y: Grid.h - 20 }, text: message, color: UI::COLORS[:accent])
         end
         Render.draw(args, frame: frame, camera: camera, fade_state: state[:fade_state] ||= {},
-                          tick: state[:clock]&.presentation_tick || 0)
+                          tick: state[:clock]&.presentation_tick || 0, compose_scroll: true)
         frame
       end
 

@@ -23,6 +23,15 @@ module RoomTestHelpers
   end
 
   def clear_room_test_outputs(args)
+    args.outputs.primitives.flatten.each do |primitive|
+      path = primitive[:path]
+      next unless path.is_a?(Symbol) && path.to_s.start_with?('scene')
+
+      target = args.outputs[path]
+      target.primitives.clear
+      target.lines.clear
+      target.borders.clear
+    end
     args.outputs.primitives.clear
     args.outputs.borders.clear
     args.outputs[Descent::Render::TARGET].lines.clear

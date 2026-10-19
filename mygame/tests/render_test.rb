@@ -5,6 +5,79 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
+  def test_composited_scroll_aligns_tiles_and_preserves_fractional_actor_and_camera_positions(_args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    actor = Descent::Player.new(x: 500.4, y: 500.125).render_data
+    tiles = [{ x: 350, y: 420, w: 32, h: 32, path: :solid },
+             { x: 382, y: 420, w: 32, h: 32, path: :solid }]
+    camera.follow(x: 500.4, y: 500.125)
+    outputs = PassOrderOutputs.new
+    frame = { floor: tiles, groups: [actor], fade_actors: [actor[:fade_actor]] }
+    before = frame.to_s
+    Descent::Render.draw({ outputs: outputs }, frame: frame, camera: camera, compose_scroll: true)
+    left, right = outputs.targets[Descent::Render::TARGET][:primitives].flatten
+    blit = outputs.primitives.first
+    player = outputs.primitives[1]
+    assert.equal! left.values_at(:x, :y), [10, 10]
+    assert.equal! right[:x], left[:x] + 32
+    assert.true! (left[:x] + blit[:x] - 9.6).abs < 0.00001
+    assert.true! (left[:y] + blit[:y] - 9.875).abs < 0.00001
+    assert.true! (player[:x] - 160).abs < 0.00001
+    assert.true! (player[:y] - 66).abs < 0.00001
+    assert.equal! outputs.primitives.flatten.last[:path], :scene_after_actor1
+    assert.false!(outputs.targets.values.any? { |target| target[:primitives].flatten.include?(player) })
+    assert.equal! blit.values_at(:w, :h), [321, 181]
+    assert.equal! frame.to_s, before
+  end
+
+  def test_composited_scrolling_keeps_scenery_between_multiple_actors_and_ceiling_above_them(_args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera.follow(x: 500.4, y: 500.125)
+    northern = Descent::Player.new(x: 500.4, y: 500.125).render_data
+    southern = Descent::Player.new(x: 500.4, y: 498.125).render_data
+    wall = { x: 490, y: 490, w: 32, h: 32, path: :solid, r: 20 }
+    cap = wall.merge(y: 522, r: 40)
+    frame = { groups: [northern, { depth: 499, sprites: [wall] }, southern], ceiling: [cap],
+              fade_actors: [northern[:fade_actor], southern[:fade_actor]], hud: [{ x: 0, y: 0, text: 'HUD' }] }
+    outputs = PassOrderOutputs.new
+    Descent::Render.draw({ outputs: outputs }, frame: frame, camera: camera, compose_scroll: true)
+    assert.equal! outputs.primitives.flatten.map { |sprite| sprite[:path] },
+                  [:scene, 'sprites/player_idle_lamp_on.png', :scene_after_actor1,
+                   'sprites/player_idle_lamp_on.png', :scene_after_actor2, nil]
+    assert.equal! outputs.targets[:scene_after_actor1][:primitives].flatten.map { |sprite| sprite[:r] }, [20]
+    assert.equal! outputs.targets[:scene_after_actor2][:primitives].flatten.map { |sprite| sprite[:r] }, [40]
+    assert.equal! outputs.primitives[1][:y], 66
+    assert.equal! outputs.primitives[3][:y], 64
+  end
+
+  def test_composited_lighting_dependencies_and_dimensions_share_the_scene_camera(_args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera.follow(x: 500.4, y: 500.125)
+    source = { x: 500, y: 500, radius: 64 }
+    lights = Descent::Lighting.prepare(light_sources: [source], light_blockers: [])
+    outputs = PassOrderOutputs.new
+    Descent::Render.draw({ outputs: outputs }, frame: { light_polygons: lights }, camera: camera, compose_scroll: true)
+    assert.equal! outputs.targets.keys,
+                  [Descent::Lighting::LIGHT_MASK_TARGET, Descent::Lighting::LIGHTMAP_TARGET, Descent::Render::TARGET]
+    [Descent::Lighting::LIGHTMAP_TARGET, Descent::Render::TARGET].each do |name|
+      assert.equal! outputs.targets[name].values_at(:w, :h), [321, 181]
+    end
+  end
+
+  def test_scene_uses_one_fractional_translation_for_adjacent_background_tiles(args, assert)
+    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera.follow(x: 500.4, y: 500.125)
+    tiles = [{ x: 350, y: 420, w: 32, h: 32, path: :solid },
+             { x: 382, y: 420, w: 32, h: 32, path: :solid }]
+    clear_room_test_outputs(args)
+    Descent::Render.draw(args, frame: { floor: tiles }, camera: camera)
+    left, right = args.outputs[Descent::Render::TARGET].primitives.flatten
+    assert.true! (left[:x] - 9.6).abs < 0.00001
+    assert.true! (left[:y] - 9.875).abs < 0.00001
+    assert.true! (left[:x] + left[:w] - right[:x]).abs < 0.00001
+    assert.equal! tiles.first.values_at(:x, :y), [350, 420]
+  end
+
   # First access determines the installed SDK's pass order. Keep this output
   # buffer fresh so other tests cannot pre-create a consuming target.
   class PassOrderOutputs

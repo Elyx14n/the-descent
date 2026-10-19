@@ -24,6 +24,69 @@ class CameraTests
   DIAGONAL_AXIS = [-1, 1].freeze
   COORDS = %i[x y].freeze
 
+  def test_composited_camera_keeps_scene_pixels_aligned_and_covers_the_fractional_view(_args, assert)
+    camera = CameraAtTestScale.new(bounds: { x: -1000, y: -1000, w: 2000, h: 2000 })
+    [-500.75, -0.5, 0, 0.125, 0.5, 500.875].each do |x|
+      camera.follow(x: x, y: x + 0.375)
+      scene = camera.for_compositing
+      presentation = camera.for_drawing(snap: false)
+      blit = presentation.to_screen_space(scene.viewport_world)
+      assert.equal! [scene.viewport_w, scene.viewport_h], [321, 181]
+      assert.true! blit[:x] <= 0 && blit[:x] > -1
+      assert.true! blit[:y] <= 0 && blit[:y] > -1
+      assert.true! blit[:x] + blit[:w] >= 320
+      assert.true! blit[:y] + blit[:h] >= 180
+      tile = scene.to_draw_space({ x: 32, y: 64 })
+      assert.equal! tile.values_at(:x, :y), [tile[:x].round, tile[:y].round]
+      expected = presentation.to_screen(x: 32, y: 64)
+      assert.true! (tile[:x] + blit[:x] - expected[:x]).abs < 0.00001
+      assert.true! (tile[:y] + blit[:y] - expected[:y]).abs < 0.00001
+    end
+  end
+
+  def test_fractional_drawing_moves_both_diagonal_axes_together_and_keeps_the_player_centered(_args, assert)
+    camera = CameraAtTestScale.new(bounds: { x: -1000, y: -1000, w: 2000, h: 2000 })
+    DIAGONAL_AXIS.product(DIAGONAL_AXIS).each do |dx, dy|
+      x = -371.125
+      y = 227.5
+      previous = nil
+      60.times do
+        camera.follow(x: x, y: y)
+        drawing = camera.for_drawing(snap: false)
+        marker = drawing.to_draw_space({ x: 0, y: 0 })
+        if previous
+          assert.true! (marker[:x] - previous[:x] + (dx * Math.sqrt(0.5))).abs < 0.00001
+          assert.true! (marker[:y] - previous[:y] + (dy * Math.sqrt(0.5))).abs < 0.00001
+        end
+        sprite = drawing.to_draw_space({ x: x, y: y - 24, w: 64, h: 64 })
+        assert.true! (sprite[:x] - 160).abs < 0.00001
+        assert.true! (sprite[:y] - 66).abs < 0.00001
+        previous = marker
+        x += dx * Math.sqrt(0.5)
+        y += dy * Math.sqrt(0.5)
+      end
+    end
+  end
+
+  def test_fractional_drawing_preserves_tile_adjacency_and_uses_its_own_viewport(_args, assert)
+    camera = CameraAtTestScale.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera.follow(x: 500.4, y: 500.4)
+    drawing = camera.for_drawing(snap: false)
+    tiles = [{ x: 350, y: 420, w: 32, h: 32 }, { x: 382, y: 420, w: 32, h: 32 }]
+    left, right = drawing.to_draw_space(tiles)
+    assert.true! (left[:x] + left[:w] - right[:x]).abs < 0.00001
+    assert.true! (left[:x] - 9.6).abs < 0.00001
+    restored = drawing.to_world_space(left)
+    assert.true! (restored[:x] - tiles.first[:x]).abs < 0.00001
+    assert.true! (restored[:y] - tiles.first[:y]).abs < 0.00001
+    # Snapped and fractional viewports differ at their left edge.
+    strip = { x: 340, y: 420, w: 0.25, h: 1 }
+    assert.equal! camera.find_all_intersect_viewport([strip]), [strip]
+    assert.true! drawing.find_all_intersect_viewport([strip]).empty?
+    camera.follow(x: 700, y: 700)
+    assert.equal! drawing.to_draw_space(tiles.first), left
+  end
+
   def test_draw_snapshot_refreshes_scale_and_position_without_changing_previous_values(_args, assert)
     camera = CameraAtTestScale.new(bounds: CAMERA_TEST_BOUNDS)
     camera.follow(x: 351.25, y: 227.25)

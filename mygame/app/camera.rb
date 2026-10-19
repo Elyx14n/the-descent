@@ -55,9 +55,18 @@ module Descent
 
     # Capture once per draw, including display changes without camera movement.
     # The source camera and its ordinary conversions remain live and uncached.
-    def for_drawing
+    # snap: false tests fractional camera and artwork translation together.
+    def for_drawing(snap: true)
       camera = dup
-      camera.send(:prepare_draw_values)
+      camera.send(:prepare_draw_values, snap: snap)
+      camera
+    end
+
+    # Rasterize atlas artwork before applying the fractional camera remainder.
+    # Flooring the camera needs one extra raster pixel on the right and top.
+    def for_compositing
+      camera = for_drawing
+      camera.send(:prepare_compositing_values)
       camera
     end
 
@@ -85,6 +94,7 @@ module Descent
       return for_drawing.to_draw_space(rect) if rect.is_a?(Array) && !@draw_values
       return rect.map { |r| to_draw_space(r) } if rect.is_a? Array
       return nil unless rect
+      return to_screen_space(rect) if @draw_values && !@draw_values[:snap]
 
       rect.merge(x: pixel_position(rect[:x]) + screen_offset_x,
                  y: pixel_position(rect[:y]) + screen_offset_y)
@@ -96,11 +106,21 @@ module Descent
 
     private
 
-    def prepare_draw_values
+    def prepare_draw_values(snap:)
       @draw_values = nil
-      @draw_values = { scale: pixel_scale, w: viewport_w, h: viewport_h }
-      @draw_values[:offset_x] = pixel_position(viewport_w_half) - pixel_position(@x)
-      @draw_values[:offset_y] = pixel_position(viewport_h_half) - pixel_position(@y)
+      @draw_values = { scale: pixel_scale, w: viewport_w, h: viewport_h, snap: snap }
+      @draw_values[:offset_x] = snap ? pixel_position(viewport_w_half) - pixel_position(@x) : viewport_w_half - @x
+      @draw_values[:offset_y] = snap ? pixel_position(viewport_h_half) - pixel_position(@y) : viewport_h_half - @y
+      @draw_values[:viewport] = { x: 0, y: 0, w: viewport_w, h: viewport_h }
+      @draw_values[:world] = to_world_space(@draw_values[:viewport])
+    end
+
+    def prepare_compositing_values
+      scale = @draw_values[:scale]
+      @draw_values[:offset_x] = pixel_position(viewport_w_half) - (@x * scale).floor.fdiv(scale)
+      @draw_values[:offset_y] = pixel_position(viewport_h_half) - (@y * scale).floor.fdiv(scale)
+      @draw_values[:w] += 1.fdiv(scale)
+      @draw_values[:h] += 1.fdiv(scale)
       @draw_values[:viewport] = { x: 0, y: 0, w: viewport_w, h: viewport_h }
       @draw_values[:world] = to_world_space(@draw_values[:viewport])
     end
