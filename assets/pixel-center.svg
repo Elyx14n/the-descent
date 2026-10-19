@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 210" role="img">
+<style>text { font: 15px system-ui,sans-serif; fill: #222b2b; } .grid { stroke: #b6c0b1; } .edge { stroke: #59635e; stroke-width: 2; } .guide { stroke: #885221; stroke-width: 2; } .arrow { stroke: #12665c; stroke-width: 2; marker-end: url(#tip); }</style>
+<defs><marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#12665c"/></marker></defs>
+<rect width="800" height="210" fill="#eef0e9"/>
+<title>A position inside a whole cell</title><desc>One complete native cell is highlighted. A dot marks the center between its left and right boundaries.</desc>
+<rect x="220" y="60" width="320" height="90" fill="#d6aa77"/>
+<line class="edge" x1="220" x2="220" y1="45" y2="165"/><line class="edge" x1="540" x2="540" y1="45" y2="165"/>
+<circle cx="380" cy="105" r="7" fill="#12665c"/>
+<text x="220" y="30" text-anchor="middle">left boundary</text><text x="540" y="30" text-anchor="middle">right boundary</text>
+<text x="380" y="190" text-anchor="middle">center position inside one whole cell</text>
+</svg>

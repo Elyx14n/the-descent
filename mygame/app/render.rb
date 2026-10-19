@@ -88,8 +88,7 @@ module Descent
           args.outputs.primitives << destination.merge(path: name)
           # Draw each actor once between its surrounding scenery, preserving
           # depth without filtering it through a fractionally shifted texture.
-          actor = artwork[index]
-          args.outputs.primitives << actor.merge(x: actor[:x] + destination[:x], y: actor[:y] + destination[:y])
+          args.outputs.primitives << direct_actor(artwork[index], destination: destination)
           name = :"scene_after_actor#{sequence + 1}"
           target = scene(args, camera, name: name)
           start = index + 1
@@ -97,6 +96,18 @@ module Descent
         target.primitives << artwork.drop(start)
         args.outputs.primitives << destination.merge(path: name)
         target
+      end
+
+      def direct_actor(sprite, destination:)
+        scale = Grid.render_scale
+        anchor_x = sprite[:w] * sprite.fetch(:anchor_x, 0)
+        anchor_y = sprite[:h] * sprite.fetch(:anchor_y, 0)
+        left = sprite[:x] + destination[:x] - anchor_x
+        bottom = sprite[:y] + destination[:y] - anchor_y
+        # Align only final artwork bounds. A clamped camera leaves actors moving
+        # across the raster; fractional placement otherwise blurs fine details.
+        sprite.merge(x: ((left * scale) + 0.5).floor.fdiv(scale) + anchor_x,
+                     y: ((bottom * scale) + 0.5).floor.fdiv(scale) + anchor_y)
       end
 
       # Keys compare in the same order as floor, stable depth groups, ceiling.
