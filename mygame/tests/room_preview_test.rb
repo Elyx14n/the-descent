@@ -263,7 +263,7 @@ class RoomPreviewTests
     preview = preview_test_args(args)
     preview[:inputs][:keyboard] = keybind_test_keyboard(args, pressed: [:b])
     state = preview_test_tick(preview, 0)
-    target = preview[:outputs][Descent::Render::TARGET]
+    target = preview[:outputs][:scene_after_actor1]
     previous = nil
     previous_offset = nil
     [[176, 176], [260, 90]].each do |x, y|
@@ -318,7 +318,7 @@ class RoomPreviewTests
     )
     clear_room_test_outputs(preview)
     Descent::RoomPreview.render(preview)
-    target = preview[:outputs][Descent::Render::TARGET]
+    target = preview[:outputs][:scene_after_actor1]
     assert.true! target.primitives.flatten.include?(marker)
 
     state[:room].set_light_enabled(6, enabled: false)
@@ -376,8 +376,15 @@ class RoomPreviewTests
   end
 
   def preview_artwork_drawn?(args, expected)
-    args[:outputs][Descent::Render::TARGET].primitives.flatten.any? do |drawn|
-      drawn.except(:r, :g, :b) == expected.except(:r, :g, :b)
+    args[:outputs].primitives.flatten.any? do |primitive|
+      if primitive[:path].is_a?(Symbol) && primitive[:path].to_s.start_with?('scene')
+        args[:outputs][primitive[:path]].primitives.flatten.any? do |drawn|
+          visible = drawn.merge(x: drawn[:x] + primitive[:x], y: drawn[:y] + primitive[:y])
+          visible.except(:r, :g, :b) == expected.except(:r, :g, :b)
+        end
+      else
+        primitive.except(:r, :g, :b) == expected.except(:r, :g, :b)
+      end
     end
   end
 
@@ -450,14 +457,14 @@ class RoomPreviewTests
     camera = args.state.room_preview[:camera]
     target = args.outputs[Descent::Render::TARGET]
     assert.equal! [player.x, player.y], [176, 176]
-    assert.equal! [target.w, target.h], [320, 180]
-    sprite = target.primitives.flatten.find { |primitive| primitive[:path] == 'sprites/player_idle_lamp_on.png' }
+    assert.equal! [target.w, target.h], [321, 181]
+    sprite = args.outputs.primitives.flatten.find { |primitive| primitive[:path] == 'sprites/player_idle_lamp_on.png' }
     assert.equal! sprite.except(:r, :g, :b), camera.to_draw_space(player.sprite_to_primitive).except(:r, :g, :b)
     assert.equal! sprite.values_at(:w, :h), [64, 64]
     foot_border = camera.to_screen_space(player.collision_rect.merge(r: 90, g: 255, b: 160))
-    assert.true! target.borders.flatten.include?(foot_border)
+    assert.true! args.outputs[:scene_after_actor1].borders.flatten.include?(foot_border)
     blits = args.outputs.primitives.flatten.select { |primitive| primitive[:path] == :scene }
-    assert.equal! blits, [camera.viewport.merge(path: Descent::Render::TARGET)]
+    assert.equal! blits, [{ x: 0, y: 0, w: 321, h: 181, path: Descent::Render::TARGET }]
     clear_room_test_outputs(args)
     Descent::RoomPreview.tick(args)
     assert.true! args.state.room_preview[:room].equal?(room)
