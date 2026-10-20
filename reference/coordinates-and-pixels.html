@@ -52,8 +52,30 @@
     <h2>Conversion and alignment do different jobs</h2>
     <p><strong>Conversion:</strong> describe the same point from a new origin. A camera translation can be reversed using the same camera snapshot.</p>
     <p><strong>Alignment:</strong> place the artwork edge on a chosen grid boundary. Nearby ideal edges may share the same aligned drawing edge, so the exact original fraction cannot be recovered from that edge alone.</p>
-    <p>Align only the final actor bounds after camera translation. Scenery follows a different policy: align inside a padded target, then present that completed image at the fractional camera offset.</p>
+    <p>Align only the final actor bounds after camera translation. Scenery uses a camera whose horizontal and vertical pixel steps are paired during straight diagonal travel. It is drawn into 320 × 180 targets presented at (0, 0). Direct actors use the precise camera independently, so the followed player stays centered.</p>
     <p class="source">Implementation: <a href="../mygame/app/camera.rb">Camera#for_drawing(snap: false) and Camera#for_compositing</a>, <a href="../mygame/app/render.rb">Render.direct_actor</a>. The default camera conversion can still use a snapped offset; check the snapshot supplied by the caller.</p>
+  </section>
+  <section id="motion">
+    <h2>A sharp image can still move unevenly</h2>
+    <p>Imagine walking up a diagonal staircase. If X and Y cross their rounding boundaries on different frames, a straight camera path can appear to take a sideways step, then an upward step. Different starting fractions can change that pattern even when speed stays the same.</p>
+    <figure><img src="../assets/diagonal-camera-steps.svg" alt="Two camera paths on pixel grids: independent rounding contains horizontal and vertical steps, while paired steps follow one diagonal."><figcaption>Dots mark camera drawing positions. Some consecutive frames share a dot. The precise world path stays diagonal in both cases; these are presentation choices.</figcaption></figure>
+    <p><a href="../mygame/app/camera_scroll.rb">CameraScroll</a> rounds distance traveled from the start of a straight diagonal segment, then applies that same step count to both axes. This preserves whole-pixel move/hold cadence while removing staggered axes. Interpolation supplies a precise presented world position; raster placement still decides which pixel can display it. World movement and collision stay fractional.</p>
+    <p>The preview follows the player through room edges. The scene can show background beyond the room. Camera accepts a position directly and follows it without room bounds. Keeping the player centered and pairing scenery steps solve separate motion symptoms.</p>
+    <p class="source">Project evidence: <a href="../docs/adr/0017-keep-preview-camera-on-player.md">player-centered framing</a>, <a href="../docs/adr/0018-pair-diagonal-camera-pixel-steps.md">paired scenery steps</a>, and <a href="../docs/notes/foreground-jitter-investigation.md">captures and playtest findings</a>. This is our current implementation, not a universal SDK rule.</p>
+  </section>
+  <section id="sampling">
+    <h2>Placement, resizing, and image presentation are separate decisions</h2>
+    <table>
+      <thead><tr><th>Observed symptom</th><th>What we established here</th></tr></thead>
+      <tbody>
+        <tr><td>The whole scene becomes soft.</td><td>Nearest scene presentation removed the reported blur.</td></tr>
+        <tr><td>Candle/pedestal internal pixels change during movement.</td><td>Nearest downsizing switched sampled source pixels. Filter only the source-art resize.</td></tr>
+        <tr><td>Sharp scenery takes uneven diagonal steps.</td><td>Pair the camera’s horizontal and vertical raster steps.</td></tr>
+      </tbody>
+    </table>
+    <p>Metadata uses <code>scale_quality=0</code>. Render selects <code>scale_quality_enum: 3</code> only when artwork is smaller than its source crop. Nearest sampling does not by itself guarantee stable downsizing or even diagonal motion.</p>
+    <p>A fractional texture placement inside the final native framebuffer does not guarantee finer visible movement. The result still passes through that grid’s sampling. Window enlargement happens afterward.</p>
+    <p class="source">Implementation and evidence: <a href="../mygame/app/render.rb">Render.place_artwork</a>, <a href="../docs/adr/0013-keep-hd-disabled.md">display/sampling decision</a>, and <a href="../docs/notes/conventional-pixel-art-rendering-sources.md#follow-up-nearest-scene-presentation-and-downsized-artwork">resizing captures</a>.</p>
   </section>
   <section id="example">
     <h2>Tell the change as a story</h2>

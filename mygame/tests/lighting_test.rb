@@ -106,7 +106,7 @@ class LightingTests
   end
 
   def test_triangle_fan_converts_all_vertices_closes_and_ignores_degenerate_polygons(_args, assert)
-    camera = Descent::Camera.new(bounds: { x: -100, y: -100, w: 1000, h: 1000 })
+    camera = Descent::Camera.new(x: 400, y: 400)
     camera.follow(x: 210, y: 140)
     camera = camera.for_drawing
     source = { x: 190.25, y: 120.5 }

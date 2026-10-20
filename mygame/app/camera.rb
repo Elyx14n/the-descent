@@ -1,21 +1,23 @@
 # frozen_string_literal: true
 
+require 'app/camera_scroll'
+
 module Descent
   # Based on DragonRuby's 16_camera_space_world_space_simple sample. World
   # positions stay fractional; drawing snaps to physical display pixels.
   # One world pixel is one logical pixel. DragonRuby scales the 320x180 canvas
   # for display; the camera only translates, without changing sprite dimensions.
   class Camera
-    attr_reader :x, :y, :bounds
+    attr_reader :x, :y
 
-    def initialize(bounds:)
-      @bounds = bounds
-      follow(x: bounds[:x] + bounds[:w].fdiv(2), y: bounds[:y] + bounds[:h].fdiv(2))
+    def initialize(x:, y:)
+      @scroll = CameraScroll.new
+      follow(x: x, y: y)
     end
 
     def follow(x:, y:)
-      @x = bounded_center(x, @bounds[:x], @bounds[:w], viewport_w)
-      @y = bounded_center(y, @bounds[:y], @bounds[:h], viewport_h)
+      @x = x
+      @y = y
       self
     end
 
@@ -62,12 +64,25 @@ module Descent
       camera
     end
 
-    # Rasterize atlas artwork before applying the fractional camera remainder.
-    # Flooring the camera needs one extra raster pixel on the right and top.
+    # Interpolation changes the drawing position, not the simulation camera.
+    # Initialize here too so cameras surviving a hot reload share the history.
+    def for_presentation(x:, y:)
+      @scroll ||= CameraScroll.new
+      dup.follow(x: x, y: y)
+    end
+
+    # Drawing copies deliberately share presentation history with their source.
+    # Simulation follows do not advance it; only presented positions do.
     def for_compositing
+      @scroll ||= CameraScroll.new
+      position = @scroll.position(x: @x, y: @y, scale: pixel_scale)
       camera = for_drawing
-      camera.send(:prepare_compositing_values)
+      camera.send(:prepare_compositing_values, position)
       camera
+    end
+
+    def reset_scroll
+      @scroll&.reset
     end
 
     def to_world_space(rect)
@@ -115,13 +130,9 @@ module Descent
       @draw_values[:world] = to_world_space(@draw_values[:viewport])
     end
 
-    def prepare_compositing_values
-      scale = @draw_values[:scale]
-      @draw_values[:offset_x] = pixel_position(viewport_w_half) - (@x * scale).floor.fdiv(scale)
-      @draw_values[:offset_y] = pixel_position(viewport_h_half) - (@y * scale).floor.fdiv(scale)
-      @draw_values[:w] += 1.fdiv(scale)
-      @draw_values[:h] += 1.fdiv(scale)
-      @draw_values[:viewport] = { x: 0, y: 0, w: viewport_w, h: viewport_h }
+    def prepare_compositing_values(position)
+      @draw_values[:offset_x] = pixel_position(viewport_w_half) - position[:x]
+      @draw_values[:offset_y] = pixel_position(viewport_h_half) - position[:y]
       @draw_values[:world] = to_world_space(@draw_values[:viewport])
     end
 
@@ -147,13 +158,6 @@ module Descent
 
     def pixel_scale
       Grid.render_scale
-    end
-
-    def bounded_center(center, min, size, extent)
-      return min + size.fdiv(2) if size <= extent
-
-      half = extent.fdiv(2)
-      center.clamp(min + half, min + size - half)
     end
   end
 end

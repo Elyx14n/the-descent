@@ -77,10 +77,17 @@ draw_left = align(screen_left)</code></pre>
       <li><strong>Final artwork alignment.</strong> <a href="../mygame/app/render.rb">Render.direct_actor</a> aligns the rectangle’s final screen-space bounds.</li>
       <li><strong>Presentation.</strong> The finished native image is enlarged and positioned on the display.</li>
     </ol>
-    <p>Our term <strong>draw space</strong> describes coordinates prepared for their destination. Scenery aligns inside a padded target before fractional scrolling. Direct actors align at their final screen destination. Both policies use logical units.</p>
+    <p>Our term <strong>draw space</strong> describes coordinates prepared for their destination. Scenery uses paired camera pixel steps inside 320 × 180 targets presented at (0, 0). Direct actors align at their final screen destination. Both policies use logical units.</p>
     <p class="note">Conversion changes the reference origin. Alignment chooses a drawing boundary. A reversible translation preserves the original position; alignment can discard a fractional difference.</p>
     <p>For anchored artwork, first move from the anchor to the left edge, align the edge, then restore the anchor offset. A correctly aligned rectangle can have its center between grid boundaries.</p>
     <p class="source">Primary reading: <a href="../mygame/app/camera.rb">Camera#to_screen_space</a> alongside the installed camera-space/world-space sample. The default camera path can still use a snapped offset; the fractional formula above describes the presentation snapshot. See <a href="https://docs.dragonruby.org/#/api/grid">Grid</a> and <a href="https://docs.godotengine.org/en/stable/tutorials/2d/2d_transforms.html">the transform overview</a> for supporting references.</p>
+  </section>
+  <section id="diagonal">
+    <h2>Keep sharpness separate from movement cadence</h2>
+    <p>A straight diagonal world path can become a small staircase when X and Y round on different frames. Each frame can be perfectly sharp while the sequence still wobbles. Our current camera pairs those drawing steps; the player’s precise world position is preserved.</p>
+    <figure><img src="../assets/diagonal-camera-steps.svg" alt="Independent axis rounding makes a stepped camera path; pairing the steps keeps its drawing positions on one diagonal."><figcaption>Follow each path with your finger. Which one briefly changes direction? Repeated positions represent held pixels between movement steps.</figcaption></figure>
+    <p>The preview camera follows the player at room edges, keeping the player centered. <a href="../mygame/app/camera_scroll.rb">CameraScroll</a> handles scenery stepping separately. Source-art resizing is another stage: nearest presentation keeps the scene sharp, while filtered downsizing keeps small candle and pedestal details stable.</p>
+    <p class="source">Read the <a href="../reference/coordinates-and-pixels.html#motion">motion explanation</a>, <a href="../reference/coordinates-and-pixels.html#sampling">sampling comparison</a>, and <a href="../docs/adr/0018-pair-diagonal-camera-pixel-steps.md">current decision</a>. The slider diagrams above isolate precise camera conversion and final actor alignment; they do not simulate the scenery’s movement history or its sampler.</p>
   </section>
   <section id="practice">
     <h2>Practice through explanation, pictures, and algebra</h2>
@@ -226,19 +233,33 @@ draw_left = align(screen_left)</code></pre>
       <p class="feedback" role="status" aria-live="polite"></p>
     </fieldset>
     <fieldset data-quiz data-answer="2" data-explanation="Check whether the final rectangle edges straddle native grid cells. That drawing placement can blend facial detail even while the player stands still." data-hint="Follow the artwork all the way to its last drawing destination.">
-      <legend>Application 5 · A stopped player is sharp at some locations and soft at others beside a clamped camera. What should you inspect first?</legend>
+      <legend>Application 5 · In the earlier filtered setup, a stopped player was sharp at some locations and soft at others beside a clamped camera. What should you inspect first?</legend>
       
       <label class="choice"><input type="radio" name="apply-blur" value="0">The simulation update frequency</label>
       <label class="choice"><input type="radio" name="apply-blur" value="1">The source atlas dimensions</label>
       <label class="choice"><input type="radio" name="apply-blur" value="2">The final actor bounds</label>
       <p class="feedback" role="status" aria-live="polite"></p>
     </fieldset>
-    <fieldset data-quiz data-answer="0" data-explanation="The target covers the viewed region plus its sampling margin. The room may extend far beyond that region without requiring a world-sized texture." data-hint="Separate the map being viewed from the image being drawn for the current view.">
+    <fieldset data-quiz data-answer="0" data-explanation="The current target covers the logical viewport. Its dimensions are independent of room extent; the old fractional-scrolling implementation used extra padding. The room may extend far beyond that region without requiring a world-sized texture." data-hint="Separate the map being viewed from the image being drawn for the current view.">
       <legend>Application 6 · The room expands while the logical viewport stays fixed. What extent should a scenery target cover?</legend>
       
-      <label class="choice"><input type="radio" name="apply-world-size" value="0">The viewport plus padding</label>
+      <label class="choice"><input type="radio" name="apply-world-size" value="0">The logical viewport</label>
       <label class="choice"><input type="radio" name="apply-world-size" value="1">The entire room width</label>
       <label class="choice"><input type="radio" name="apply-world-size" value="2">The physical window width</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="Sharpness describes a frame’s pixels; movement cadence describes their positions over time. Independently rounded axes can step on different frames." data-hint="Follow the dots in the diagonal figure rather than inspecting a single still frame.">
+      <legend>Application 7 · Every frame is sharp, but diagonal scenery takes brief sideways steps. What should you inspect?</legend>
+      <label class="choice"><input type="radio" name="apply-diagonal" value="0">The font’s source image</label>
+      <label class="choice"><input type="radio" name="apply-diagonal" value="1">When each camera axis steps</label>
+      <label class="choice"><input type="radio" name="apply-diagonal" value="2">The room’s world dimensions</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Nearest scene presentation and source-art downsizing are different sampling stages. Our resized props use filtering to keep their internal pixels stable while the scene retains nearest presentation." data-hint="Separate resizing one prop from presenting the completed scene.">
+      <legend>Application 8 · Nearest scene presentation fixes blur. Must every downsized prop also use nearest sampling?</legend>
+      <label class="choice"><input type="radio" name="apply-resize" value="0">Yes, all stages must match</label>
+      <label class="choice"><input type="radio" name="apply-resize" value="1">Yes, if the camera moves</label>
+      <label class="choice"><input type="radio" name="apply-resize" value="2">No, assess each stage separately</label>
       <p class="feedback" role="status" aria-live="polite"></p>
     </fieldset>
     </section>
@@ -285,9 +306,9 @@ draw_left = align(screen_left)</code></pre>
       <label class="choice"><input type="radio" name="advanced-letterbox" value="2"><code>native = display − (margin / fit)</code></label>
       <p class="feedback" role="status" aria-live="polite"></p>
     </fieldset>
-    <fieldset data-quiz data-answer="2" data-explanation="Substitute target and offset into screen. The negative K from target and positive K from offset cancel. The coordinate matches fractional camera C, even though scenery was first rasterized against aligned camera K." data-hint="Substitute symbolically and collect the terms in K. This is a coordinate identity; it does not assert that sampling operations cancel.">
-      <legend>Advanced 6 · Eliminate the aligned scenery camera K. Which expression describes the final tile position?</legend>
-      <p><code>C</code> is the fractional presentation camera; <code>K</code> is the aligned scenery camera.</p><pre><code>target = world − K + midpoint
+    <fieldset data-quiz data-answer="2" data-explanation="For a direct actor, the negative K in its target-relative position cancels the positive K in its offset. Final actor bounds are then aligned. Scenery keeps camera K because its target is presented at zero offset." data-hint="Substitute symbolically and collect the terms in K. This is a coordinate identity; it does not assert that sampling operations cancel.">
+      <legend>Advanced 6 · Eliminate scenery camera K from a direct actor’s coordinates. Which expression describes its screen position before final alignment?</legend>
+      <p><code>C</code> is the precise actor camera; <code>K</code> is the scenery camera. These equations describe the direct actor’s conversion. The scenery target itself is presented at zero offset.</p><pre><code>target = world − K + midpoint
 offset = K − C
 screen = target + offset</code></pre>
       <label class="choice"><input type="radio" name="advanced-composite" value="0"><code>screen = world − K + midpoint</code></label>

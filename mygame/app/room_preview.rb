@@ -65,8 +65,7 @@ module Descent
         room = Room.new(**decoded)
         player = Player.new
         player.reset(**room.spawn)
-        camera = Camera.new(bounds: room.bounds)
-        camera.follow(x: player.x, y: player.y)
+        camera = Camera.new(x: player.x, y: player.y)
         state.merge!(room: room, player: player, camera: camera, fade_state: {}, room_lighting: nil, reload_error: nil)
         # Retain the session simulation tick, but discard time spent loading.
         reset_us = now_us || SimulationClock.read_us
@@ -96,7 +95,9 @@ module Descent
                                        bases: [state[:player].collision_rect(**position)] }
           lamp = state[:player].light_source(**position)
           frame[:light_sources] << lamp if lamp
-          camera = camera.dup.follow(**position) if position[:x] != state[:player].x || position[:y] != state[:player].y
+          if position[:x] != state[:player].x || position[:y] != state[:player].y
+            camera = camera.for_presentation(**position)
+          end
         end
         frame[:light_polygons] = prepare_lighting(frame, state)
         frame[:world_borders] = []
@@ -131,6 +132,7 @@ module Descent
 
       def collapse_positions(state)
         player = state[:player]
+        state[:camera]&.reset_scroll
         state[:current_position] = { x: player.x, y: player.y }
         state[:previous_position] = state[:current_position]
         state[:position_generation] = [player.object_id, player.reset_generation]

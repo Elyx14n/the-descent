@@ -15,6 +15,7 @@ The Tiled integration combined input translation, door interaction, loading, ord
 | `Room` | Room state, active door collision/artwork, light enabled state/artwork, nearest door/light interaction, and room render data |
 | `Player` | Process semantic player actions, request room interaction, move, and advance animation |
 | `Keybinds` | Physical key assignments, held/pressed semantics, action hashes, and controls hints |
+| `Camera` / `CameraScroll` | Following, coordinate snapshots, and shared drawing history for paired diagonal scenery steps |
 | `Render` | Stable depth ordering, culling, camera conversion, targets, diagnostics submission, and HUD submission |
 | `RoomPreview` | Select and reload one exported room, route actions, follow the player, and assemble frame data |
 
@@ -80,6 +81,8 @@ On 2026-10-14, actor-relative foreground fading extended this interface. Room pr
 [ADR-0006](0006-simplified-foreground-fading.md) owns the geometry association, spatial curve, and temporal approach rules. It supersedes this ADR's original Euclidean-distance calculation with the equivalent vertical gap for eligible Room-created units. [ADR-0015](0015-use-colliders-for-foreground-fading.md) replaces footprint/alpha geometry with active colliders and full artwork rectangle checks. The preview supplies history in `room_preview[:fade_state]`; omitting history renders the instantaneous target. All on-screen actors independently contribute when supplied, although the current preview contains only Player. Collision, gameplay sight, lighting, and camera behavior remain independent.
 
 Render owns the viewport-sized `:scene` target and always draws its compositing sprite to the screen. The temporary F3/F4 diagnostics were removed on 2026-10-12; sprite and scene-texture sampling inherit game metadata without per-primitive overrides. Camera retains following, clamping, visibility queries, and the tested coordinate/snapping calculations. The accepted HD, pixel-art sampling, and native-raster alignment in [ADR-0001](0001-viewport-sized-camera.md) and [ADR-0002](0002-reference-resolution-and-ui-fonts.md) remain in force.
+
+The current display requirement is [ADR-0013](0013-keep-hd-disabled.md): HD off with a native 320 × 180 raster, nearest scene presentation, and pixel-art filtering for downsized source artwork. [ADR-0017](0017-keep-preview-camera-on-player.md) replaces edge clamping with continuous player-centered following. Camera now initializes from an explicit position and has no clamping option or stored room bounds. [ADR-0018](0018-pair-diagonal-camera-pixel-steps.md) pairs diagonal scenery steps with camera-owned drawing history and native-sized targets, while direct actors use the precise camera. The older configuration and preview-framing statements above describe the original refactor.
 
 ## Input and authoring lifecycle
 

@@ -17,7 +17,7 @@ class RoomTests
       assert.true! source[:y] < wall[:colliders].map { |rect| rect[:y] }.min
       prepared = Descent::Lighting.prepare(light_sources: [source], light_blockers: frame[:light_blockers])
       triangles = Descent::Lighting.triangles(light_polygons: prepared,
-                                              camera: Descent::Camera.new(bounds: room.bounds).for_drawing)
+                                              camera: Descent::Camera.new(**room.spawn.slice(:x, :y)).for_drawing)
       assert.true! triangles.any?
       front = offsets.map do |offset|
         { sprite: {}, bases: [{ x: source[:x] + offset, y: source[:y] - 8, w: 1, h: 1 }] }

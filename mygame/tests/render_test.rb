@@ -5,14 +5,67 @@ require 'tests/support/room_helpers'
 class RenderTests
   include RoomTestHelpers
 
-  def test_direct_player_stays_raster_aligned_when_the_camera_clamps(_args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+  def test_diagonal_scenery_steps_together_through_interpolated_camera_copies(_args, assert)
+    camera = Descent::Camera.new(x: 500, y: 500)
+    # Emulate a source camera constructed before the new code was hot loaded.
+    camera.instance_variable_set(:@scroll, nil)
+    marker = { x: 450, y: 500, w: 4, h: 4, path: :solid }
+    previous = nil
+    60.times do |step|
+      x = 500.125 + (step * Math.sqrt(0.5))
+      y = 500.5 + (step * Math.sqrt(0.5))
+      camera.follow(x: x + 0.25, y: y + 0.25)
+      presented = camera.for_presentation(x: x, y: y)
+      actor = Descent::Player.new(x: x, y: y).render_data
+      frame = { floor: [marker], groups: [actor], fade_actors: [actor[:fade_actor]] }
+      outputs = PassOrderOutputs.new
+      Descent::Render.draw({ outputs: outputs }, frame: frame, camera: presented, compose_scroll: true)
+      drawn = outputs.targets[:scene][:primitives].flatten.first
+      if previous
+        dx = drawn[:x] - previous[:x]
+        dy = drawn[:y] - previous[:y]
+        assert.equal! dx, dy
+        assert.true! dx.between?(-1, 0)
+      end
+      assert.equal! outputs.primitives[1].values_at(:x, :y), [160, 66]
+      assert.equal! outputs.primitives.first.values_at(:x, :y, :w, :h), [0, 0, 320, 180]
+      assert.equal! [camera.x, camera.y], [x + 0.25, y + 0.25]
+      previous = drawn
+    end
+  end
+
+  def test_downsized_props_filter_the_resize_without_filtering_scene_presentation(args, assert)
+    room = tiled_test_room(args)
+    small = (room.pedestals.map { |entry| entry[:sprite] } +
+             room.lights.select { |entry| entry[:mounted_on] }.map { |entry| entry[:sprite] }).map do |sprite|
+      sprite.merge(x: 176, y: 200)
+    end
+    original = small.to_s
+    native = small.first.merge(w: 32, h: 32)
+    enlarged = native.merge(w: 64, h: 64)
+    explicit = small.first.merge(scale_quality_enum: 0)
+    frame = { floor: [native], groups: [{ depth: 200, sprites: small + [enlarged, explicit] }] }
+    camera = Descent::Camera.new(x: 176, y: 200)
+    outputs = PassOrderOutputs.new
+    Descent::Render.draw({ outputs: outputs }, frame: frame, camera: camera, compose_scroll: true)
+    drawn = outputs.targets[Descent::Render::TARGET][:primitives].flatten
+
+    assert.equal! small.length, 6
+    assert.equal! drawn.map { |sprite| sprite[:scale_quality_enum] }, [nil] + ([3] * 6) + [nil, 0]
+    assert.equal! small.to_s, original
+    crops = small.map { |sprite| sprite.values_at(:source_x, :source_y, :source_w, :source_h) }
+    drawn_crops = drawn[1, small.length].map { |sprite| sprite.values_at(:source_x, :source_y, :source_w, :source_h) }
+    assert.equal! drawn_crops, crops
+    assert.equal! outputs.primitives.first[:scale_quality_enum], nil
+  end
+
+  def test_direct_player_stays_raster_aligned_when_moving_within_a_stationary_view(_args, assert)
+    camera = Descent::Camera.new(x: 500, y: 500)
     axes = %i[x y]
-    [[100, 500], [900, 500], [500, 60], [500, 940], [100, 60], [900, 940]].each do |x, y|
+    [[400, 500], [600, 500], [500, 450], [500, 550], [400, 450], [600, 550]].each do |x, y|
       16.times do |phase|
         position = { x: x + phase.fdiv(16), y: y + phase.fdiv(16) }
         actor = Descent::Player.new(**position).render_data
-        camera.follow(**position)
         outputs = PassOrderOutputs.new
         frame = { groups: [actor], fade_actors: [actor[:fade_actor]] }
         before = frame.to_s
@@ -31,10 +84,8 @@ class RenderTests
     end
   end
 
-  def test_direct_actor_alignment_uses_anchored_bounds_and_keeps_camera_scroll_fractional(_args, assert)
-    camera = Descent::Camera.new(bounds: { x: -1000, y: -1000, w: 2000, h: 2000 })
-    axes = %i[x y]
-    previous_blit = nil
+  def test_direct_actor_alignment_uses_anchored_bounds_with_native_scene_placement(_args, assert)
+    camera = Descent::Camera.new(x: 0, y: 0)
     [-0.75, -0.5, -0.25, 0, 0.25].each do |offset|
       camera.follow(x: offset, y: offset)
       sprite = { x: -80.1 + offset, y: -30.1 + offset, w: 13, h: 21, anchor_x: 0.5, anchor_y: 0.5,
@@ -47,20 +98,12 @@ class RenderTests
       bottom = drawn[:y] - (drawn[:h] * drawn[:anchor_y])
       assert.equal! left, left.round
       assert.equal! bottom, bottom.round
-      blit = outputs.primitives.first
-      if previous_blit
-        axes.each do |axis|
-          delta = blit[axis] - previous_blit[axis]
-          # At the floor-camera boundary, the aligned scene advances one pixel.
-          assert.true! (delta + 0.25).abs < 0.00001 || (delta - 0.75).abs < 0.00001
-        end
-      end
-      previous_blit = blit
+      assert.equal! outputs.primitives.first.values_at(:x, :y, :w, :h), [0, 0, 320, 180]
     end
   end
 
   def test_composited_scroll_aligns_tiles_and_preserves_fractional_actor_and_camera_positions(_args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera = Descent::Camera.new(x: 500, y: 500)
     actor = Descent::Player.new(x: 500.4, y: 500.125).render_data
     tiles = [{ x: 350, y: 420, w: 32, h: 32, path: :solid },
              { x: 382, y: 420, w: 32, h: 32, path: :solid }]
@@ -74,18 +117,18 @@ class RenderTests
     player = outputs.primitives[1]
     assert.equal! left.values_at(:x, :y), [10, 10]
     assert.equal! right[:x], left[:x] + 32
-    assert.true! (left[:x] + blit[:x] - 9.6).abs < 0.00001
-    assert.true! (left[:y] + blit[:y] - 9.875).abs < 0.00001
+    assert.equal! left[:x] + blit[:x], 10
+    assert.equal! left[:y] + blit[:y], 10
     assert.true! (player[:x] - 160).abs < 0.00001
     assert.true! (player[:y] - 66).abs < 0.00001
     assert.equal! outputs.primitives.flatten.last[:path], :scene_after_actor1
     assert.false!(outputs.targets.values.any? { |target| target[:primitives].flatten.include?(player) })
-    assert.equal! blit.values_at(:w, :h), [321, 181]
+    assert.equal! blit.values_at(:w, :h), [320, 180]
     assert.equal! frame.to_s, before
   end
 
   def test_composited_scrolling_keeps_scenery_between_multiple_actors_and_ceiling_above_them(_args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera = Descent::Camera.new(x: 500, y: 500)
     camera.follow(x: 500.4, y: 500.125)
     northern = Descent::Player.new(x: 500.4, y: 500.125).render_data
     southern = Descent::Player.new(x: 500.4, y: 498.125).render_data
@@ -105,7 +148,7 @@ class RenderTests
   end
 
   def test_composited_lighting_dependencies_and_dimensions_share_the_scene_camera(_args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera = Descent::Camera.new(x: 500, y: 500)
     camera.follow(x: 500.4, y: 500.125)
     source = { x: 500, y: 500, radius: 64 }
     lights = Descent::Lighting.prepare(light_sources: [source], light_blockers: [])
@@ -114,12 +157,12 @@ class RenderTests
     assert.equal! outputs.targets.keys,
                   [Descent::Lighting::LIGHT_MASK_TARGET, Descent::Lighting::LIGHTMAP_TARGET, Descent::Render::TARGET]
     [Descent::Lighting::LIGHTMAP_TARGET, Descent::Render::TARGET].each do |name|
-      assert.equal! outputs.targets[name].values_at(:w, :h), [321, 181]
+      assert.equal! outputs.targets[name].values_at(:w, :h), [320, 180]
     end
   end
 
   def test_scene_uses_one_fractional_translation_for_adjacent_background_tiles(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 1000 })
+    camera = Descent::Camera.new(x: 500, y: 500)
     camera.follow(x: 500.4, y: 500.125)
     tiles = [{ x: 350, y: 420, w: 32, h: 32, path: :solid },
              { x: 382, y: 420, w: 32, h: 32, path: :solid }]
@@ -150,7 +193,7 @@ class RenderTests
 
   def test_lightmap_dependencies_render_before_the_scene_for_the_same_frame(_args, assert)
     outputs = PassOrderOutputs.new
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     source = { x: 160, y: 90, radius: 64 }
     lights = Descent::Lighting.prepare(light_sources: [source], light_blockers: [])
     floor = { x: 0, y: 0, w: 320, h: 180, path: :solid }
@@ -163,7 +206,7 @@ class RenderTests
   end
 
   def test_lighting_composites_floor_before_upright_artwork_and_keeps_diagnostics_and_hud_unlit(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     floor = { x: 0, y: 0, w: 320, h: 180, path: :solid }
     wall = { x: 64, y: 64, w: 8, h: 64, path: :solid, a: 128 }
     cap = { x: 64, y: 128, w: 8, h: 8, path: :solid }
@@ -194,7 +237,7 @@ class RenderTests
   end
 
   def test_visible_cap_still_fades_when_its_supporting_base_is_offscreen(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     actor = Descent::Player.new(x: 48, y: 16).render_data
     base = { x: 32, y: -32, w: 32, h: 16, path: :solid }
     cap = base.merge(y: 0, h: 48)
@@ -209,7 +252,7 @@ class RenderTests
   end
 
   def test_repeated_sprite_reference_uses_its_final_draw_occurrence_across_depth_groups(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     actor = Descent::Player.new(x: 48, y: 64).render_data
     base = { x: 32, y: 32, w: 32, h: 64, path: :solid }
     unit = { type: :wall, base: base, colliders: [base.merge(h: 32)], sprites: [base] }
@@ -224,7 +267,7 @@ class RenderTests
   end
 
   def test_visible_mounted_artwork_keeps_its_group_when_the_base_is_offscreen(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     base = { x: 32, y: -64, w: 32, h: 16, path: :solid }
     mounted = base.merge(y: 16)
     actor = Descent::Player.new(x: 48, y: 32).render_data
@@ -236,7 +279,7 @@ class RenderTests
   end
 
   def test_offscreen_unit_history_advances_for_a_partially_visible_actor_before_camera_entry(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 1000, h: 180 })
+    camera = Descent::Camera.new(x: 500, y: 90)
     camera.follow(x: 160, y: 90)
     actor = Descent::Player.new(x: 330, y: 64).render_data
     base = { x: 324, y: 32, w: 32, h: 32, path: :solid }
@@ -262,7 +305,7 @@ class RenderTests
 
   def test_narrow_side_walls_and_closed_doors_stay_opaque_even_when_crossing_the_actor_center(args, assert)
     room = tiled_test_room(args)
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     [193, 166, 217, 216].each do |id|
       entry = room.objects.find { |candidate| candidate[:id] == id }
       base = entry[:sprite]
@@ -287,7 +330,7 @@ class RenderTests
 
   def test_render_preserves_opacity_history_when_an_actor_leaves_the_column(args, assert)
     room = tiled_test_room(args)
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     camera.follow(x: 144, y: 90)
     cap = room.ceiling.find { |sprite| sprite[:x] == 128 && sprite[:y] == 64 }
     state = {}
@@ -318,7 +361,7 @@ class RenderTests
 
   def test_south_reveal_leaves_neighboring_columns_and_north_gate_opaque(args, assert)
     room = tiled_test_room(args)
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     neighboring_columns = [96, 160]
     [[144, 68], [176, 318]].each do |x, y|
       camera.follow(x: x, y: y)
@@ -346,7 +389,7 @@ class RenderTests
   end
 
   def test_render_fades_after_sorting_and_preserves_floor_props_hud_and_frame(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     actor = Descent::Player.new(x: 48, y: 80).render_data
     wall = { x: 32, y: 32, w: 32, h: 32, path: :solid, r: 1, a: 255 }
     cap = wall.merge(y: 64, r: 2, a: 100)
@@ -368,7 +411,7 @@ class RenderTests
 
   def test_render_restores_opacity_on_retreat_and_keeps_camera_translation_out_of_falloff(args, assert)
     room = tiled_test_room(args)
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     wall = room.objects.find { |entry| entry[:id] == 241 }[:sprite]
     camera_positions = [80, 120]
     collider = room.objects.find { |entry| entry[:id] == 241 }[:colliders].first
@@ -391,18 +434,17 @@ class RenderTests
     assert.equal! wall[:a], 255
   end
 
-  def test_render_target_size_is_independent_of_world_size_and_origin(args, assert)
-    [{ x: 21, y: 27, w: 100, h: 100 },
-     { x: -20_000, y: -30_000, w: 100_000, h: 100_000 }].each do |bounds|
+  def test_render_target_size_is_independent_of_camera_position(args, assert)
+    [{ x: 71, y: 77 }, { x: -50_000, y: 75_000 }].each do |position|
       clear_room_test_outputs(args)
-      Descent::Render.draw(args, frame: {}, camera: Descent::Camera.new(bounds: bounds))
+      Descent::Render.draw(args, frame: {}, camera: Descent::Camera.new(**position))
       target = args.outputs[Descent::Render::TARGET]
       assert.equal! [target.w, target.h], [320, 180]
     end
   end
 
   def test_render_plain_frame_sorts_stably_culls_and_preserves_input_data(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     sprite = { x: 100.25, y: 50.75, w: 32, h: 32, path: :solid }
     first = sprite.merge(r: 1)
     second = sprite.merge(r: 2)
@@ -423,7 +465,7 @@ class RenderTests
   end
 
   def test_render_composites_scene_using_metadata_sampling_and_places_hud_above_it(args, assert)
-    camera = Descent::Camera.new(bounds: { x: 0, y: 0, w: 320, h: 180 })
+    camera = Descent::Camera.new(x: 160, y: 90)
     sprite = { x: 100, y: 50, w: 32, h: 32, path: :solid }
     hud = { x: 10, y: 10, text: 'HUD' }
     clear_room_test_outputs(args)
@@ -447,7 +489,7 @@ class RenderTests
       assert.equal! candle[:depth], wall[:depth]
       assert.equal! candle[:sprite][:y], 298
     end
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     player = Descent::Player.new(x: 176)
     args.state.room_preview = { room: room, camera: camera, player: player, show_bounds: false }
     [286, 288, 290].each do |y|
@@ -455,7 +497,7 @@ class RenderTests
       camera.follow(x: player.x, y: player.y)
       clear_room_test_outputs(args)
       render_room_test(args)
-      sprites = args.outputs[Descent::Render::TARGET].primitives.flatten
+      sprites = args.outputs[Descent::Render::TARGET].primitives.flatten.map { |sprite| sprite.except(:scale_quality_enum) }
       player_index = sprites.index(camera.to_draw_space(player.sprite_to_primitive))
       pairs.each do |candle, wall|
         candle_index = sprites.index(camera.to_draw_space(candle[:sprite]))
@@ -475,7 +517,7 @@ class RenderTests
   def test_y_sort_moves_player_behind_and_in_front_of_fixture(args, assert)
     room = tiled_test_room(args)
     fixture = room.objects.find { |entry| entry[:id] == 6 }
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     player = Descent::Player.new(x: 240, y: fixture[:depth] + 3)
     args.state.room_preview = { room: room, camera: camera, player: player, show_bounds: false }
 
@@ -502,12 +544,12 @@ class RenderTests
   def test_y_sort_combines_walls_and_props_between_ground_and_ceiling(args, assert)
     room = tiled_test_room(args)
     player = Descent::Player.new(x: 240, y: 236)
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     camera.follow(x: player.x, y: player.y)
     args.state.room_preview = { room: room, camera: camera, player: player, show_bounds: false }
     clear_room_test_outputs(args)
     render_room_test(args)
-    sprites = args.outputs[Descent::Render::TARGET].primitives.flatten
+    sprites = args.outputs[Descent::Render::TARGET].primitives.flatten.map { |sprite| sprite.except(:scale_quality_enum) }
 
     # A northern Prop must render before a more southern Wall, regardless of layers.
     indices = [121, 225, 6].map do |id|
@@ -536,7 +578,7 @@ class RenderTests
   def test_floor_detail_stays_above_ground_and_below_player_from_both_sides(args, assert)
     room = tiled_test_room(args)
     detail = room.floor_details.first
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     player = Descent::Player.new(x: detail[:sprite][:x] + 16)
     args.state.room_preview = { room: room, camera: camera, player: player, show_bounds: false }
 
@@ -545,7 +587,7 @@ class RenderTests
       camera.follow(x: player.x, y: player.y)
       clear_room_test_outputs(args)
       render_room_test(args)
-      sprites = args.outputs[Descent::Render::TARGET].primitives.flatten
+      sprites = args.outputs[Descent::Render::TARGET].primitives.flatten.map { |sprite| sprite.except(:scale_quality_enum) }
       player_sprite = camera.to_draw_space(player.sprite_to_primitive)
       detail_sprite = camera.to_draw_space(detail[:sprite])
       assert.true! Geometry.intersect_rect?(player_sprite, detail_sprite)
