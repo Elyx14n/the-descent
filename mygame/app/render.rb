@@ -72,23 +72,28 @@ module Descent
       private
 
       def place_artwork(artwork, actor_indices:, camera:)
-        return camera.to_draw_space(artwork) if actor_indices.empty?
-
         artwork.each_with_index.map do |sprite, index|
+          # Shrinking props with nearest sampling can make their internal pixels
+          # flicker as they move. Filter the resize; keep the scene's nearest sampling.
+          if sprite[:scale_quality_enum].nil? &&
+             (sprite[:w] < sprite.fetch(:source_w, sprite[:w]) || sprite[:h] < sprite.fetch(:source_h, sprite[:h]))
+            sprite = sprite.merge(scale_quality_enum: 3)
+          end
           actor_indices.include?(index) ? camera.to_screen_space(sprite) : camera.to_draw_space(sprite)
         end
       end
 
       def composite_artwork(args, artwork, actor_indices:, camera:, presentation_camera:, target:)
-        destination = presentation_camera.to_screen_space(camera.viewport_world)
+        actor_destination = presentation_camera.to_screen_space(camera.viewport_world)
+        destination = camera.viewport
         name = TARGET
         start = 0
         actor_indices.each_with_index do |index, sequence|
           target.primitives << artwork[start...index]
           args.outputs.primitives << destination.merge(path: name)
-          # Draw each actor once between its surrounding scenery, preserving
-          # depth without filtering it through a fractionally shifted texture.
-          args.outputs.primitives << direct_actor(artwork[index], destination: destination)
+          # Keep depth order while actors use the precise camera independently
+          # of the scenery's paired raster steps.
+          args.outputs.primitives << direct_actor(artwork[index], destination: actor_destination)
           name = :"scene_after_actor#{sequence + 1}"
           target = scene(args, camera, name: name)
           start = index + 1
@@ -104,8 +109,8 @@ module Descent
         anchor_y = sprite[:h] * sprite.fetch(:anchor_y, 0)
         left = sprite[:x] + destination[:x] - anchor_x
         bottom = sprite[:y] + destination[:y] - anchor_y
-        # Align only final artwork bounds. A clamped camera leaves actors moving
-        # across the raster; fractional placement otherwise blurs fine details.
+        # Align final artwork bounds, including actors moving independently of
+        # the camera, while their world positions retain full precision.
         sprite.merge(x: ((left * scale) + 0.5).floor.fdiv(scale) + anchor_x,
                      y: ((bottom * scale) + 0.5).floor.fdiv(scale) + anchor_y)
       end

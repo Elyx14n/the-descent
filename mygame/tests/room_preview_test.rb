@@ -13,6 +13,28 @@ class RoomPreviewTests
     Descent::RoomPreview.tick(preview, now_us: now_us)
   end
 
+  def test_preview_keeps_the_drawn_player_centered_during_diagonal_corner_movement(args, assert)
+    preview = preview_test_args(args)
+    timing_test_tick(preview, 0)
+    state = preview[:state][:room_preview]
+    corners = [[48.125, 80.5, %i[d w]], [304.125, 80.5, %i[a w]],
+               [48.125, 300.5, %i[d s]], [304.125, 300.5, %i[a s]]]
+    tick = 0
+    corners.each do |x, y, keys|
+      state[:player].reset(x: x, y: y)
+      12.times do
+        tick += 1
+        timing_test_tick(preview, tick * 16_667, held: keys)
+        player = state[:player]
+        assert.equal! [state[:camera].x, state[:camera].y], [player.x, player.y]
+        sprite = preview[:outputs].primitives.flatten.find do |primitive|
+          primitive[:path] == 'sprites/player_walk_lamp_on.png'
+        end
+        assert.equal! sprite.values_at(:x, :y), [160, 66]
+      end
+    end
+  end
+
   def test_zero_step_callbacks_buffer_each_press_and_catch_up_does_not_repeat_it(args, assert)
     preview = preview_test_args(args)
     timing_test_tick(preview, 0)
@@ -105,7 +127,7 @@ class RoomPreviewTests
     assert.equal! frame[:groups].last[:sprites].first[:x], 240
   end
 
-  def test_diagonal_depth_and_clamped_camera_use_the_presented_position(args, assert)
+  def test_diagonal_depth_and_following_camera_use_the_presented_position(args, assert)
     preview = preview_test_args(args)
     timing_test_tick(preview, 0)
     state = preview[:state][:room_preview]
@@ -120,7 +142,7 @@ class RoomPreviewTests
     frame = timing_test_tick(preview, 50_000, held: [:d])
     sprite = frame[:groups].last[:sprites].first
     camera = state[:camera].dup.follow(x: sprite[:x], y: player.y)
-    assert.equal! camera.x, state[:room].bounds[:x] + camera.viewport_w_half
+    assert.equal! camera.x, sprite[:x]
     assert.true! preview_artwork_drawn?(preview, camera.to_draw_space(sprite))
   end
 
@@ -457,14 +479,14 @@ class RoomPreviewTests
     camera = args.state.room_preview[:camera]
     target = args.outputs[Descent::Render::TARGET]
     assert.equal! [player.x, player.y], [176, 176]
-    assert.equal! [target.w, target.h], [321, 181]
+    assert.equal! [target.w, target.h], [320, 180]
     sprite = args.outputs.primitives.flatten.find { |primitive| primitive[:path] == 'sprites/player_idle_lamp_on.png' }
     assert.equal! sprite.except(:r, :g, :b), camera.to_draw_space(player.sprite_to_primitive).except(:r, :g, :b)
     assert.equal! sprite.values_at(:w, :h), [64, 64]
     foot_border = camera.to_screen_space(player.collision_rect.merge(r: 90, g: 255, b: 160))
     assert.true! args.outputs[:scene_after_actor1].borders.flatten.include?(foot_border)
     blits = args.outputs.primitives.flatten.select { |primitive| primitive[:path] == :scene }
-    assert.equal! blits, [{ x: 0, y: 0, w: 321, h: 181, path: Descent::Render::TARGET }]
+    assert.equal! blits, [{ x: 0, y: 0, w: 320, h: 180, path: Descent::Render::TARGET }]
     clear_room_test_outputs(args)
     Descent::RoomPreview.tick(args)
     assert.true! args.state.room_preview[:room].equal?(room)

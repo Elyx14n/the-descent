@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'tests/camera_test'
+require 'tests/camera_scroll_test'
 require 'tests/display_configuration_test'
 require 'tests/entity_components_test'
 require 'tests/player_collision_test'

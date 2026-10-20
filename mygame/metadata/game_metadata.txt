@@ -56,15 +56,15 @@ aspect_size=180
 # | - 2: best visual quality (option 1 and 2 are the same and resolve to the same value for backwards compatability)
 # | - 3: SDL3's pixel art shader (if your game uses pixel art, then this may be the best option)
 # +=====================================
-# Pixel-art sampling substantially reduces enlarged-window tile seams in
-# playtesting. The camera translates without magnifying artwork.
-scale_quality=3
+# Nearest sampling keeps scene presentation crisp. Render filters downsized
+# source artwork separately to stabilize candle and pedestal pixels.
+scale_quality=0
 
 # +== HD Mode ===
 # | HD Mode: higher-resolution rendering while preserving the logical canvas.
 # +==============
 # Required: keep HD off for lighting-preview performance (ADR-0013).
-# The native raster is 320x180. Keep pixel-art sampling and camera/artwork
+# The native raster is 320x180. Keep scene sampling and camera/artwork
 # rounding; tune UI glyphs/sizes for this raster rather than re-enabling HD.
 hd=false
 

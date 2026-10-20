@@ -36,9 +36,8 @@ class RenderBenchmarkTests
 
   def benchmark_context(args, copies)
     room = tiled_test_room(args, benchmark_map(args, copies))
-    camera = Descent::Camera.new(bounds: room.bounds)
     player = Descent::Player.new(x: 144, y: 68)
-    camera.follow(x: player.x, y: player.y)
+    camera = Descent::Camera.new(x: player.x, y: player.y)
     actor = player.render_data
     frame = room.render_data
     frame[:groups] << actor

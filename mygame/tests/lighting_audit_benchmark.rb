@@ -11,8 +11,7 @@ class LightingAuditBenchmarkTests
     room = tiled_test_room(args)
     player = Descent::Player.new
     player.reset(x: 248, y: 220)
-    camera = Descent::Camera.new(bounds: room.bounds)
-    camera.follow(x: player.x, y: player.y)
+    camera = Descent::Camera.new(x: player.x, y: player.y)
     frame = audit_frame(room, player)
     sources = audit_sources(frame)
     inputs = audit_inputs(frame, sources)

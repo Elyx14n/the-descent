@@ -3,7 +3,7 @@
 ## Knowledge
 
 - [The Descent glossary](GLOSSARY.md), [Camera](mygame/app/camera.rb), [Render](mygame/app/render.rb), and [Sprite](mygame/app/sprite.rb).
-  Primary evidence for our project terms and actual coordinate flow. Read the fractional presentation snapshot, compositing snapshot, and final actor alignment separately; the default camera conversion can still use a snapped camera offset.
+  Primary evidence for our project terms and actual coordinate flow. Read the precise actor camera, [CameraScroll](mygame/app/camera_scroll.rb), compositing snapshot, and final actor alignment separately; the default camera conversion can still use a snapped camera offset.
 - [DragonRuby Grid documentation](https://docs.dragonruby.org/#/api/grid).
   Official reference for the logical canvas, origin, aspect size, and render scale. The installed 7.21 copy is `$DRAGONRUBY_HOME/docs/api/grid.md`; it includes the 320 × 180 aspect-size table. Some older prose still assumes the default 1280 × 720 canvas, so check our metadata rather than copying those dimensions.
 - [DragonRuby sprite/output documentation](https://docs.dragonruby.org/#/api/outputs).
@@ -16,7 +16,11 @@
   Primary explanation of successive coordinate transforms and inverse transforms. Godot's names and full transform chain differ from ours; use for the general principle, not as our project's glossary.
 - [Godot: pixel snapping](https://docs.godotengine.org/en/stable/classes/class_viewport.html#class-viewport-property-snap-2d-transforms-to-pixel).
   Primary corroboration of the crispness versus movement-step tradeoff. This is evidence that drawing alignment is established practice, not a prescription for our specific DragonRuby renderer.
-- [Our renderer captures and findings](docs/notes/single-scene-sampling-sources.md#follow-up-direct-actor-blur-at-camera-boundaries).
+- [Current camera stepping decision](docs/adr/0018-pair-diagonal-camera-pixel-steps.md) and [controlled diagonal captures](docs/notes/foreground-jitter-investigation.md#follow-up-scenery-jitter-with-the-always-follow-camera).
+  Project evidence that independently rounding two axes can stagger diagonal movement even when every frame is sharp. The current scenery camera pairs diagonal pixel steps; actors retain the precise camera. This is a local, playtested policy, not a convention established by the SDK sample.
+- [Sampling correction](docs/notes/conventional-pixel-art-rendering-sources.md#follow-up-nearest-scene-presentation-and-downsized-artwork).
+  Separates nearest scene presentation (`scale_quality=0`) from filtered downsizing of source artwork (`scale_quality_enum: 3`). Blur, changing source pixels during minification, and staggered camera motion were distinct findings with distinct corrections.
+- [Our earlier actor renderer captures and findings](docs/notes/single-scene-sampling-sources.md#follow-up-direct-actor-blur-at-camera-boundaries).
   Project evidence for fractional-position blur, final actor alignment, and the limitations of the earlier following-camera probe. Consult when distinguishing demonstrated behavior from a sampling hypothesis.
 - [W3C PNG image model](https://www.w3.org/TR/png-3/#4Concepts) and [W3C SVG introduction](https://www.w3.org/TR/SVG2/intro.html).
   Primary specifications for a raster image's pixel-sample representation and vector shapes/paths. Use to distinguish an asset's representation from the raster output of rendering; a raster does not need to have a vector origin or be saved as a file.
@@ -49,5 +53,5 @@ Suggested progression: vector/displacement diagrams → camera transforms → in
 
 ## Gaps
 
-- No official DragonRuby convention was established for this exact combination of fractional scenery composition and independently aligned direct actors.
+- No official DragonRuby convention was established for our exact combination of paired diagonal scenery steps and independently aligned direct actors. Earlier padded/fractional scene-composition experiments are historical evidence; normal scene targets now use 320 × 180 and are presented at `(0, 0)`.
 - Learning mastery is not yet demonstrated. Lesson exercises provide practice; create learning records only after the user supplies evidence of understanding.

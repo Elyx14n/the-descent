@@ -15,7 +15,7 @@ class RaycastingBenchmarkTests
     puts "RAYCAST_CONFIG hd=#{Grid.hd?} render_scale=#{Grid.render_scale}"
     room = tiled_test_room(args)
     player = Descent::Player.new
-    camera = Descent::Camera.new(bounds: room.bounds)
+    camera = Descent::Camera.new(**room.spawn.slice(:x, :y))
     [[176, 176], [176, 72], [280, 220], [248, 220]].each do |x, y|
       player.reset(x: x, y: y)
       camera.follow(x: x, y: y)
