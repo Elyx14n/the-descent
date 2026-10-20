@@ -2,6 +2,8 @@
 
 Investigation on 2026-10-21, following the [sampling correction](conventional-pixel-art-rendering-sources.md#follow-up-nearest-scene-presentation-and-downsized-artwork). The user confirms the blur is fixed. Remaining jitter affects the player's position or outline during diagonal movement near the room perimeter, **including with a visible gap from the player's feet to the wall**. The live comparison subsequently isolated camera clamping; the preview now uses the demonstrated always-follow mode under [ADR-0017](../adr/0017-keep-preview-camera-on-player.md).
 
+The current algorithm is published dominant-axis rounding under [ADR-0019](../adr/0019-use-direction-aware-camera-rounding.md); the earlier segment-based implementation and comparisons below are historical.
+
 The final always-follow cleanup also removes Camera’s clamp option and stored room bounds; initialize it with `Camera.new(x:, y:)`. Earlier comparison commands and clamp arguments below document the investigation at those checkpoints.
 
 Preserve the confirmed baseline: metadata nearest sampling, pixel-art filtering only for downsized source artwork, HD off, native 320 × 180 raster, and existing simulation/interpolation. Avoid mixing additional corrections into a visual comparison without establishing which reported symptom they address.
@@ -106,3 +108,12 @@ Native regressions cover the production algorithm, paired scenery motion across 
 After the paired-step implementation, the user removed clamping entirely. Camera now initializes from explicit `x/y` coordinates and retains no room bounds. RoomPreview initializes it at the player position instead of constructing a room-centered camera and immediately following the player. Runtime/test/benchmark callers use the position API; the obsolete clamp keyword and five clamping-specific tests are removed. Actor alignment for fractional screen positions is retained as a stationary-view regression. Room bounds and viewport culling remain separate responsibilities. [ADR-0017](../adr/0017-keep-preview-camera-on-player.md) records the current policy; earlier `Camera.new(bounds:, clamp:)` examples above are historical.
 
 The cleanup passes all 197 remaining native tests and RuboCop. A 96-frame four-corner renderer playback keeps the player anchor fixed and is pixel-identical to the pre-cleanup production captures outside the live HUD text.
+
+
+## Re-adaptation to the published algorithm
+
+The user requested the established direction-aware implementation instead of the local segment policy. CameraScroll now rounds the dominant movement coordinate, projects the other along the direction, then rounds it. It accepts simulation velocity or infers direction from previous precise positions, as in the cited Unity example. Segment origin/base state, equal-diagonal tests, epsilon/jump thresholds, and pause retention are removed. Ordinary nearest placement at rest is deliberately retained; it may make a one-pixel settling correction. [ADR-0019](../adr/0019-use-direction-aware-camera-rounding.md) supersedes the earlier stepping policy while retaining precise actors and native-sized scenery targets.
+
+The initial port inferred direction from consecutive interpolated samples and passed its numerical unit cases. The actual-room trace nevertheless found one two-pixel northwest step due to tiny dominant-axis changes between samples. Supplying the current fixed-step displacement for interpolated camera draws removes that measured step; the source explicitly permits simulation velocity. No directional epsilon, phase lock, or jump heuristic was added. The fallback remains available to camera callers without a supplied velocity.
+
+The 96-callback four-corner native renderer playback (`tmp/published_camera_trace.rb`, using `tmp/camera_promotion_probe.rb`) retains player anchors `(160, 66)`. Free diagonal segments advance both axes together with zero/one-pixel steps; actual collision transitions proceed through general slopes into wall sliding. Runtime source crops, minification filtering, scene sampler, and HD-off raster are unchanged. Normal-speed diagonal walking/sneaking, stopping, and turning still require a playtest of this newly adopted policy; the prior successful user comparison covered the superseded segment algorithm.

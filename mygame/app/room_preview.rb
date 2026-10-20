@@ -96,7 +96,12 @@ module Descent
           lamp = state[:player].light_source(**position)
           frame[:light_sources] << lamp if lamp
           if position[:x] != state[:player].x || position[:y] != state[:player].y
-            camera = camera.for_presentation(**position)
+            # The published rounding method accepts simulation velocity. Use
+            # this step's displacement rather than noisy interpolated deltas.
+            previous = state[:previous_position]
+            current = state[:current_position]
+            velocity = { x: current[:x] - previous[:x], y: current[:y] - previous[:y] }
+            camera = camera.for_presentation(**position, velocity: velocity)
           end
         end
         frame[:light_polygons] = prepare_lighting(frame, state)

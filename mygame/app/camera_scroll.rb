@@ -1,53 +1,38 @@
 # frozen_string_literal: true
 
 module Descent
-  # Presentation history only. Pair native-pixel steps during a straight
-  # diagonal so differing world-coordinate fractions cannot stagger its axes.
+  # Direction-aware drawing alignment from Ilmari Karonen's published algorithm:
+  # https://gamedev.stackexchange.com/a/18801
+  # Like fnnbrr's Unity adaptation, use supplied simulation velocity or infer
+  # direction from precise positions, leaving gameplay coordinates unchanged:
+  # https://gist.github.com/fnnbrr/4938adc5439ab70c55430b020790b531
   class CameraScroll
-    EPSILON = 0.000001
-
     def reset
-      @previous = @raster = @origin = @direction = nil
+      @previous = nil
     end
 
-    def position(x:, y:, scale:)
-      point = [x * scale, y * scale]
-      reset if @scale != scale
-      @scale = scale
-      if !@previous || point.zip(@previous).any? { |a, b| (a - b).abs > 4 * scale }
-        @origin = @direction = nil
-        @raster = nearest(point)
-      else
-        advance(point)
+    def position(x:, y:, scale:, velocity: nil)
+      previous_x, previous_y = @previous || [x, y]
+      @previous = [x, y]
+      dx = velocity ? velocity[:x] : x - previous_x
+      dy = velocity ? velocity[:y] : y - previous_y
+      draw_x = round_to_pixel(x, scale)
+      draw_y = round_to_pixel(y, scale)
+
+      # Snap the main movement axis, then follow the movement direction to find
+      # the other coordinate. At rest, keep ordinary nearest-pixel placement.
+      if dx.abs > dy.abs
+        draw_y = round_to_pixel(y + ((draw_x - x) * dy / dx), scale)
+      elsif !dy.zero?
+        draw_x = round_to_pixel(x + ((draw_y - y) * dx / dy), scale)
       end
-      @previous = point
-      { x: @raster[0].fdiv(scale), y: @raster[1].fdiv(scale) }
+      { x: draw_x, y: draw_y }
     end
 
     private
 
-    def advance(point)
-      dx = point[0] - @previous[0]
-      dy = point[1] - @previous[1]
-      return if dx.abs < EPSILON && dy.abs < EPSILON
-
-      if dx.abs > EPSILON && (dx.abs - dy.abs).abs < EPSILON
-        direction = [dx <=> 0, dy <=> 0]
-        if @direction != direction
-          @origin = @previous
-          @base = nearest(@previous)
-        end
-        @direction = direction
-        distance = ((point[0] - @origin[0]).abs + 0.5).floor
-        @raster = @base.zip(direction).map { |base, sign| base + (sign * distance) }
-      else
-        @origin = @direction = nil
-        @raster = nearest(point)
-      end
-    end
-
-    def nearest(point)
-      point.map { |value| (value + 0.5).floor }
+    def round_to_pixel(value, scale)
+      ((value * scale) + 0.5).floor.fdiv(scale)
     end
   end
 end

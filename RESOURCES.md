@@ -16,8 +16,10 @@
   Primary explanation of successive coordinate transforms and inverse transforms. Godot's names and full transform chain differ from ours; use for the general principle, not as our project's glossary.
 - [Godot: pixel snapping](https://docs.godotengine.org/en/stable/classes/class_viewport.html#class-viewport-property-snap-2d-transforms-to-pixel).
   Primary corroboration of the crispness versus movement-step tradeoff. This is evidence that drawing alignment is established practice, not a prescription for our specific DragonRuby renderer.
-- [Current camera stepping decision](docs/adr/0018-pair-diagonal-camera-pixel-steps.md) and [controlled diagonal captures](docs/notes/foreground-jitter-investigation.md#follow-up-scenery-jitter-with-the-always-follow-camera).
-  Project evidence that independently rounding two axes can stagger diagonal movement even when every frame is sharp. The current scenery camera pairs diagonal pixel steps; actors retain the precise camera. This is a local, playtested policy, not a convention established by the SDK sample.
+- [Direction-aware rounding precedents and comparison](docs/notes/diagonal-camera-stepping-precedents.md).
+  Identifies the original 2011 algorithm, later Godot/Unity implementations, and the differences in our earlier segment-based camera. Distinguishes published community practice from built-in engine defaults; the dominant-axis method is now adopted for camera presentation.
+- [Current camera stepping decision](docs/adr/0019-use-direction-aware-camera-rounding.md) and [controlled diagonal captures](docs/notes/foreground-jitter-investigation.md#follow-up-scenery-jitter-with-the-always-follow-camera).
+  Project evidence that independently rounding two axes can stagger diagonal movement even when every frame is sharp. The scenery camera now uses published direction-aware rounding; actors retain the precise camera. This is a local, playtested policy, not a convention established by the SDK sample.
 - [Sampling correction](docs/notes/conventional-pixel-art-rendering-sources.md#follow-up-nearest-scene-presentation-and-downsized-artwork).
   Separates nearest scene presentation (`scale_quality=0`) from filtered downsizing of source artwork (`scale_quality_enum: 3`). Blur, changing source pixels during minification, and staggered camera motion were distinct findings with distinct corrections.
 - [Our earlier actor renderer captures and findings](docs/notes/single-scene-sampling-sources.md#follow-up-direct-actor-blur-at-camera-boundaries).
@@ -53,5 +55,5 @@ Suggested progression: vector/displacement diagrams → camera transforms → in
 
 ## Gaps
 
-- No official DragonRuby convention was established for our exact combination of paired diagonal scenery steps and independently aligned direct actors. Earlier padded/fractional scene-composition experiments are historical evidence; normal scene targets now use 320 × 180 and are presented at `(0, 0)`.
+- No official DragonRuby convention was established for our exact combination of direction-aware camera rounding and independently aligned direct actors. Earlier padded/fractional scene-composition experiments are historical evidence; normal scene targets now use 320 × 180 and are presented at `(0, 0)`.
 - Learning mastery is not yet demonstrated. Lesson exercises provide practice; create learning records only after the user supplies evidence of understanding.

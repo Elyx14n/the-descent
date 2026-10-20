@@ -16,6 +16,7 @@ Follow [documentation guidance](docs/agents/domain.md) for document ownership, v
 ## Working principles
 
 - Favor KISS, YAGNI, and the smallest playable vertical slice.
+- Prefer conventional, reusable solutions first. Check established implementations before inventing a local algorithm; minimize project-specific rules and document any necessary deviations.
 - Build one concrete mechanic before creating a framework for a category of mechanics.
 - Keep work within `PRODUCT.md`'s MVP scope unless the user changes it.
 - Resolve SDK references through `DRAGONRUBY_HOME` (`$DRAGONRUBY_HOME` in Bash/Zsh). Development uses Linux or macOS. Prefer that installation's `docs/` and `samples/` before external sources. If unset or inaccessible, follow `README.md` setup and report the missing reference rather than assuming a machine-specific path.

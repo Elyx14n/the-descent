@@ -10,12 +10,13 @@ class RenderTests
     # Emulate a source camera constructed before the new code was hot loaded.
     camera.instance_variable_set(:@scroll, nil)
     marker = { x: 450, y: 500, w: 4, h: 4, path: :solid }
+    velocity = { x: Math.sqrt(0.5), y: Math.sqrt(0.5) }
     previous = nil
     60.times do |step|
       x = 500.125 + (step * Math.sqrt(0.5))
       y = 500.5 + (step * Math.sqrt(0.5))
       camera.follow(x: x + 0.25, y: y + 0.25)
-      presented = camera.for_presentation(x: x, y: y)
+      presented = camera.for_presentation(x: x, y: y, velocity: velocity)
       actor = Descent::Player.new(x: x, y: y).render_data
       frame = { floor: [marker], groups: [actor], fade_actors: [actor[:fade_actor]] }
       outputs = PassOrderOutputs.new

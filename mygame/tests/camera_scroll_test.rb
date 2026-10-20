@@ -16,7 +16,8 @@ class CameraScrollTests
             position = { x: x + (dx * step * speed * Math.sqrt(0.5)),
                          y: y + (dy * step * speed * Math.sqrt(0.5)) }
             raster = scroll.position(**position, scale: 1)
-            if previous
+            # The first moving sample establishes direction after initialization.
+            if previous && step > 1
               sx = (raster[:x] - previous[:x]) * dx
               sy = (raster[:y] - previous[:y]) * dy
               assert.equal! sx, sy
@@ -31,12 +32,42 @@ class CameraScrollTests
     end
   end
 
-  def test_pausing_and_speed_changes_preserve_the_diagonal_phase(_args, assert)
+  def test_stopping_returns_to_nearest_placement_as_in_the_published_renderer(_args, assert)
     scroll = Descent::CameraScroll.new
-    distances = [0, 0.707, 1.414, 1.414, 1.414, 1.768, 2.122, 2.829]
-    positions = distances.map { |distance| scroll.position(x: 0.125 + distance, y: 0.5 + distance, scale: 1) }
-    assert.equal! positions.map { |point| point[:x] }, [0, 1, 1, 1, 1, 2, 2, 3]
-    assert.equal! positions.map { |point| point[:y] }, [1, 2, 2, 2, 2, 3, 3, 4]
+    scroll.position(x: 0.125, y: 0.5, scale: 1)
+    scroll.position(x: 1.539, y: 1.914, scale: 1)
+    point = { x: 2.246, y: 2.621, scale: 1 }
+    assert.equal! scroll.position(**point), { x: 3, y: 3 }
+    assert.equal! scroll.position(**point), { x: 2, y: 3 }
+    assert.equal! scroll.position(**point), { x: 2, y: 3 }
+  end
+
+  def test_supplied_velocity_controls_alignment_without_render_frame_history(_args, assert)
+    scroll = Descent::CameraScroll.new
+    point = { x: 2.246, y: 2.621, scale: 1 }
+    velocity = { x: 1, y: 1 }
+    assert.equal! scroll.position(**point, velocity: velocity), { x: 3, y: 3 }
+    assert.equal! scroll.position(**point, velocity: velocity), { x: 3, y: 3 }
+    assert.equal! scroll.position(**point, velocity: { x: 0, y: 0 }), { x: 2, y: 3 }
+    assert.equal! velocity, { x: 1, y: 1 }
+  end
+
+  def test_direction_aware_rounding_handles_shallow_and_steep_slopes_in_both_directions(_args, assert)
+    routes = [
+      [[0, 0], [1.4, 0.6], [1, 0]],
+      [[0, 0], [0.6, 1.4], [0, 1]],
+      [[0, 0], [-1.4, 0.6], [-1, 0]],
+      [[0, 0], [0.6, -1.4], [0, -1]],
+      [[0, 0], [-1.4, -0.6], [-1, 0]],
+      [[0, 0], [-0.6, -1.4], [0, -1]],
+      [[0, 0], [1.4, -0.6], [1, 0]],
+      [[0, 0], [-0.6, 1.4], [0, 1]]
+    ]
+    routes.each do |start, finish, expected|
+      scroll = Descent::CameraScroll.new
+      scroll.position(x: start[0], y: start[1], scale: 1)
+      assert.equal! scroll.position(x: finish[0], y: finish[1], scale: 1).values_at(:x, :y), expected
+    end
   end
 
   def test_repeated_turns_and_wall_sliding_do_not_accumulate_camera_error(_args, assert)
@@ -51,18 +82,18 @@ class CameraScrollTests
           raster = scroll.position(**point, scale: 1)
           assert.true! (raster[:x] - point[:x]).abs <= 1
           assert.true! (raster[:y] - point[:y]).abs <= 1
-          assert.equal! scroll.position(**point, scale: 1), raster
         end
       end
     end
   end
 
-  def test_teleports_resets_and_scale_changes_start_a_fresh_phase(_args, assert)
+  def test_resets_discard_direction_and_scale_changes_use_the_current_grid(_args, assert)
     scroll = Descent::CameraScroll.new
-    scroll.position(x: 0.125, y: 0.5, scale: 1)
-    assert.equal! scroll.position(x: 0.832, y: 1.207, scale: 1), { x: 1, y: 2 }
+    scroll.position(x: 1.539, y: 1.914, scale: 1)
+    assert.equal! scroll.position(x: 2.246, y: 2.621, scale: 1), { x: 3, y: 3 }
     scroll.reset
-    assert.equal! scroll.position(x: 0.832, y: 1.207, scale: 1), { x: 1, y: 1 }
+    assert.equal! scroll.position(x: 2.246, y: 2.621, scale: 1), { x: 2, y: 3 }
+    scroll.reset
     assert.equal! scroll.position(x: -100.125, y: 200.5, scale: 1), { x: -100, y: 201 }
     assert.equal! scroll.position(x: -100.125, y: 200.5, scale: 2), { x: -100, y: 200.5 }
   end
