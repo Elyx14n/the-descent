@@ -56,7 +56,7 @@ _Avoid_: Arrangement (when referring only to these content choices)
 
 **Fade unit**: A local group of scenery sprites that shares one foreground-fading response, such as a wall face, its cap, and mounted artwork. Its supporting walls or doors supply the active colliders; lighting selects its blockers independently.
 
-These definitions describe our 320 × 180 DragonRuby setup with [HD disabled](docs/adr/0013-keep-hd-disabled.md). World space, screen space, and draw space describe coordinate representations; a logical pixel is a unit, while source, native raster, and display pixels belong to image grids. See the [coordinate reference](reference/coordinates-and-pixels.html) for their relationships and [ADR-0018](docs/adr/0018-pair-diagonal-camera-pixel-steps.md) for the current presentation policy.
+These definitions describe our 320 × 180 DragonRuby setup with [HD disabled](docs/adr/0013-keep-hd-disabled.md). World space, screen space, and draw space describe coordinate representations; a logical pixel is a unit, while source, native raster, and display pixels belong to image grids. See the [coordinate reference](reference/coordinates-and-pixels.html) for their relationships and [ADR-0019](docs/adr/0019-use-direction-aware-camera-rounding.md) for the current presentation policy.
 
 **Source pixel / artwork pixel**: One pixel stored in a sprite image. HD changes how that artwork is presented; it does not add newly drawn detail to the source image.
 
@@ -80,7 +80,7 @@ These definitions describe our 320 × 180 DragonRuby setup with [HD disabled](do
 
 **Screen space**: Camera-relative positions in the logical viewport's coordinate system, measured from its bottom-left origin. Coordinates can remain fractional; camera translation is reversible and does not itself require rounding artwork or using physical display-pixel coordinates.
 
-**Draw space**: Our project term for artwork coordinates prepared for a drawing destination, still measured in logical units; it is not a separate SDK coordinate system or render buffer. Scenery uses a camera whose diagonal raster steps are paired, while direct actors use the precise camera and align their final screen-space bounds to the native raster.
+**Draw space**: Our project term for artwork coordinates prepared for a drawing destination, still measured in logical units; it is not a separate SDK coordinate system or render buffer. Scenery uses a camera aligned through direction-aware rounding, while direct actors use the precise camera and align their final screen-space bounds to the native raster.
 
 **Pixel snapping / drawing alignment**: Rounding artwork placement onto the native raster grid while preserving precise gameplay positions. With HD off, final actor bounds align in one-logical-unit steps after camera translation; snapping is a presentation operation, distinct from converting coordinate spaces.
 

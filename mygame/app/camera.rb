@@ -15,9 +15,10 @@ module Descent
       follow(x: x, y: y)
     end
 
-    def follow(x:, y:)
+    def follow(x:, y:, velocity: nil)
       @x = x
       @y = y
+      @velocity = velocity
       self
     end
 
@@ -66,16 +67,16 @@ module Descent
 
     # Interpolation changes the drawing position, not the simulation camera.
     # Initialize here too so cameras surviving a hot reload share the history.
-    def for_presentation(x:, y:)
+    def for_presentation(x:, y:, velocity: nil)
       @scroll ||= CameraScroll.new
-      dup.follow(x: x, y: y)
+      dup.follow(x: x, y: y, velocity: velocity)
     end
 
     # Drawing copies deliberately share presentation history with their source.
     # Simulation follows do not advance it; only presented positions do.
     def for_compositing
       @scroll ||= CameraScroll.new
-      position = @scroll.position(x: @x, y: @y, scale: pixel_scale)
+      position = @scroll.position(x: @x, y: @y, scale: pixel_scale, velocity: @velocity)
       camera = for_drawing
       camera.send(:prepare_compositing_values, position)
       camera

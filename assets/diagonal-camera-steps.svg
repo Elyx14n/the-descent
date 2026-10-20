@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" role="img" aria-labelledby="title desc">
-<title id="title">Independent and paired diagonal camera pixel steps</title>
-<desc id="desc">Two grids show the same straight diagonal camera movement prepared for drawing. Independent axis rounding introduces horizontal and vertical steps. Paired steps stay on one diagonal and sometimes hold their position across frames.</desc>
+<title id="title">Independent and direction-aware camera pixel steps</title>
+<desc id="desc">Two grids show the same straight diagonal camera movement prepared for drawing. Independent axis rounding introduces horizontal and vertical steps. With a known diagonal movement direction, coordinated rounding stays on one diagonal and sometimes holds its position across frames.</desc>
 <rect width="760" height="330" fill="#eef0e9"/>
 <style>text{font-family:system-ui,sans-serif;fill:#27352e;font-size:16px}.caption{font-size:14px}</style>
 <text x="50" y="28">Independent rounding</text>
@@ -23,7 +23,7 @@
 <circle cx="200" cy="108" r="5" fill="#9b4f2f"/>
 <circle cx="230" cy="78" r="5" fill="#9b4f2f"/>
 <text class="caption" x="50" y="292">One axis sometimes steps alone.</text>
-<text x="430" y="28">Paired steps</text>
+<text x="430" y="28">Direction-aware rounding</text>
 <path d="M 430 48 V 258 M 430 48 H 640" stroke="#c6cec5" fill="none"/>
 <path d="M 460 48 V 258 M 430 78 H 640" stroke="#c6cec5" fill="none"/>
 <path d="M 490 48 V 258 M 430 108 H 640" stroke="#c6cec5" fill="none"/>
@@ -32,13 +32,12 @@
 <path d="M 580 48 V 258 M 430 198 H 640" stroke="#c6cec5" fill="none"/>
 <path d="M 610 48 V 258 M 430 228 H 640" stroke="#c6cec5" fill="none"/>
 <path d="M 640 48 V 258 M 430 258 H 640" stroke="#c6cec5" fill="none"/>
-<polyline points="430,228 460,198 460,198 490,168 520,138 550,108 550,108 580,78 610,48" stroke="#12665c" stroke-width="3" fill="none"/>
-<circle cx="430" cy="228" r="5" fill="#12665c"/>
-<circle cx="460" cy="198" r="5" fill="#12665c"/>
-<circle cx="490" cy="168" r="5" fill="#12665c"/>
-<circle cx="520" cy="138" r="5" fill="#12665c"/>
-<circle cx="550" cy="108" r="5" fill="#12665c"/>
-<circle cx="580" cy="78" r="5" fill="#12665c"/>
-<circle cx="610" cy="48" r="5" fill="#12665c"/>
+<polyline points="460,228 460,228 490,198 520,168 520,168 550,138 580,108 580,108 610,78" stroke="#12665c" stroke-width="3" fill="none"/>
+<circle cx="460" cy="228" r="5" fill="#12665c"/>
+<circle cx="490" cy="198" r="5" fill="#12665c"/>
+<circle cx="520" cy="168" r="5" fill="#12665c"/>
+<circle cx="550" cy="138" r="5" fill="#12665c"/>
+<circle cx="580" cy="108" r="5" fill="#12665c"/>
+<circle cx="610" cy="78" r="5" fill="#12665c"/>
 <text class="caption" x="430" y="292">Both axes step on the same frame.</text>
 <text class="caption" x="50" y="319">Drawing positions only; the precise world movement stays diagonal.</text></svg>
