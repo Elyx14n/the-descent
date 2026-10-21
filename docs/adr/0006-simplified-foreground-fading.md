@@ -9,42 +9,36 @@ The working foreground fade already requires an actor's center X to cross its su
 
 ## Eligibility and prepared geometry
 
-Room constructs local fade units once, using a private `fade_unit(base, sprites:)` helper. Each unit inherits its supporting base's canonical type and keeps both a live `base` sprite reference and a separate `footprint` rectangle snapshot. The base identifies final drawing order and current artwork; the footprint supplies stable distance geometry through door-state changes. Members retain their original sprite references, and unit identities remain stable until the room is rebuilt.
+[ADR-0015](0015-use-colliders-for-foreground-fading.md) replaces this decision's original footprint snapshots and later alpha geometry with active wall/door colliders. The math and transition rules below remain applicable, now measuring each qualifying collider separately.
 
-Ceiling pieces associate with bases of matching X and width in the same cell or immediately below; existing door-cap ownership also establishes an association. The lowest associated base supplies the footprint, mounted artwork joins its supporting wall, and unassociated bases or ceiling pieces form their own units. Neighboring columns remain independent. This needs no additional Tiled properties.
+Room constructs local units once, retaining base/member sprite references and active collider arrays. Door changes refresh colliders without replacing units or histories. Mounted artwork and supporting caps keep their local associations; orphan caps cannot trigger fading.
 
-After stable drawing-order sorting, `ForegroundFade.apply` considers only actors whose sprites are present and intersect the viewport. `Geometry.intersect_rect?` handles sprite anchors directly. For a unit to occlude an actor:
+For a visible rendered actor, a single collider must start strictly south of its ground Y, contain its center X (left-inclusive/right-exclusive), exceed its scaled body width, and place its top less than 32 world pixels south of the actor. The base must draw after the actor, and a member drawn after the actor must cross its feet-to-head center line with positive height using full anchored artwork bounds.
 
-- The footprint's bottom Y must be strictly below the actor's live ground Y.
-- The supporting base must draw after the actor and contain its center X, with left-inclusive, right-exclusive bounds.
-- At least one member drawn after the actor must intersect the vertical feet-to-head center line with positive height.
-
-Actor supplies its scaled visible body height: Player 26 source pixels and Enemy 54. Full animation-frame dimensions include empty padding and are unsuitable for this check. Continuous world Y allows a foreground base in the actor's grid row to qualify; an overhead cap alone cannot make a background base qualify.
-
-[ADR-0007](0007-alpha-derived-scenery-bounds.md) supersedes the original full-frame member intersection with alpha-derived visible bounds and requires an intersecting member to be strictly wider than the actor's scaled visible body width. Outside-room playtests exposed transparent padding on the side walls and doors, then unnecessary fading on genuinely narrow strips. Supporting-base order/span, prepared footprints, and the spatial and temporal math below remain unchanged.
+Actor supplies scaled visible body dimensions: Player 14 × 26 source pixels and Enemy 60 × 54. Full animation-frame dimensions include empty padding and are unsuitable for the actor body interval. Continuous world Y allows a foreground collider in the actor's grid row to qualify.
 
 ## Spatial target: gap, smoothstep, and lerp
 
-Room-created footprints share their base's horizontal bounds, and current door variants preserve those bounds. Eligibility therefore guarantees zero horizontal distance from the actor to the footprint. With the footprint starting below the actor, the previous Euclidean distance reduces to:
+Eligibility guarantees zero horizontal distance from the actor to each qualifying collider. With its bottom below the actor, point-to-rectangle distance reduces to:
 
 ```ruby
-distance = [actor[:y] - (footprint[:y] + footprint[:h]), 0].max
+distance = [actor[:y] - (collider[:y] + collider[:h]), 0].max
 t = distance.fdiv(RADIUS).clamp(0, 1)
 smooth_step = (3 * (t**2)) - (2 * (t**3))
 target = min_opacity.lerp(1.0, smooth_step)
 ```
 
-`multiplier` now computes this vertical-gap target; its caller establishes eligibility first. It is no longer a general distance query for arbitrary points outside the supporting column. Any future footprint or door geometry that breaks the shared horizontal bounds must revisit this simplification.
+`multiplier` now computes this vertical-gap target; its caller establishes eligibility first. It is no longer a general distance query for arbitrary points outside the supporting column. The same collider must establish both horizontal eligibility and distance.
 
-The 32-world-pixel radius starts at the footprint's **top edge**, rather than its bottom-left origin. Feet inside the footprint or at its top edge give a zero gap. Cubic smoothstep, `3t² - 2t³`, maps the normalized gap to an S-shaped progression with zero slope at both ends. Lerp then maps that progression from the type's minimum opacity to full opacity:
+The 32-world-pixel radius starts at the collider's **top edge**, rather than its bottom-left origin. Feet inside the collider or at its top edge give a zero gap. Cubic smoothstep, `3t² - 2t³`, maps the normalized gap to an S-shaped progression with zero slope at both ends. Lerp then maps that progression from the type's minimum opacity to full opacity:
 
-| Vertical gap | Normalized gap | Smoothstep | Wall/ceiling target | Door target |
+| Vertical gap | Normalized gap | Smoothstep | Wall target | Door target |
 | --- | --- | --- | --- | --- |
 | 0 | 0 | 0 | 0.25 | 0.75 |
 | 16 | 0.5 | 0.5 | 0.625 | 0.875 |
 | 32 or more | 1 | 1 | 1 | 1 |
 
-These are distance targets before temporal smoothing. Walls and standalone ceiling pieces use minimum opacity 0.25; doors use 0.75. Associated members inherit the supporting base's setting. The strongest eligible actor supplies the unit's target; absent eligibility targets full opacity.
+These are distance targets before temporal smoothing. Walls use minimum opacity 0.25; doors use 0.75. Colliderless ceiling-only units remain opaque. Associated members inherit the supporting base's setting. The strongest eligible collider/actor pair supplies the unit's target; absent eligibility targets full opacity.
 
 ## Temporal approach: towards
 
@@ -74,7 +68,7 @@ This removes unnecessary horizontal-distance math and viewport bounds normalizat
 
 ## Verification and references
 
-Preserve coverage for footprint contact and edge distances, same-grid-row bases, side contacts, body padding, base/member drawing order, door variants, anchored viewport visibility, shared alpha, multiple actors, exit/reentry, and repeated draws within a tick. The runtime still rejects side columns through eligibility. The user confirmed the corrected implementation works; transition feel and enlarged-window appearance remain manual checks after future changes.
+Preserve coverage for collider contact and edge distances, same-grid-row bases, side contacts, body padding, base/member drawing order, door variants, anchored viewport visibility, shared alpha, multiple actors, exit/reentry, and repeated draws within a tick. The runtime still rejects side columns through eligibility. The user confirmed the corrected implementation works; transition feel and enlarged-window appearance remain manual checks after future changes.
 
 Implementation: [ForegroundFade](../../mygame/app/foreground_fade.rb), [Room](../../mygame/app/room.rb), [Actor](../../mygame/app/actor.rb), and [Render](../../mygame/app/render.rb). Research evidence, earlier playtest findings, and the manual scenario remain in the [foreground-fading note](../notes/foreground-fading.md).
 

@@ -4,7 +4,7 @@ module Descent
   # Small drawing helpers, composed as ordinary DragonRuby primitives.
   module UI
     COLORS = {
-      bg: {  r: 12, g: 10, b: 16 }.freeze,
+      bg: {  r: 0, g: 0, b: 0 }.freeze,
       ink: { r: 18, g: 17, b: 22 }.freeze,
       stone: { r: 91, g: 87, b: 86 }.freeze,
       light: { r: 143, g: 135, b: 122 }.freeze,
@@ -14,9 +14,9 @@ module Descent
     }.freeze
 
     TEXT = {
-      # HD preserves small glyph detail; size-8 m5x7 loses stroke coverage on a
-      # true 320x180 raster. HD-off UI needs different glyphs/sizes (ADR-0002).
-      font: 'fonts/m5x7.ttf',
+      # Pixuf is the selected UI font for the native 320x180 raster.
+      # Keep HD off when tuning text size and layout (ADR-0013).
+      font: 'fonts/Pixuf.ttf',
       body: 8,
       h1: 16,
       color: { r: 220, g: 215, b: 190 }.freeze

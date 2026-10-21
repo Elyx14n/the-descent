@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>01 · Where a coordinate lives — The Descent</title>
+  <link rel="stylesheet" href="../assets/learning.css">
+  <script src="../assets/coordinates.js" defer></script>
+  <script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">The Descent · lesson 01 · explore at your own pace</p>
+    <h1>Where a coordinate lives</h1>
+    <p class="lede">Follow a viewing window across a room. Keep the equations symbolic.</p>
+    <p class="meta">Goal: read and modify the camera/rendering code confidently. This version uses verbal reasoning, spatial diagrams, and algebra; no arithmetic answers or timed tasks are required.</p>
+    <nav aria-label="Lesson sections"><a href="#distinction">The distinction</a><a href="#try">Explore spatially</a><a href="#practice">Practice bank</a><a href="../reference/coordinates-and-pixels.html">Quick reference</a></nav>
+  </header>
+  <section id="distinction">
+    <h2>Use a frame, a ruler, and a mosaic</h2>
+    <div class="flow">
+      <div><strong>Space · the frame</strong>World space locates the actor in the room. Screen space locates that same actor within the camera’s viewing window.</div>
+      <div><strong>Unit · the ruler</strong>A logical pixel is our unit of distance. Changing the reference origin does not replace the ruler.</div>
+      <div><strong>Grid · the mosaic</strong>A raster stores color samples in cells. Source artwork, rendered images, and the display have their own grids.</div>
+    </div>
+    <p>Sliding a picture frame across a still painting changes what appears inside the frame. It does not move the objects painted on the canvas. That is the relationship between camera movement, screen positions, and world positions.</p>
+    <p>A logical distance can be fractional. Picture a point resting inside a grid cell, rather than on its boundary. The point has a fractional position; the cell is still whole. Our term <strong>logical pixel</strong> names the ruler’s unit, while <strong>native raster pixel</strong> names a cell of the rendered image.</p>
+    <p>Image grids also have coordinates: <code>source_x</code> selects content within the artwork. Destination <code>x</code> places the sprite for drawing. Neither field should be interpreted without identifying its frame and destination.</p>
+    <h3 id="raster">Raster describes how an image is represented</h3>
+    <p>A <strong>raster</strong> represents an image as a rectangular grid of pixel samples. A <strong>vector</strong> description specifies shapes and paths. <strong>Rasterization</strong> produces samples on a chosen grid from drawing geometry.</p>
+    <p>The grid is what defines a raster. It might come from a photo, a sprite image, or vector drawing commands, and it can exist only in a render target’s memory. The source description and the rendered output can use different representations.</p>
+    <p class="source">Sources: <a href="../GLOSSARY.md">project vocabulary</a>, <a href="../mygame/app/sprite.rb">Sprite source and destination rectangles</a>, <a href="https://www.w3.org/TR/png-3/#4Concepts">W3C PNG image model</a>, and <a href="https://www.w3.org/TR/SVG2/intro.html">W3C SVG introduction</a>.</p>
+  </section>
+  <section id="try" data-coordinate-demo>
+    <h2>Move the viewing window</h2>
+    <p>Hold the actor still and move only the camera. Track the actor first against the room, then against the viewing window. The controls do the arithmetic; watch which relationship changes.</p>
+    <noscript><p class="note">Enable JavaScript to move the diagrams. The symbolic explanations, static figures, and reference remain readable without it.</p></noscript>
+    <div class="controls">
+      <label>Move the actor in the room<input name="world" type="range" min="430" max="570" step="0.25" value="500.5" aria-valuetext="Actor near the camera center"></label>
+      <label>Move the camera window<input name="camera" type="range" min="430" max="570" step="0.25" value="500.25" aria-valuetext="Camera near the actor"></label>
+      <label>Enlarge the displayed image<input name="fit" type="range" min="1" max="8" step="0.5" value="5.5" aria-valuetext="Image enlarged on the display"></label>
+    </div>
+    <div class="buttons no-print"><button type="button" data-follow>Center the window on this edge</button><button type="button" data-between>Place the edge between grid lines</button><button type="button" data-reset>Reset the diagrams</button></div>
+    <figure>
+      <svg viewBox="0 0 800 200" role="img" aria-label="A stationary room with landmarks, an actor edge, and a camera window that can move independently" data-world><text x="30" y="50">World space: the actor has a place in the room.</text></svg>
+      <figcaption>The room is the world reference. The outlined rectangle is the camera’s viewing window; its outline is not a wall or a physical display border.</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 800 150" role="img" aria-label="The same actor and landmarks viewed within the logical camera window" data-screen><text x="30" y="50">Screen space: the actor has a place within the viewing window.</text></svg>
+      <figcaption>The viewing window is now the reference. Moving it across the room changes screen positions while world positions stay fixed.</figcaption>
+    </figure>
+    <p class="spatial-status" data-spatial-description role="status" aria-live="polite">The actor is near the middle of the viewing window. Its drawing edge is adjusted to a native grid boundary.</p>
+    <h3>Inspect the drawing edge</h3>
+    <figure>
+      <svg viewBox="0 0 800 180" role="img" aria-label="An enlarged native grid showing an ideal artwork edge between cell boundaries and its aligned drawing copy" data-raster><text x="30" y="50">The ideal edge can be between boundaries; the drawing copy aligns to a boundary.</text></svg>
+      <figcaption>Top: the ideal artwork edge after camera translation. Bottom: the final drawing copy. The world position is untouched. The colored strip represents an edge-sized piece of artwork, not a fractional stored pixel.</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 800 120" role="img" aria-label="A native cell enlarged over the display grid without numeric tick labels" data-display><text x="30" y="50">The same native image can cover a larger display area.</text></svg>
+      <figcaption>The colored span belongs to one native cell’s enlarged footprint. Its boundary can cut across the display grid. Sampling chooses the colors of whole display cells.</figcaption>
+    </figure>
+    <p>Enlargement changes the display mapping. It does not add detail to the source artwork or change the actor’s place in the room. Keep the camera and actor controls fixed while exploring this part.</p>
+    <h3>The algebra behind the window</h3>
+    <pre><code>screen_left = world_left − camera_center + viewport_midpoint
+world_left  = screen_left + camera_center − viewport_midpoint
+
+draw_left = align(screen_left)</code></pre>
+    <p>Subtract the camera center to express a point relative to the camera. Add the viewport midpoint to locate it inside the window. <code>align</code> names our nearest-grid-boundary operation on the final artwork edge; it is a teaching name for the policy, not a new SDK function.</p>
+    <p class="source">Sources: <a href="../mygame/app/camera.rb">Camera#for_drawing(snap: false)</a>, <a href="../mygame/app/render.rb">Render.direct_actor</a>, <a href="../mygame/metadata/game_metadata.txt">the fixed canvas configuration</a>, and <a href="https://wiki.libsdl.org/SDL3/SDL_SetRenderLogicalPresentation">SDL logical presentation</a>. The diagrams illustrate geometry; they do not emulate the game’s sampler.</p>
+  </section>
+  <section id="code">
+    <h2>Read the pipeline as a sequence of meanings</h2>
+    <ol class="pipeline">
+      <li><strong>World position.</strong> <a href="../mygame/app/room_preview.rb">RoomPreview</a> interpolates the actor’s position in the room.</li>
+      <li><strong>Camera conversion.</strong> <a href="../mygame/app/camera.rb">Camera</a> expresses that position relative to a drawing destination. Check whether the caller supplies the fractional presentation snapshot or the aligned scenery snapshot.</li>
+      <li><strong>Final artwork alignment.</strong> <a href="../mygame/app/render.rb">Render.direct_actor</a> aligns the rectangle’s final screen-space bounds.</li>
+      <li><strong>Presentation.</strong> The finished native image is enlarged and positioned on the display.</li>
+    </ol>
+    <p>Our term <strong>draw space</strong> describes coordinates prepared for their destination. Scenery uses paired camera pixel steps inside 320 × 180 targets presented at (0, 0). Direct actors align at their final screen destination. Both policies use logical units.</p>
+    <p class="note">Conversion changes the reference origin. Alignment chooses a drawing boundary. A reversible translation preserves the original position; alignment can discard a fractional difference.</p>
+    <p>For anchored artwork, first move from the anchor to the left edge, align the edge, then restore the anchor offset. A correctly aligned rectangle can have its center between grid boundaries.</p>
+    <p class="source">Primary reading: <a href="../mygame/app/camera.rb">Camera#to_screen_space</a> alongside the installed camera-space/world-space sample. The default camera path can still use a snapped offset; the fractional formula above describes the presentation snapshot. See <a href="https://docs.dragonruby.org/#/api/grid">Grid</a> and <a href="https://docs.godotengine.org/en/stable/tutorials/2d/2d_transforms.html">the transform overview</a> for supporting references.</p>
+  </section>
+  <section id="diagonal">
+    <h2>Keep sharpness separate from movement cadence</h2>
+    <p>A straight diagonal world path can become a small staircase when X and Y round on different frames. Each frame can be perfectly sharp while the sequence still wobbles. Our current camera uses movement direction to coordinate rounding; the player’s precise world position is preserved.</p>
+    <figure><img src="../assets/diagonal-camera-steps.svg" alt="Independent axis rounding makes a stepped camera path; pairing the steps keeps its drawing positions on one diagonal."><figcaption>Follow each path with your finger. Which one briefly changes direction? Repeated positions represent held pixels between movement steps.</figcaption></figure>
+    <p>The preview camera follows the player at room edges, keeping the player centered. <a href="../mygame/app/camera_scroll.rb">CameraScroll</a> handles scenery stepping with published dominant-axis rounding: snap the main movement coordinate, project along the direction of travel, then snap the other coordinate. It uses ordinary nearest placement when stopped. Source-art resizing is another stage: nearest presentation keeps the scene sharp, while filtered downsizing keeps small candle and pedestal details stable.</p>
+    <p class="source">Read the <a href="../reference/coordinates-and-pixels.html#motion">motion explanation</a>, <a href="../reference/coordinates-and-pixels.html#sampling">sampling comparison</a>, and <a href="../docs/adr/0019-use-direction-aware-camera-rounding.md">current decision</a>. The slider diagrams above isolate precise camera conversion and final actor alignment; they do not simulate the scenery’s movement history or its sampler.</p>
+  </section>
+  <section id="practice">
+    <h2>Practice through explanation, pictures, and algebra</h2>
+    <p>Choose one round at a time. Each question asks for a relationship, a prediction, or a symbolic transformation. No arithmetic entry is required. Feedback stays in this browser session and is not sent anywhere.</p>
+    <nav aria-label="Practice rounds"><a href="#basic">Basic</a><a href="#pixel-practice">Pixels &amp; raster</a><a href="#application">Application</a><a href="#advanced">Advanced</a></nav>
+    <section id="basic" class="practice-round">
+      <h3>Basic · establish the distinctions</h3>
+      <p>Use the frame, ruler, and mosaic descriptions.</p>
+    <fieldset data-quiz data-answer="1" data-explanation="The actor keeps its place in the room. Moving the viewing window changes where that place appears within the window." data-hint="Imagine sliding a picture frame across a still painting. The painting stays put.">
+      <legend>Basic 1 · The actor stays beside the same wall. Only the camera moves. Which quantity changes?</legend>
+      
+      <label class="choice"><input type="radio" name="basic-camera" value="0">The world position</label>
+      <label class="choice"><input type="radio" name="basic-camera" value="1">The screen position</label>
+      <label class="choice"><input type="radio" name="basic-camera" value="2">The source texture</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="0" data-explanation="Logical pixel names our unit of distance. A coordinate space gives the distance a reference origin." data-hint="A unit answers “how far?” rather than “from where?”">
+      <legend>Basic 2 · Which phrase names a measurement unit?</legend>
+      
+      <label class="choice"><input type="radio" name="basic-unit" value="0">A logical pixel</label>
+      <label class="choice"><input type="radio" name="basic-unit" value="1">A screen origin</label>
+      <label class="choice"><input type="radio" name="basic-unit" value="2">A world position</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Only the copy of the artwork sent to the raster is aligned. The stored world position keeps its existing precision." data-hint="Follow the data: Render.direct_actor returns a drawing hash; it does not write a new Player position.">
+      <legend>Basic 3 · A fractional actor edge is aligned for drawing. What remains true?</legend>
+      
+      <label class="choice"><input type="radio" name="basic-alignment" value="0">World becomes integral</label>
+      <label class="choice"><input type="radio" name="basic-alignment" value="1">Camera becomes integral</label>
+      <label class="choice"><input type="radio" name="basic-alignment" value="2">World stays fractional</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Subtracting the camera center expresses the point relative to the camera. Adding the viewport midpoint places that camera-relative point within the logical viewport." data-hint="Hold world fixed and move camera right. The relationship should move the point left within the window.">
+      <legend>Basic 4 · Which relationship describes the fractional presentation camera?</legend>
+      <p>Use symbols rather than substituting numbers. <code>camera</code> is the world position of the camera center; <code>midpoint</code> is the logical viewport midpoint.</p>
+      <label class="choice"><input type="radio" name="basic-equation" value="0"><code>screen = world + camera − midpoint</code></label>
+      <label class="choice"><input type="radio" name="basic-equation" value="1"><code>screen = world − midpoint + camera</code></label>
+      <label class="choice"><input type="radio" name="basic-equation" value="2"><code>screen = world − camera + midpoint</code></label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    </section>
+    <section id="pixel-practice" class="practice-round">
+      <h3>Pixels &amp; raster · identify what belongs where</h3>
+      <p>Name the unit or image grid without trying to calculate a pixel count.</p>
+    <fieldset data-quiz data-answer="1" data-explanation="It is a source/artwork pixel stored in the asset. Drawing maps the artwork onto another grid." data-hint="Ask where this particular color sample is stored before drawing begins.">
+      <legend>Pixels 1 · One cell in the player’s PNG belongs to which grid?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-source" value="0">The native grid</label>
+      <label class="choice"><input type="radio" name="pixels-source" value="1">The source grid</label>
+      <label class="choice"><input type="radio" name="pixels-source" value="2">The display grid</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Changing the origin does not require changing the ruler. Our camera translates logical units between representations." data-hint="An origin and a ruler answer different questions.">
+      <legend>Pixels 2 · World, screen, and prepared drawing positions all use what unit in our game?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-unit" value="0">A display cell</label>
+      <label class="choice"><input type="radio" name="pixels-unit" value="1">A source cell</label>
+      <label class="choice"><input type="radio" name="pixels-unit" value="2">A logical unit</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="0" data-explanation="The native raster is the game image we have rendered. The physical display shows an enlarged presentation of that image." data-hint="Separate the generated game image from the asset image and the physical output.">
+      <legend>Pixels 3 · Which term names a cell in the final HD-off game image, before window enlargement?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-native" value="0">A native pixel</label>
+      <label class="choice"><input type="radio" name="pixels-native" value="1">A source pixel</label>
+      <label class="choice"><input type="radio" name="pixels-native" value="2">A display pixel</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="Display pixels belong to the physical output grid. The native game image is mapped onto that grid during presentation." data-hint="Which grid is at the end of the image’s journey?">
+      <legend>Pixels 4 · Which term names a physical output cell on the display?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-display" value="0">A logical pixel</label>
+      <label class="choice"><input type="radio" name="pixels-display" value="1">A display pixel</label>
+      <label class="choice"><input type="radio" name="pixels-display" value="2">A native pixel</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="A raster holds pixel samples on an image grid. Its origin might be a photograph, a sprite, vector drawing commands, or procedural drawing." data-hint="Describe how the image is represented, rather than how it was originally made.">
+      <legend>Pixels 5 · What defines a raster representation?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-raster" value="0">A list of curves</label>
+      <label class="choice"><input type="radio" name="pixels-raster" value="1">A set of coordinates</label>
+      <label class="choice"><input type="radio" name="pixels-raster" value="2">A grid of samples</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="0" data-explanation="The source can remain a vector description. The target stores the resulting samples on a grid, so that output is a raster." data-hint="Keep the recipe separate from the image produced by following it.">
+      <legend>Pixels 6 · A renderer paints a vector circle into a pixel target. What is that target?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-vector-output" value="0">The output is raster</label>
+      <label class="choice"><input type="radio" name="pixels-vector-output" value="1">The output stays vector</label>
+      <label class="choice"><input type="radio" name="pixels-vector-output" value="2">The output loses coordinates</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="Rasterization evaluates drawing geometry on a destination grid. Vectorization derives shape/path descriptions from image content." data-hint="Moving a viewing window does not change an image representation.">
+      <legend>Pixels 7 · Which operation turns drawing geometry into pixel samples?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-rasterization" value="0">Translating the camera</label>
+      <label class="choice"><input type="radio" name="pixels-rasterization" value="1">Rasterizing the geometry</label>
+      <label class="choice"><input type="radio" name="pixels-rasterization" value="2">Vectorizing the geometry</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="source_x selects content within the artwork. It does not choose where the actor stands in the room." data-hint="Compare source_x/source_y with the destination x/y fields in Sprite#to_primitive.">
+      <legend>Pixels 8 · In a sprite hash, what grid does <code>source_x</code> address?</legend>
+      
+      <label class="choice"><input type="radio" name="pixels-crop" value="0">The viewport grid</label>
+      <label class="choice"><input type="radio" name="pixels-crop" value="1">The display grid</label>
+      <label class="choice"><input type="radio" name="pixels-crop" value="2">The artwork grid</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    </section>
+    <section id="application" class="practice-round">
+      <h3>Application · predict the visible result</h3>
+      <p>Picture the change first. Then explain what stayed fixed.</p>
+    <fieldset data-quiz data-answer="2" data-explanation="The viewing window moves right, so a fixed landmark appears to move left within it. The landmark’s world position is unchanged." data-hint="Move only the window in the simulator. Track the wall relative to the window frame, not the room.">
+      <legend>Application 1 · Slide the camera window right across a stationary room. How does a fixed wall move within that window?</legend>
+      
+      <label class="choice"><input type="radio" name="apply-camera" value="0">It moves right</label>
+      <label class="choice"><input type="radio" name="apply-camera" value="1">It stays still</label>
+      <label class="choice"><input type="radio" name="apply-camera" value="2">It moves left</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="0" data-explanation="The same native image occupies a larger display area. The room, logical coordinates, and stored artwork do not acquire new positions or detail." data-hint="Think of projecting the same finished slide onto a larger surface.">
+      <legend>Application 2 · Enlarge the window while holding the actor, camera, and HD-off canvas fixed. What changes?</legend>
+      
+      <label class="choice"><input type="radio" name="apply-window" value="0">The display mapping</label>
+      <label class="choice"><input type="radio" name="apply-window" value="1">The world position</label>
+      <label class="choice"><input type="radio" name="apply-window" value="2">The source artwork</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="The same source content covers a larger destination region. Source pixels and native raster pixels therefore need not map one-to-one." data-hint="Imagine stretching the frame containing a small mosaic without adding tiles to the mosaic.">
+      <legend>Application 3 · Enlarge a sprite’s destination rectangle without changing its source crop. What happens to each source pixel’s destination footprint?</legend>
+      
+      <label class="choice"><input type="radio" name="apply-source-scale" value="0">It becomes smaller</label>
+      <label class="choice"><input type="radio" name="apply-source-scale" value="1">It becomes larger</label>
+      <label class="choice"><input type="radio" name="apply-source-scale" value="2">It stays unchanged</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="The selected artwork changes. The actor and camera positions stay fixed, although the new frame can have a different silhouette." data-hint="Which field selects the picture, and which field places that picture?">
+      <legend>Application 4 · Change only <code>source_x</code> to select another sprite-sheet frame. What does that do?</legend>
+      
+      <label class="choice"><input type="radio" name="apply-animation" value="0">Move the logical viewport</label>
+      <label class="choice"><input type="radio" name="apply-animation" value="1">Change the animation frame</label>
+      <label class="choice"><input type="radio" name="apply-animation" value="2">Shift the simulation position</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Check whether the final rectangle edges straddle native grid cells. That drawing placement can blend facial detail even while the player stands still." data-hint="Follow the artwork all the way to its last drawing destination.">
+      <legend>Application 5 · In the earlier filtered setup, a stopped player was sharp at some locations and soft at others beside a clamped camera. What should you inspect first?</legend>
+      
+      <label class="choice"><input type="radio" name="apply-blur" value="0">The simulation update frequency</label>
+      <label class="choice"><input type="radio" name="apply-blur" value="1">The source atlas dimensions</label>
+      <label class="choice"><input type="radio" name="apply-blur" value="2">The final actor bounds</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="0" data-explanation="The current target covers the logical viewport. Its dimensions are independent of room extent; the old fractional-scrolling implementation used extra padding. The room may extend far beyond that region without requiring a world-sized texture." data-hint="Separate the map being viewed from the image being drawn for the current view.">
+      <legend>Application 6 · The room expands while the logical viewport stays fixed. What extent should a scenery target cover?</legend>
+      
+      <label class="choice"><input type="radio" name="apply-world-size" value="0">The logical viewport</label>
+      <label class="choice"><input type="radio" name="apply-world-size" value="1">The entire room width</label>
+      <label class="choice"><input type="radio" name="apply-world-size" value="2">The physical window width</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="Sharpness describes a frame’s pixels; movement cadence describes their positions over time. Independently rounded axes can step on different frames." data-hint="Follow the dots in the diagonal figure rather than inspecting a single still frame.">
+      <legend>Application 7 · Every frame is sharp, but diagonal scenery takes brief sideways steps. What should you inspect?</legend>
+      <label class="choice"><input type="radio" name="apply-diagonal" value="0">The font’s source image</label>
+      <label class="choice"><input type="radio" name="apply-diagonal" value="1">When each camera axis steps</label>
+      <label class="choice"><input type="radio" name="apply-diagonal" value="2">The room’s world dimensions</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Nearest scene presentation and source-art downsizing are different sampling stages. Our resized props use filtering to keep their internal pixels stable while the scene retains nearest presentation." data-hint="Separate resizing one prop from presenting the completed scene.">
+      <legend>Application 8 · Nearest scene presentation fixes blur. Must every downsized prop also use nearest sampling?</legend>
+      <label class="choice"><input type="radio" name="apply-resize" value="0">Yes, all stages must match</label>
+      <label class="choice"><input type="radio" name="apply-resize" value="1">Yes, if the camera moves</label>
+      <label class="choice"><input type="radio" name="apply-resize" value="2">No, assess each stage separately</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    </section>
+    <section id="advanced" class="practice-round">
+      <h3>Advanced · reason about the transformations</h3>
+      <p>Keep the variables symbolic. Trace their meaning through the drawing stages; no decimal substitution is needed. The <a href="../reference/coordinates-and-pixels.html#formulas">symbolic reference</a> pairs each relationship with a verbal explanation.</p>
+    <fieldset data-quiz data-answer="1" data-explanation="The complete camera conversion belongs inside align. A later fractional translation can move an already aligned edge back between grid lines." data-hint="Read the expressions from the inside outward. What is the last operation applied to the final edge?">
+      <legend>Advanced 1 · Which expression guarantees that the final actor edge is aligned after fractional camera translation?</legend>
+      <p><code>align(x)</code> means choose the nearest native grid boundary for an edge. You do not need to evaluate it numerically.</p>
+      <label class="choice"><input type="radio" name="advanced-order" value="0"><code>draw = align(world) − camera + midpoint</code></label>
+      <label class="choice"><input type="radio" name="advanced-order" value="1"><code>draw = align(world − camera + midpoint)</code></label>
+      <label class="choice"><input type="radio" name="advanced-order" value="2"><code>draw = world − align(camera) + midpoint</code></label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Move from the anchor to the left edge by subtracting the offset. Align that edge, then restore the same offset. The anchor can remain between boundaries even when the edges are aligned." data-hint="Trace the path: anchor to left edge, edge to grid boundary, boundary back to anchor.">
+      <legend>Advanced 2 · Which expression aligns the left edge while preserving its relationship to the anchor?</legend>
+      <figure><img src="../assets/anchor-alignment.svg" alt="A sprite has a marked center anchor and distinct left and right edges. A bracket marks the displacement from its left edge to its anchor."><figcaption>The anchor is a reference point inside the rectangle. The colored bracket is <code>anchor_offset</code>. Aligning the anchor and aligning the edges are different policies.</figcaption></figure>
+      <label class="choice"><input type="radio" name="advanced-anchor" value="0"><code>draw_anchor = align(screen_anchor) − anchor_offset + anchor_offset</code></label>
+      <label class="choice"><input type="radio" name="advanced-anchor" value="1"><code>draw_anchor = align(screen_anchor + anchor_offset) − anchor_offset</code></label>
+      <label class="choice"><input type="radio" name="advanced-anchor" value="2"><code>draw_anchor = align(screen_anchor − anchor_offset) + anchor_offset</code></label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="Several nearby screen positions can be mapped to the same grid boundary. Rounding discards their differences; knowing the camera cannot reconstruct that lost detail." data-hint="Picture several close points being moved onto one shared boundary.">
+      <legend>Advanced 3 · The drawing edge has been rounded, and the camera is known. What can you conclude about the original world position?</legend>
+      
+      <label class="choice"><input type="radio" name="advanced-inverse" value="0">The original is unique</label>
+      <label class="choice"><input type="radio" name="advanced-inverse" value="1">Several originals are possible</label>
+      <label class="choice"><input type="radio" name="advanced-inverse" value="2">The camera becomes unknown</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="0" data-explanation="A position can lie inside a complete cell. Fractional coordinates describe locations or distances; they do not require a smaller stored pixel cell." data-hint="Distinguish the location of a point from the existence of a cell.">
+      <legend>Advanced 4 · The dot is at the center of one whole native cell, between its boundary lines. What does its coordinate describe?</legend>
+      <figure><img src="../assets/pixel-center.svg" alt="A whole grid cell has a dot in its interior, halfway between the labeled left and right boundaries."><figcaption>The boundaries and the center are all positions. The colored region is one whole cell.</figcaption></figure>
+      <label class="choice"><input type="radio" name="advanced-center" value="0">A fractional position</label>
+      <label class="choice"><input type="radio" name="advanced-center" value="1">A fractional cell</label>
+      <label class="choice"><input type="radio" name="advanced-center" value="2">A physical fragment</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="Undo presentation in reverse order: remove the display margin, then undo the enlargement. The native coordinate is still a position in the rendered image, not a world position." data-hint="The forward mapping first scales the image coordinate, then places that image after a display margin.">
+      <legend>Advanced 5 · Isolate the native coordinate in the presentation equation.</legend>
+      <pre><code>display = margin + fit × native</code></pre><figure><img src="../assets/display-mapping.svg" alt="A display contains a left margin and an enlarged game-image rectangle. An actor’s position is marked inside the image, while a longer arrow runs from the display origin to that same position."><figcaption>The display coordinate includes the margin. The position inside the game image does not.</figcaption></figure>
+      <label class="choice"><input type="radio" name="advanced-letterbox" value="0"><code>native = (display + margin) / fit</code></label>
+      <label class="choice"><input type="radio" name="advanced-letterbox" value="1"><code>native = (display − margin) / fit</code></label>
+      <label class="choice"><input type="radio" name="advanced-letterbox" value="2"><code>native = display − (margin / fit)</code></label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="For a direct actor, the negative K in its target-relative position cancels the positive K in its offset. Final actor bounds are then aligned. Scenery keeps camera K because its target is presented at zero offset." data-hint="Substitute symbolically and collect the terms in K. This is a coordinate identity; it does not assert that sampling operations cancel.">
+      <legend>Advanced 6 · Eliminate scenery camera K from a direct actor’s coordinates. Which expression describes its screen position before final alignment?</legend>
+      <p><code>C</code> is the precise actor camera; <code>K</code> is the scenery camera. These equations describe the direct actor’s conversion. The scenery target itself is presented at zero offset.</p><pre><code>target = world − K + midpoint
+offset = K − C
+screen = target + offset</code></pre>
+      <label class="choice"><input type="radio" name="advanced-composite" value="0"><code>screen = world − K + midpoint</code></label>
+      <label class="choice"><input type="radio" name="advanced-composite" value="1"><code>screen = world + C − midpoint</code></label>
+      <label class="choice"><input type="radio" name="advanced-composite" value="2"><code>screen = world − C + midpoint</code></label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="1" data-explanation="The coordinate equations describe positions. Sampling also redistributes color. A dark eye can spread into neighboring cells even while its image center stays steady." data-hint="A geometric identity does not recover image information changed by reconstruction.">
+      <legend>Advanced 7 · Opposite translations cancel algebraically. Why might a twice-filtered image still look softer?</legend>
+      <figure><img src="../assets/filtered-detail.svg" alt="A narrow dark feature in one row becomes a wider, lighter feature in another row. The marked center stays at the same horizontal position."><figcaption>Schematic illustration of spreading detail, not a numerical simulation of DragonRuby’s pixel-art filter.</figcaption></figure>
+      <label class="choice"><input type="radio" name="advanced-sampling" value="0">Movement must lose precision</label>
+      <label class="choice"><input type="radio" name="advanced-sampling" value="1">Filtering can spread detail</label>
+      <label class="choice"><input type="radio" name="advanced-sampling" value="2">Camera must reverse direction</label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    <fieldset data-quiz data-answer="2" data-explanation="Area contains a width factor and a height factor. Scaling both contributes k × k. This is a scene-area relationship; it does not predict the same change in whole-game time or FPS." data-hint="Picture both more columns and more rows. Keep the factors symbolic.">
+      <legend>Advanced 8 · Width and height both scale by k. Which symbolic expression describes the new number of raster cells?</legend>
+      <figure><img src="../assets/raster-area.svg" alt="A raster rectangle has a horizontal expansion arrow labeled width × k and a vertical expansion arrow labeled height × k."><figcaption>Both dimensions contribute to the number of cells. No arithmetic total is needed.</figcaption></figure>
+      <label class="choice"><input type="radio" name="advanced-area" value="0"><code>new_cells = old_cells × k</code></label>
+      <label class="choice"><input type="radio" name="advanced-area" value="1"><code>new_cells = old_cells + k</code></label>
+      <label class="choice"><input type="radio" name="advanced-area" value="2"><code>new_cells = old_cells × k²</code></label>
+      <p class="feedback" role="status" aria-live="polite"></p>
+    </fieldset>
+    </section>
+  </section>
+  <footer>
+    <h2>Explain a change before editing it</h2>
+    <p>Label the value’s space, unit, and destination grid. Describe what would visibly change if that value moved. Then use the symbolic equation to check your explanation.</p>
+    <p>Ask me follow-up questions about any step. You can answer aloud or in prose: <em>describe why moving a camera window changes an actor’s screen position while leaving its world position intact.</em> Reading or selecting an answer is not automatically evidence of mastery.</p>
+    <nav aria-label="Continue learning"><a href="../reference/coordinates-and-pixels.html">Quick reference</a><a href="../MISSION.md">Learning goal</a><a href="../RESOURCES.md">Sources</a></nav>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coordinates &amp; pixels — The Descent reference</title>
+  <link rel="stylesheet" href="../assets/learning.css">
+</head>
+<body>
+<main class="reference">
+  <header>
+    <p class="eyebrow">The Descent · verbal, spatial &amp; symbolic reference</p>
+    <h1>Coordinates &amp; pixels</h1>
+    <p class="lede">Keep the frame, the ruler, and the mosaic separate.</p>
+    <nav aria-label="Related reading"><a href="../lessons/0001-coordinates-and-pixels.html">Interactive lesson</a><a href="../GLOSSARY.md">Project glossary</a><a href="../RESOURCES.md">Primary sources</a></nav>
+  </header>
+  <section id="spaces">
+    <h2>Space tells you what the position is relative to</h2>
+    <table>
+      <thead><tr><th>Representation</th><th>Verbal model</th><th>What changes the numbers?</th></tr></thead>
+      <tbody>
+        <tr><td>World space</td><td>The actor’s place in the room.</td><td>Moving the actor through the room. Moving the camera alone leaves this position intact.</td></tr>
+        <tr><td>Screen space</td><td>The actor’s place inside the viewing window.</td><td>Moving the actor or moving the camera window across the room.</td></tr>
+        <tr><td>Draw space</td><td>The artwork’s prepared placement at its drawing destination.</td><td>The selected drawing policy: aligned scenery inside a target, or aligned actor bounds at the final screen destination.</td></tr>
+      </tbody>
+    </table>
+    <p>All three use logical units in this translation-only camera. Changing the frame of reference does not require changing the ruler. Draw space is our project term, not an independent universal SDK space.</p>
+    <p class="source">Source: <a href="../mygame/app/camera.rb">Camera conversions and snapshots</a>, <a href="../mygame/app/render.rb">Render placement</a>.</p>
+  </section>
+  <section id="pixels">
+    <h2>The ruler and the image grids</h2>
+    <table>
+      <thead><tr><th>Term</th><th>Category</th><th>Where it belongs</th></tr></thead>
+      <tbody>
+        <tr><td>Logical pixel</td><td>Distance unit.</td><td>The ruler used by world, screen, and prepared drawing coordinates here. Distances and positions may be fractional.</td></tr>
+        <tr><td>Source/artwork pixel</td><td>Asset image cell.</td><td>The source picture. Source crops address this image’s coordinates, not locations in the room.</td></tr>
+        <tr><td>Native raster pixel</td><td>Rendered image cell.</td><td>A grid in which DragonRuby stores the rendered result. Final output and intermediate scene targets each have their own grids.</td></tr>
+        <tr><td>Physical/display pixel</td><td>Display output cell.</td><td>The physical grid onto which the completed game image is enlarged and positioned.</td></tr>
+      </tbody>
+    </table>
+    <p>Image grids can have coordinates too. A pixel type names a cell or a unit; that name alone does not tell you whether a position is in world space or screen space.</p>
+    <figure><img src="../assets/pixel-center.svg" alt="A center point lies inside a highlighted whole native cell, between its two boundaries."><figcaption>A fractional logical position can lie inside a whole cell. There is no need to imagine a smaller stored pixel inside that cell.</figcaption></figure>
+    <p class="source">Sources: <a href="../GLOSSARY.md">project definitions</a>, <a href="../mygame/app/sprite.rb">source and destination rectangles</a>, <a href="../mygame/metadata/game_metadata.txt">HD-off configuration</a>, <a href="https://docs.dragonruby.org/#/api/outputs">DragonRuby output reference</a>.</p>
+  </section>
+  <section id="raster">
+    <h2>Raster is the mosaic; vector is the drawing description</h2>
+    <p>A <strong>raster</strong> represents an image with a rectangular grid of pixel samples. A <strong>vector</strong> description specifies shapes and paths. <strong>Rasterization</strong> evaluates drawing geometry on a destination grid.</p>
+    <p>The same circle can have a vector source and a raster output. A raster may also come from a photo, a sprite, or procedural drawing; it need not originate as vectors or be saved in a file. <strong>Vectorization</strong> derives shape/path descriptions from image content.</p>
+    <p class="source">Sources: <a href="https://www.w3.org/TR/png-3/#4Concepts">W3C PNG image model</a>, <a href="https://www.w3.org/TR/SVG2/intro.html">W3C SVG introduction</a>, <a href="https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/trace-images-to-convert-raster-into-vector-artwork.html">Adobe image tracing</a>. Practice: <a href="../lessons/0001-coordinates-and-pixels.html#pixel-practice">pixel definitions</a>.</p>
+  </section>
+  <section id="conversion">
+    <h2>Conversion and alignment do different jobs</h2>
+    <p><strong>Conversion:</strong> describe the same point from a new origin. A camera translation can be reversed using the same camera snapshot.</p>
+    <p><strong>Alignment:</strong> place the artwork edge on a chosen grid boundary. Nearby ideal edges may share the same aligned drawing edge, so the exact original fraction cannot be recovered from that edge alone.</p>
+    <p>Align only the final actor bounds after camera translation. Scenery uses a camera whose horizontal and vertical pixel steps are paired during straight diagonal travel. It is drawn into 320 × 180 targets presented at (0, 0). Direct actors use the precise camera independently, so the followed player stays centered.</p>
+    <p class="source">Implementation: <a href="../mygame/app/camera.rb">Camera#for_drawing(snap: false) and Camera#for_compositing</a>, <a href="../mygame/app/render.rb">Render.direct_actor</a>. The default camera conversion can still use a snapped offset; check the snapshot supplied by the caller.</p>
+  </section>
+  <section id="motion">
+    <h2>A sharp image can still move unevenly</h2>
+    <p>Imagine walking up a diagonal staircase. If X and Y cross their rounding boundaries on different frames, a straight camera path can appear to take a sideways step, then an upward step. Different starting fractions can change that pattern even when speed stays the same.</p>
+    <figure><img src="../assets/diagonal-camera-steps.svg" alt="Two camera paths on pixel grids: independent rounding contains horizontal and vertical steps, while paired steps follow one diagonal."><figcaption>Dots mark camera drawing positions. Some consecutive frames share a dot. The precise world path stays diagonal in both cases; these are presentation choices.</figcaption></figure>
+    <p><a href="../mygame/app/camera_scroll.rb">CameraScroll</a> uses the published direction-aware algorithm: round the main movement coordinate, follow the movement direction to that grid line, then round the other coordinate. This also handles shallow and steep angles. Steady 45-degree movement can then advance both axes together. At rest, placement returns to the nearest pixel, so stopping can make a one-pixel settling adjustment. Interpolation supplies a precise presented world position; raster placement still decides which pixel can display it. World movement and collision stay fractional.</p>
+    <p>The preview follows the player through room edges. The scene can show background beyond the room. Camera accepts a position directly and follows it without room bounds. Keeping the player centered and pairing scenery steps solve separate motion symptoms.</p>
+    <p class="source">Project evidence: <a href="../docs/adr/0017-keep-preview-camera-on-player.md">player-centered framing</a>, <a href="../docs/adr/0019-use-direction-aware-camera-rounding.md">published direction-aware rounding</a>, and <a href="../docs/notes/foreground-jitter-investigation.md">captures and playtest findings</a>. This adapts <a href="https://gamedev.stackexchange.com/a/18801">the published algorithm</a>; it is community practice rather than a universal SDK rule.</p>
+  </section>
+  <section id="sampling">
+    <h2>Placement, resizing, and image presentation are separate decisions</h2>
+    <table>
+      <thead><tr><th>Observed symptom</th><th>What we established here</th></tr></thead>
+      <tbody>
+        <tr><td>The whole scene becomes soft.</td><td>Nearest scene presentation removed the reported blur.</td></tr>
+        <tr><td>Candle/pedestal internal pixels change during movement.</td><td>Nearest downsizing switched sampled source pixels. Filter only the source-art resize.</td></tr>
+        <tr><td>Sharp scenery takes uneven diagonal steps.</td><td>Pair the camera’s horizontal and vertical raster steps.</td></tr>
+      </tbody>
+    </table>
+    <p>Metadata uses <code>scale_quality=0</code>. Render selects <code>scale_quality_enum: 3</code> only when artwork is smaller than its source crop. Nearest sampling does not by itself guarantee stable downsizing or even diagonal motion.</p>
+    <p>A fractional texture placement inside the final native framebuffer does not guarantee finer visible movement. The result still passes through that grid’s sampling. Window enlargement happens afterward.</p>
+    <p class="source">Implementation and evidence: <a href="../mygame/app/render.rb">Render.place_artwork</a>, <a href="../docs/adr/0013-keep-hd-disabled.md">display/sampling decision</a>, and <a href="../docs/notes/conventional-pixel-art-rendering-sources.md#follow-up-nearest-scene-presentation-and-downsized-artwork">resizing captures</a>.</p>
+  </section>
+  <section id="example">
+    <h2>Tell the change as a story</h2>
+    <p><strong>Move only the camera.</strong> The room remains still. A fixed landmark shifts within the viewing window. Its world position stays the same.</p>
+    <p><strong>Enlarge only the window.</strong> The same native image occupies more of the display. Logical coordinates and source artwork do not acquire new positions or detail.</p>
+    <p><strong>Align only the artwork.</strong> The displayed edge moves to a grid boundary. Simulation and the interpolated world position keep their precision.</p>
+    <p class="source">Sources: <a href="../mygame/app/camera.rb">camera behavior</a>, <a href="../mygame/app/render.rb">drawing policy</a>, <a href="https://wiki.libsdl.org/SDL3/SDL_SetRenderLogicalPresentation">logical presentation</a>.</p>
+  </section>
+  <section id="formulas">
+    <h2>Symbolic relationships, with their verbal meaning</h2>
+    <h3>Move the origin to the camera, then into the viewport</h3>
+    <pre><code>screen = world − camera + midpoint
+world  = screen + camera − midpoint</code></pre>
+    <p><code>camera</code> is its world-space center, and <code>midpoint</code> belongs to the logical viewport. The inverse undoes those two shifts. This models the fractional presentation path, not the default snapped camera offset.</p>
+    <h3>Travel from an anchor to its edge, then back</h3>
+    <pre><code>left = screen_anchor − anchor_offset
+draw_anchor = align(left) + anchor_offset</code></pre>
+    <p><code>align</code> is our teaching name for choosing the nearest native grid boundary. The distance from the edge to its anchor is preserved; aligning the anchor itself need not align the edges.</p>
+    <figure><img src="../assets/anchor-alignment.svg" alt="A rectangle has a marked left edge, center anchor, and right edge, with an anchor-offset bracket."><figcaption>Follow the bracket from anchor to edge, then restore the same bracket after aligning the edge.</figcaption></figure>
+    <h3>Enlarge the image, then place it after the margin</h3>
+    <pre><code>display = margin + fit × native
+native  = (display − margin) / fit</code></pre>
+    <p>The inverse first removes the display margin, then undoes enlargement. <code>native</code> is an image coordinate; it is not automatically a world position.</p>
+    <figure><img src="../assets/display-mapping.svg" alt="An enlarged game image starts after a display margin; the same actor edge has an image-relative position and a display-relative position."><figcaption>Different origins produce different coordinate descriptions of the same edge.</figcaption></figure>
+    <h3>Let both image dimensions contribute</h3>
+    <pre><code>new_width  = k × old_width
+new_height = k × old_height
+new_cells  = k² × old_cells</code></pre>
+    <p>More columns and more rows both contribute to raster area. This area relationship alone does not predict whole-game time or FPS.</p>
+    <p>Source-to-destination scale can also stay symbolic: <code>footprint = destination_width / source_width</code>. Growing the destination while keeping the source crop fixed expands each source sample’s destination footprint.</p>
+    <p class="source">Sources: <a href="../mygame/app/render.rb">actor and scene placement</a>, <a href="../mygame/app/sprite.rb">source and destination widths</a>, <a href="https://wiki.libsdl.org/SDL3/SDL_SetRenderLogicalPresentation">presentation</a>. Practice: <a href="../lessons/0001-coordinates-and-pixels.html#advanced">advanced symbolic reasoning</a>.</p>
+  </section>
+  <footer>
+    <p class="meta">This is a learning aid for the current HD-off, translation-only camera; <a href="../GLOSSARY.md">GLOSSARY.md</a> owns project vocabulary. Use verbal explanations and diagrams first, then verify the relationship symbolically. No arithmetic exercises are required.</p>
+  </footer>
+</main>
+</body>
+</html>

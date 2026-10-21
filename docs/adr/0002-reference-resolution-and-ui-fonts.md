@@ -1,14 +1,17 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0013-keep-hd-disabled.md
 date: 2026-10-05
-updated: 2026-10-11
+updated: 2026-10-19
 ---
 
 # Use a 320 × 180 reference resolution with m5x7 and HD rendering
 
+The **HD-on and m5x7 selections** below are superseded by [ADR-0013](0013-keep-hd-disabled.md), including its [Pixuf selection](0013-keep-hd-disabled.md#ui-font). Keep HD off; the 320 × 180 canvas, sampling, and font ownership remain in force. The configuration and comparisons below record the earlier m5x7/HD-on decision. Historical HD-on playtests do not authorize restoring HD.
+
 The pixel artwork needs a deliberate view size to remain readable. Use a 320 × 180 logical canvas, draw artwork using its configured source dimensions and entity scale, and let DragonRuby handle display scaling. The confirmed combination is **HD on, pixel-art sampling, and camera/artwork drawing alignment**. Retain m5x7 at the sizes accepted in playtesting.
 
-The project configuration is:
+The historical project configuration was:
 
 | Setting | Accepted value | Purpose |
 | --- | --- | --- |
@@ -52,7 +55,7 @@ HD is optional for crisp text. In the same HD-off/nearest test, the SDK's `tiny.
 
 HD also changes world rendering: sprite geometry and the scene target are rasterized at the higher resolution. Fractional window fitting still exists with HD off, but it scales the already-composited low-resolution frame rather than independently rasterizing each atlas tile at that display scale. Logical pixel blocks can occupy unequal physical widths at a 5.5× presentation scale. In the game playtests recorded in [ADR-0001](0001-viewport-sized-camera.md), removing per-sprite rounding with HD off introduced player wobble and blur even though floors stayed clean. It would also restore coarser visual movement: a one-logical-pixel step occupies approximately five or six display pixels at this window size.
 
-The completed comparisons confirm the original HD-on configuration with pixel-art sampling and display-pixel snapping; the HD-off alternative was not selected. No font replacement was agreed. No CPU or GPU benchmark establishes a performance problem with the snapping arithmetic. `to_draw_space` prepares ordinary sprite positions and does not allocate an additional rendering buffer.
+At the time, the completed comparisons confirmed the original HD-on configuration with pixel-art sampling and display-pixel snapping; the HD-off alternative was not selected, and no font replacement was agreed. ADR-0013 subsequently required HD off and recorded the user's Pixuf selection. No CPU or GPU benchmark establishes a performance problem with the snapping arithmetic. `to_draw_space` prepares ordinary sprite positions and does not allocate an additional rendering buffer.
 
 The bundled Grid documentation still groups HD under Pro, but the SDK's 7.3 changelog explicitly records HD support for Standard and Indie. The installed 7.21 Standard runtime confirms that behaviour. Verify it again when changing SDK versions; this does not establish support for other separately licensed high-DPI or all-screen controls.
 
@@ -62,6 +65,6 @@ HUD and annotation layout use logical screen coordinates. `size_px` is a font si
 
 - Changing the reference resolution changes how much world the player can see. Tune it as a framing decision alongside artwork readability, rather than treating it as a performance switch.
 - UI readability is established by playtesting. Coordinate tests and lint checks cannot establish whether text is comfortable to read.
-- Configuration lives in [game metadata](../../mygame/metadata/game_metadata.txt); font defaults live in [UI](../../mygame/app/ui.rb); the font asset is [m5x7.ttf](../../mygame/fonts/m5x7.ttf).
-- Font source: [m5x7 by Daniel Linssen](https://managore.itch.io/m5x7). Keep its source identifiable when distributing or replacing the asset.
+- Configuration lives in [game metadata](../../mygame/metadata/game_metadata.txt); current font defaults live in [UI](../../mygame/app/ui.rb), using [Pixuf.ttf](../../mygame/fonts/Pixuf.ttf) under [ADR-0013](0013-keep-hd-disabled.md#ui-font).
+- Historical font source: [m5x7 by Daniel Linssen](https://managore.itch.io/m5x7). The m5x7 asset has been replaced by Pixuf; the comparisons above remain evidence about m5x7.
 - SDK sources inspected in 7.21: `$DRAGONRUBY_HOME/docs/api/grid.md`, aspect mode/size and HD modes; `$DRAGONRUBY_HOME/docs/api/outputs.md`, label properties; `$DRAGONRUBY_HOME/docs/changelog.txt`, HD label rendering and the 7.3 Standard/Indie fix; `$DRAGONRUBY_HOME/samples/99_genre_lowrez/lowrez_labels/app/main.rb`, pixel-font examples and intended sizes. Locate the installation through `DRAGONRUBY_HOME` as described in the [repository setup](../../README.md#first-time-setup-and-running-the-game).

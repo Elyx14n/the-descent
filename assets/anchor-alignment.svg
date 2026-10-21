@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 210" role="img">
+<style>text { font: 15px system-ui,sans-serif; fill: #222b2b; } .grid { stroke: #b6c0b1; } .edge { stroke: #59635e; stroke-width: 2; } .guide { stroke: #885221; stroke-width: 2; } .arrow { stroke: #12665c; stroke-width: 2; marker-end: url(#tip); }</style>
+<defs><marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#12665c"/></marker></defs>
+<rect width="800" height="210" fill="#eef0e9"/>
+<title>Anchor and rectangle edges</title><desc>The actor anchor is on a grid boundary while its rectangle edges fall inside cells. A bracket marks the distance from the left edge to the anchor.</desc>
+<line class="grid" x1="80" x2="80" y1="54" y2="138"/><line class="grid" x1="160" x2="160" y1="54" y2="138"/><line class="grid" x1="240" x2="240" y1="54" y2="138"/><line class="grid" x1="320" x2="320" y1="54" y2="138"/><line class="grid" x1="400" x2="400" y1="54" y2="138"/><line class="grid" x1="480" x2="480" y1="54" y2="138"/><line class="grid" x1="560" x2="560" y1="54" y2="138"/><line class="grid" x1="640" x2="640" y1="54" y2="138"/><line class="grid" x1="720" x2="720" y1="54" y2="138"/>
+<rect x="200" y="70" width="400" height="60" fill="#d6aa77" fill-opacity=".7" stroke="#885221"/>
+<circle cx="400" cy="100" r="6" fill="#12665c"/>
+<text x="200" y="40" text-anchor="middle">left edge</text><text x="400" y="40" text-anchor="middle">anchor</text><text x="600" y="40" text-anchor="middle">right edge</text>
+<path d="M 200 150 v 12 h 200 v -12" fill="none" class="guide"/>
+<text x="300" y="190" text-anchor="middle">anchor_offset</text>
+</svg>

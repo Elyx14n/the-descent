@@ -5,6 +5,37 @@ require 'tests/support/room_helpers'
 class TiledDeserializerTests
   include RoomTestHelpers
 
+  class MapOnlyRuntime
+    attr_reader :paths
+
+    def initialize(gtk, contents)
+      @gtk = gtk
+      @contents = contents
+      @paths = []
+    end
+
+    def read_file(path)
+      raise "Unexpected asset read: #{path}" unless path == 'tiled/ritual_gate.json'
+
+      @paths << path
+      @contents
+    end
+
+    def parse_json(contents)
+      @gtk.parse_json(contents)
+    end
+  end
+
+  def test_loading_needs_only_the_map_without_pixels_or_generated_geometry(args, assert)
+    runtime = MapOnlyRuntime.new(args.gtk, args.gtk.read_file('tiled/ritual_gate.json'))
+    room = Descent::Room.new(**Descent::TiledDeserializer.load(runtime, path: 'tiled/ritual_gate.json'))
+    assert.equal! runtime.paths, ['tiled/ritual_gate.json']
+    sprites = room.ground + room.ceiling + room.objects.map { |entry| entry[:sprite] }
+    assert.false!(sprites.any? { |sprite| sprite.key?(:occlusion_bounds) || sprite.key?(:occlusion_polygons) })
+    assert.true! room.collision_rects.any?
+    assert.true!(room.fade_units.any? { |unit| unit[:colliders].any? })
+  end
+
   def test_deserializer_assigns_a_canonical_type_to_every_scenery_entry_and_sprite(args, assert)
     room = tiled_test_room(args)
     assert.equal! room.ground.map { |sprite| sprite[:type] }.uniq, [:ground]
@@ -68,10 +99,8 @@ class TiledDeserializerTests
   def test_deserializer_returns_independent_data_and_does_not_mutate_the_export(args, assert)
     data = tiled_test_map(args)
     before = data.to_s
-    first = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                         image_loader: ->(image) { args.gtk.get_pixels(image) })
-    second = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json',
-                                                          image_loader: ->(image) { args.gtk.get_pixels(image) })
+    first = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json')
+    second = Descent::TiledDeserializer.deserialize(data, path: 'tiled/ritual_gate.json')
     assert.true! first.is_a?(Hash)
     assert.equal! data.to_s, before
     room = Descent::Room.new(**first)

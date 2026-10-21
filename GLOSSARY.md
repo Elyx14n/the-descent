@@ -50,19 +50,25 @@ _Avoid_: Arrangement (when referring only to these content choices)
 
 **Foreground fading**: Reducing the opacity of nearby scenery that draws over an actor, so the actor remains readable behind it. This affects the camera's view without changing movement blocking or gameplay sight rules.
 
-These definitions describe our 320 × 180 DragonRuby setup. The accepted configuration and investigation are recorded in [ADR-0001](docs/adr/0001-viewport-sized-camera.md) and [ADR-0002](docs/adr/0002-reference-resolution-and-ui-fonts.md).
+**Occluder**: A shape used to decide whether scenery obstructs something behind it. Foreground fading uses active wall/door colliders together with artwork overlap; ground-light blocking uses active object colliders. See [ADR-0015](docs/adr/0015-use-colliders-for-foreground-fading.md) and [ADR-0014](docs/adr/0014-use-collider-bases-for-lighting.md).
+
+**Light blocker**: An object's active collider used as a ground-plane obstacle to illumination. Tall artwork and caps do not add separate blocking silhouettes; see [ADR-0014](docs/adr/0014-use-collider-bases-for-lighting.md).
+
+**Fade unit**: A local group of scenery sprites that shares one foreground-fading response, such as a wall face, its cap, and mounted artwork. Its supporting walls or doors supply the active colliders; lighting selects its blockers independently.
+
+These definitions describe our 320 × 180 DragonRuby setup with [HD disabled](docs/adr/0013-keep-hd-disabled.md). World space, screen space, and draw space describe coordinate representations; a logical pixel is a unit, while source, native raster, and display pixels belong to image grids. See the [coordinate reference](reference/coordinates-and-pixels.html) for their relationships and [ADR-0019](docs/adr/0019-use-direction-aware-camera-rounding.md) for the current presentation policy.
 
 **Source pixel / artwork pixel**: One pixel stored in a sprite image. HD changes how that artwork is presented; it does not add newly drawn detail to the source image.
 
-**Logical pixel**: A coordinate unit on our 320 × 180 reference canvas, independent of window size. At entity scale 1, one source pixel occupies one logical unit.
+**Logical pixel**: A coordinate unit on our reference canvas, independent of window size; this translation-only camera uses the same unit for world, screen, and draw coordinates. At entity scale 1, one source pixel spans one logical unit before rasterization.
 
 **Reference resolution / logical canvas**: The coordinate dimensions used to frame the game, currently 320 × 180. Enlarging the window preserves this view of the world.
 
 **Raster**: An image stored as a grid of coloured pixels. **Rasterization** converts drawing instructions, such as sprite rectangles or font outlines, into that grid.
 
-**Native raster pixel**: One pixel in the image DragonRuby actually renders before final presentation. With HD off our native raster is 320 × 180; with HD on it can match the larger display viewport.
+**Native raster pixel**: One cell in a raster DragonRuby renders before final presentation; with HD off, the final game raster is 320 × 180 and one native pixel spans one logical unit. Intermediate scene targets have their own grids; the current scene and lightmap targets are also 320 × 180.
 
-**Physical pixel / display pixel**: One actual pixel in the displayed output. At a 5.5× window fit, one logical unit spans 5.5 display pixels; with HD off, each low-resolution raster pixel is enlarged into a block of display pixels.
+**Physical pixel / display pixel**: One actual pixel of the display output after scaling and letterboxing. At a 5.5× window fit with HD off, one native pixel spans 5.5 display-pixel units geometrically; sampling determines the colors on the discrete display grid.
 
 **Render scale**: DragonRuby's multiplier from logical coordinates to its native raster, exposed as `Grid.render_scale`. In our tested 5.5× enlarged window it is 5.5 with HD on and 1 with HD off.
 
@@ -70,13 +76,13 @@ These definitions describe our 320 × 180 DragonRuby setup. The accepted configu
 
 **HD mode**: DragonRuby's higher-resolution scene and font rendering while retaining logical coordinates. It provides a finer native raster for drawing alignment and more raster detail for small glyphs.
 
-**World space**: Positions relative to the room or map, used for gameplay, movement, and collision. These positions can remain fractional.
+**World space**: Positions relative to the room or map, used for gameplay, movement, and collision, measured in logical units. Positions can be fractional, negative, or outside the viewport; the world is not limited to 320 × 180.
 
-**Screen space**: World positions translated by the camera into logical viewport coordinates. Our conversion shares the camera's snapped translation and can be reversed without rounding the object's position.
+**Screen space**: Camera-relative positions in the logical viewport's coordinate system, measured from its bottom-left origin. Coordinates can remain fractional; camera translation is reversible and does not itself require rounding artwork or using physical display-pixel coordinates.
 
-**Draw space**: Our screen-coordinate representation prepared for rendering: artwork world positions are rounded to the native raster grid, then translated by the same snapped camera. It uses logical units and is not an additional render buffer or a DragonRuby-defined coordinate system.
+**Draw space**: Our project term for artwork coordinates prepared for a drawing destination, still measured in logical units; it is not a separate SDK coordinate system or render buffer. Scenery uses a camera aligned through direction-aware rounding, while direct actors use the precise camera and align their final screen-space bounds to the native raster.
 
-**Pixel snapping / drawing alignment**: Rounding drawing positions onto the native raster grid while preserving precise gameplay positions. With HD on at render scale 5.5, one snapping step is 1/5.5 logical units, or one display pixel; with HD off it is one logical unit.
+**Pixel snapping / drawing alignment**: Rounding artwork placement onto the native raster grid while preserving precise gameplay positions. With HD off, final actor bounds align in one-logical-unit steps after camera translation; snapping is a presentation operation, distinct from converting coordinate spaces.
 
 **Sampling**: Choosing or combining source-image colours when drawing a sprite or scaling an image. Nearest-neighbour sampling chooses a source pixel; DragonRuby's pixel-art sampler uses a different filtering policy intended for scaled pixel artwork.
 

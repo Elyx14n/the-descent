@@ -21,6 +21,10 @@ module Descent
       end
 
       prepare_draw_groups
+      @floor_sprites = @ground + @floor_details.map { |entry| entry[:sprite] }
+      @scenery_groups = @objects.reject { |entry| entry[:mounted_on] }.map do |entry|
+        { depth: entry[:depth], sprites: scenery_sprites(entry) }
+      end
       prepare_fade_units
       @interactables = @objects.select { |entry| INTERACTABLE_TYPES.include?(entry[:type]) }
       @doors.each { |door| apply_door_state(door) }
@@ -32,14 +36,16 @@ module Descent
     end
 
     # World-space render data, independent of a camera or DragonRuby outputs.
-    # Fresh collections let a consumer append actors without changing the room.
+    # Fresh outer collections let consumers append without changing membership.
+    # Groups and their sprite lists are room-owned; sprite contents stay live.
     def render_data
-      { floor: @ground + @floor_details.map { |entry| entry[:sprite] },
-        groups: @objects.reject { |entry| entry[:mounted_on] }.map do |entry|
-          { depth: entry[:depth],
-            sprites: scenery_sprites(entry) }
-        end,
-        ceiling: @ceiling.dup, fade_units: fade_units.dup }
+      { floor: @floor_sprites.dup,
+        groups: @scenery_groups.dup,
+        ceiling: @ceiling.dup,
+        fade_units: fade_units.dup,
+        light_sources: light_sources,
+        light_blockers: light_blockers,
+        light_receivers: light_receivers }
     end
 
     # The preview or map supplies time; Room owns no animation clock.
@@ -52,6 +58,8 @@ module Descent
                   elapsed_ms = (tick * 1000) % (light[:animation_duration] * 60)
                   frames.find { |candidate| elapsed_ms < candidate[:end_ms] * 60 }
                 end
+        next if light[:lit_sprite].equal?(frame[:sprite])
+
         light[:lit_sprite] = frame[:sprite]
         apply_light_state(light)
       end
@@ -80,6 +88,7 @@ module Descent
 
       door[:open] = open
       apply_door_state(door)
+      refresh_fade_colliders
       door
     end
 
@@ -94,6 +103,70 @@ module Descent
     end
 
     private
+
+    def light_sources
+      @lights.select { |light| light[:enabled] }.map do |light|
+        ground_y = lighting_bases(light).map { |base| base[:y] }.min
+        # Mounted flames project just in front of the wall, rather than onto
+        # its blocking edge. The ledge and underlying wall may have different IDs.
+        ground_y -= 1 if light[:mounted_on]
+        light.slice(:id, :x, :y, :radius, :intensity, :color).merge(
+          y: ground_y,
+          ignore_owner_ids: [light[:mounted_on] || light[:id]]
+        )
+      end
+    end
+
+    def light_blockers
+      @objects.flat_map do |entry|
+        active_colliders(entry).map do |rect|
+          x = rect[:x]
+          y = rect[:y]
+          right = x + rect[:w]
+          top = y + rect[:h]
+          { owner_ids: [entry[:mounted_on] || entry[:id]], sprite: entry[:sprite], bounds: rect.dup,
+            edges: [{ x: x, y: y, x2: right, y2: y }, { x: right, y: y, x2: right, y2: top },
+                    { x: right, y: top, x2: x, y2: top }, { x: x, y: top, x2: x, y2: y }] }
+        end
+      end
+    end
+
+    def light_receivers
+      @objects.map do |entry|
+        receiver = { sprite: entry[:sprite], bases: lighting_bases(entry).map(&:dup) }
+        receiver[:front_y] = entry[:sprite][:y] if south_facing_face?(entry)
+        receiver
+      end
+    end
+
+    # Current face tiles have a full-width thin collider along their lower edge.
+    # Side/top-down wall strips keep omnidirectional base sampling. Closed door
+    # geometry identifies the face even while its open variant has no collider.
+    def south_facing_face?(entry)
+      return false unless %i[wall door].include?(entry[:type])
+
+      sprite = entry[:sprite]
+      colliders = entry[:type] == :door ? entry[:closed_colliders] : entry[:colliders]
+      colliders.any? do |rect|
+        rect[:x] == sprite[:x] && rect[:y] == sprite[:y] && rect[:w] == sprite[:w] && rect[:h] < sprite[:h]
+      end
+    end
+
+    def active_colliders(entry)
+      return entry[:colliders] unless entry[:type] == :door
+
+      entry.fetch(entry[:open] ? :open_colliders : :closed_colliders)
+    end
+
+    def lighting_bases(entry)
+      base = entry[:mounted_on] ? @objects_by_id.fetch(entry[:mounted_on]) : entry
+      rects = active_colliders(base)
+      return rects unless rects.empty?
+
+      # Colliderless artwork receives light at its placement baseline, but does
+      # not invent a shadow caster. Mounted artwork shares its host's baseline.
+      [base[:sprite].slice(:x, :y, :w).merge(h: 0)]
+    end
 
     def nearest_interactable(point)
       nearest = nil
@@ -115,13 +188,18 @@ module Descent
     end
 
     def apply_light_state(light)
-      light[:sprite].replace(light.fetch(light[:enabled] ? :lit_sprite : :unlit_sprite))
+      variant = light.fetch(light[:enabled] ? :lit_sprite : :unlit_sprite)
+      return if light[:active_variant].equal?(variant)
+
+      light[:sprite].replace(variant)
+      light[:active_variant] = variant
     end
 
     def scenery_sprites(entry)
       [entry[:sprite]] + entry.fetch(:mounted_objects, []).map { |mounted| mounted[:sprite] }
     end
 
+    # Fade units share opacity and use their wall/door owners' active colliders.
     # Associate caps locally, without joining a connected wall into one large
     # fade. Same-cell walls handle corners where face and ceiling art overlap.
     def prepare_fade_units
@@ -138,6 +216,17 @@ module Descent
       end
       bases.reject { |entry| associated[entry[:id]] }.each do |entry|
         @fade_units << fade_unit(entry[:sprite], sprites: scenery_sprites(entry))
+      end
+      refresh_fade_colliders
+    end
+
+    def refresh_fade_colliders
+      @fade_units.each do |unit|
+        owners = @objects.select do |entry|
+          FADE_BASE_TYPES.include?(entry[:type]) &&
+            unit[:sprites].any? { |sprite| sprite.equal?(entry[:sprite]) }
+        end
+        unit[:colliders] = owners.flat_map { |entry| active_colliders(entry) }
       end
     end
 
@@ -159,11 +248,11 @@ module Descent
       @objects.each do |entry|
         entry[:depth] = entry[:colliders].map { |shape| shape[:y] }.min || entry[:sprite][:y]
       end
-      by_id = @objects.to_h { |entry| [entry[:id], entry] }
+      @objects_by_id = @objects.to_h { |entry| [entry[:id], entry] }
       @objects.each do |entry|
         next unless entry[:mounted_on]
 
-        wall = by_id.fetch(entry[:mounted_on])
+        wall = @objects_by_id.fetch(entry[:mounted_on])
         entry[:depth] = wall[:depth]
         wall[:mounted_objects] ||= []
         wall[:mounted_objects] << entry
@@ -174,7 +263,7 @@ module Descent
       {
         type: base.fetch(:type),
         base: base,
-        footprint: base.slice(:x, :y, :w, :h),
+        colliders: [],
         sprites: sprites
       }
     end

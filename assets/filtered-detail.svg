@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 210" role="img">
+<style>text { font: 15px system-ui,sans-serif; fill: #222b2b; } .grid { stroke: #b6c0b1; } .edge { stroke: #59635e; stroke-width: 2; } .guide { stroke: #885221; stroke-width: 2; } .arrow { stroke: #12665c; stroke-width: 2; marker-end: url(#tip); }</style>
+<defs><marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#12665c"/></marker></defs>
+<rect width="800" height="210" fill="#eef0e9"/>
+<title>Stable center, softer detail</title><desc>A narrow dark feature becomes a wider lighter feature while its marked center stays fixed.</desc>
+<text x="26" y="67">Before filtering</text><text x="26" y="142">After filtering</text>
+<rect x="190" y="45" width="480" height="30" fill="#eee4cb"/><rect x="350" y="45" width="80" height="30" fill="#222b2b"/>
+<rect x="190" y="120" width="480" height="30" fill="#eee4cb"/><rect x="270" y="120" width="80" height="30" fill="#a3aca4"/><rect x="350" y="120" width="80" height="30" fill="#545b58"/><rect x="430" y="120" width="80" height="30" fill="#a3aca4"/>
+<line class="guide" x1="390" x2="390" y1="25" y2="170" stroke-dasharray="5 4"/>
+<text x="390" y="195" text-anchor="middle">the center stays here</text>
+</svg>

@@ -1,5 +1,7 @@
 # Actor-relative foreground fading
 
+Historical geometry note (2026-10-19): [ADR-0015](../adr/0015-use-colliders-for-foreground-fading.md) removes all alpha-derived fade geometry, SpriteGeometry, generated occluder assets, and their tasks/dependencies. Fading uses active wall/door colliders plus full artwork rectangles; lighting uses active object colliders under ADR-0014. Pipeline instructions, silhouette-specific behavior, and measurements below describe earlier implementations. Current setup is in [README](../../README.md), and current behavior is in [CONTEXT](../../CONTEXT.md).
+
 Researched and implemented on 2026-10-14 for the Ritual Gate's southern walls, ceiling caps, and door. The simplified rules and math are recorded in [ADR-0006](../adr/0006-simplified-foreground-fading.md), with scenery-padding rejection in [ADR-0007](../adr/0007-alpha-derived-scenery-bounds.md); the frame interface remains in the [render-data decision](../adr/0005-render-data-and-room-preview.md#render-data-interface). Status lives in [CONTEXT.md](../../CONTEXT.md).
 
 ## Primary-source evidence

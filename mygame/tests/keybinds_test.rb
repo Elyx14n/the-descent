@@ -34,6 +34,6 @@ class KeybindsTests
 
   def test_keybinds_help_matches_the_registered_controls(_args, assert)
     assert.equal! Descent::Keybinds.help_text,
-                  'WASD: move  Shift: sneak  F: lamp  E: interact  B: boxes  R: load'
+                  'WASD: move  Shift: sneak  F: lamp  E: interact  B: debug  R: load'
   end
 end

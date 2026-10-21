@@ -8,7 +8,7 @@ The Descent is a small, 2D top-down horror game built with DragonRuby. The playe
 Before setting up the repository, ensure you have the following installed:
 
 * **DragonRuby Game Toolkit SDK:** Download the Linux or macOS build matching the team's release.
-* **Ruby:** Needed for launching the game and development tasks; use your preferred version manager.
+* **Ruby 3.4.7:** Needed for launching the game and development tasks; use your preferred version manager.
 * **Bundler (`gem install bundler`):** Required to manage development gems.
 * **VS Code + Ruby LSP Extension (Optional):** Recommended editor setup for code completion and indexing against the DragonRuby SDK.
 
@@ -38,7 +38,7 @@ source ~/.bashrc
 
 If you use Zsh on Linux, use `~/.zshrc` instead of `~/.bashrc`.
 
-From the repository root, install the development gems and launch:
+From the repository root, install the locked gem versions and launch:
 
 ```sh
 bundle install
@@ -53,6 +53,7 @@ bin/rake run tiled/ritual_gate.json
 
 The SDK's `dragonruby` binary must have executable permission. If necessary, run `chmod +x "$DRAGONRUBY_HOME/dragonruby"` after extracting your SDK.
 
+Foreground fading and ground-light blocking use authored Tiled colliders. Atlas changes need no generated occluder data or extra asset task; press R to rebuild the room after code/art changes. B shows physics bounds, emitter markers, and the player's red visibility polygon. See [ADR-0015](docs/adr/0015-use-colliders-for-foreground-fading.md).
 
 ## Development checks
 
@@ -86,18 +87,6 @@ After the first launch, run **Ruby LSP: Restart** from the command palette to in
 
 Completion covers the Ruby definitions shipped in the SDK; Ruby LSP may still be unable to infer dynamic fields such as `args.state.some_custom_field`.
 
-## Author and preview rooms in Tiled
-
-Edit the source map under `mygame/tiled/` and export finite orthogonal JSON with embedded tilesets. Use game-relative image paths, bottom-left tile-object alignment, rectangle collision shapes, and these layers: Ground and Ceiling as tile layers; FloorDetails, Walls, and Props as object layers. Include exactly one point object of class Spawn. The preview polls changed exports every 30 ticks in development; R forces a rebuild. Successful reloads restore authored defaults, while invalid exports retain the last valid room and show the error.
-
-Place Door, Light, and Pedestal tile objects on Props. Door tiles specify matching local `close_tile` and `open_tile` IDs on both variants; their active artwork and collision switch together. A Door ceiling tile directly above the base switches with it. The Ritual Gate uses `locked: true` until puzzle logic releases it.
-
-Place lights using their animated lit tile. Set `unlit_id` to the static unlit tile's local ID in the same tileset. `enabled` defaults to true; false starts with the unlit artwork. Object properties override tile defaults. Animation frame IDs and positive millisecond durations come from Tiled; the current flames use four frames at 150 ms each (nine game ticks). The preview supplies the game tick, so toggling a light on joins the current animation frame. Keep the base collider on the placed lit tile: light collision stays fixed across animation and enabled changes.
-
-Light `offset_x` and `offset_y` locate the emitter in source pixels from the tile's top-left, accounting for object scaling and flips. Radius, intensity, and color are retained for future illumination. Use `mounted_on` object references for wall-mounted Props; they draw and fade with their supporting wall. Pedestal offsets locate the future item anchor.
-
-E toggles the nearest door or light within 24 world pixels, measuring doors from their closed colliders and lights from their placed sprite rectangles. Equal-distance targets follow authored object order. Locked doors and transitions overlapping the player's feet consume the press. B shows collision, fade geometry, and emitter markers. Illumination and pedestal interaction remain unimplemented.
-
 ## Repository guide
 
 Project-owned files:
@@ -105,7 +94,6 @@ Project-owned files:
 ```text
 mygame/
   app/                  Game Ruby code; main.rb is the entry point
-  data/                 Authored game data
   tiled/                Tiled project, source maps, and JSON exports
   fonts/                Game-specific fonts
   metadata/             DragonRuby game and platform configuration
