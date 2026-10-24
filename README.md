@@ -51,6 +51,18 @@ Preview a specific exported map with a game-relative path:
 bin/rake run tiled/ritual_gate.json
 ```
 
+Run an SDK sample by passing its directory through the `.dragonruby-lsp` link:
+
+```sh
+bin/rake run .dragonruby-lsp/samples/01_rendering_basics/01_labels
+```
+
+Directory paths are relative to the repository root, or absolute, and must contain `app/main.rb`. The launcher creates or refreshes `.dragonruby-lsp` from `DRAGONRUBY_HOME` before resolving the selected directory. Pass additional DragonRuby arguments after `--`, for example:
+
+```sh
+bin/rake run .dragonruby-lsp/samples/01_rendering_basics/01_labels -- --no-tick
+```
+
 The SDK's `dragonruby` binary must have executable permission. If necessary, run `chmod +x "$DRAGONRUBY_HOME/dragonruby"` after extracting your SDK.
 
 Foreground fading and ground-light blocking use authored Tiled colliders. Atlas changes need no generated occluder data or extra asset task; press R to rebuild the room after code/art changes. B shows physics bounds, emitter markers, and the player's red visibility polygon. See [ADR-0015](docs/adr/0015-use-colliders-for-foreground-fading.md).

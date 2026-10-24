@@ -21,14 +21,16 @@ paths = {}
   next unless index
 
   candidate = requested_tasks[index + 1]
-  paths[command] = requested_tasks.delete_at(index + 1) if candidate&.end_with?(extension)
+  next unless candidate
+
+  path_argument = candidate.end_with?(extension)
+  path_argument ||= command == 'run' && (candidate.include?('/') || File.directory?(candidate))
+  paths[command] = requested_tasks.delete_at(index + 1) if path_argument
 end
 
-desc 'Run the game (optional map path and additional DragonRuby arguments)'
+desc 'Run the game, a map, or a sample directory (engine arguments after --)'
 task :run do
-  map = paths['run']
-  options = map ? ['--map', map] : []
-  DragonRubyTasks.run(*(options + engine_arguments))
+  DragonRubyTasks.run(paths['run'], *engine_arguments)
 end
 
 desc 'Run native tests (default: tests/all_test.rb; HEADLESS=1 on Linux)'

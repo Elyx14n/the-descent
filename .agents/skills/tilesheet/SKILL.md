@@ -42,7 +42,7 @@ source_w = cell_w
 source_h = cell_h
 ```
 
-Source dimensions select artwork; destination dimensions scale its presentation. Preserve the accepted metadata sampling instead of assigning nearest-neighbor overrides. See [rendering terminology](../../../GLOSSARY.md#rendering) and [display decisions](../../../docs/adr/0002-reference-resolution-and-ui-fonts.md).
+Source dimensions select artwork; destination dimensions scale its presentation. Preserve the accepted metadata sampling instead of assigning nearest-neighbor overrides. See [rendering terminology](../../../GLOSSARY.md#rendering) and the current [display and sampling decision](../../../docs/adr/0013-keep-hd-disabled.md).
 
 `Descent::Sprite` still accepts a fixed `source_rect:` with `x/y/w/h` measured from the image's bottom-left. For example, the retained props cell `closed-stone-coffin` at row 6, column 14 is:
 
