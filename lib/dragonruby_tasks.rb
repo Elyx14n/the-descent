@@ -9,10 +9,18 @@ module DragonRubyTasks
   RESULTS = /DESCENT_TEST_RESULTS expected=(\d+) passed=(\d+) failed=(\d+) inconclusive=(\d+) focused=(\d+)/
 
   class << self
-    def run(*)
+    def run(path = nil, *arguments)
       sdk, executable = installation
       setup_editor_link(sdk)
-      success = system(executable, GAME, *, chdir: sdk)
+      game = GAME
+      if path&.end_with?('.json')
+        arguments.unshift('--map', path)
+      elsif path
+        game = File.expand_path(path, ROOT)
+      end
+      abort "Game entry point not found: #{game}/app/main.rb" unless File.file?(File.join(game, 'app/main.rb'))
+
+      success = system(executable, game, *arguments, chdir: sdk)
       abort 'DragonRuby exited unsuccessfully.' unless success
     end
 
@@ -58,8 +66,6 @@ module DragonRubyTasks
         abort 'Set DRAGONRUBY_HOME to your extracted Linux or macOS DragonRuby SDK directory.'
       end
       abort "DragonRuby SDK directory not found: #{sdk_home}" unless File.directory?(sdk_home)
-      abort "Game entry point not found: #{GAME}/app/main.rb" unless File.file?(File.join(GAME, 'app/main.rb'))
-
       sdk = File.realpath(sdk_home)
       executable = File.join(sdk, 'dragonruby')
       abort "DragonRuby executable not found: #{executable}" unless File.file?(executable)
